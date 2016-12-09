@@ -8,6 +8,14 @@ import json
 
 from steemapi.steemnoderpc import SteemNodeRPC
 
+def parse_blocknums(ctx, param, value):
+    if not value:
+        return None
+    try:
+        return json.load(value)
+    except:
+        return None
+
 @click.command()
 @click.option('--server',
                 metavar='WEBSOCKET_URL',
@@ -17,7 +25,7 @@ from steemapi.steemnoderpc import SteemNodeRPC
 @click.argument('blocks',
               type=click.File('r'),
               required=False,
-              callback=lambda ctx, param, value: json.load(value))
+              callback=parse_blocknums)
 @click.option('--start',
                 help='Starting block number',
                 default=0,
@@ -64,3 +72,4 @@ def stream_blocks(rpc, start, end):
         if block == end:
             return
         yield block
+
