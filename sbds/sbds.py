@@ -72,4 +72,3 @@ def stream_blocks(rpc, start, end):
         if block == end:
             return
         yield block
-
