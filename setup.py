@@ -7,7 +7,12 @@ setup(
     install_requires=[
         'Click',
         'steem-piston==0.4.1',
-        'websocket-client==0.37.0'
+        'websocket-client==0.37.0',
+        'boto3'
     ],
-    entry_points={'console_scripts': ['sbds=sbds.sbds:cli', 'notify=sbds.notify:notify']}
+    entry_points={'console_scripts': [
+            'sbds=sbds.sbds:cli',
+            'notify=sbds.notify:notify',
+            's3=sbds.s3:s3'
+    ]}
 )

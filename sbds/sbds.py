@@ -47,16 +47,12 @@ def cli(server, blocks, start, end, pretty):
 
     '''
     rpc = SteemNodeRPC(server)
-    if pretty:
-        format_func = lambda blk: pformat(blk)
-    else:
-        format_func = lambda blk: blk
     if blocks:
         for block in get_blocks(rpc, blocks):
-            click.echo(format_func(block))
+            click.echo(json.dumps(block, indent=pretty))
     else:
         for block in stream_blocks(rpc, start, end):
-            click.echo(format_func(block))
+            click.echo(json.dumps(block, indent=None))
 
 
 def get_blocks(rpc, blocknums):
