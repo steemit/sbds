@@ -8,6 +8,9 @@ import json
 
 from steemapi.steemnoderpc import SteemNodeRPC
 
+import sbds.logging
+logger = sbds.logging.getLogger(__name__)
+
 def parse_blocknums(ctx, param, value):
     if not value:
         return None
@@ -21,7 +24,7 @@ def parse_blocknums(ctx, param, value):
                 metavar='WEBSOCKET_URL',
                 envvar='WEBSOCKET_URL',
                 help='Specify API server',
-                default='wss://steemit.com/wspa')
+              default='wss://steemit.com/wspa')
 @click.argument('blocks',
               type=click.File('r'),
               required=False,

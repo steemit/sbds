@@ -8,7 +8,9 @@ setup(
         'Click',
         'steem-piston==0.4.1',
         'websocket-client==0.37.0',
-        'boto3'
+        'boto3',
+        'python-json-logger',
+        'requests'
     ],
     entry_points={'console_scripts': [
             'sbds=sbds.sbds:cli',
