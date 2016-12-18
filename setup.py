@@ -14,8 +14,9 @@ setup(
         'mysql-connector'
     ],
     entry_points={'console_scripts': [
-            'sbds=sbds.sbds:cli',
-            'notify=sbds.notify:notify',
-            's3=sbds.storages.s3.s3:s3'
+        'sbds=sbds.sbds:cli',
+        'notify=sbds.notify:notify',
+        's3=sbds.storages.s3.s3:s3',
+        'db=sbds.storages.mysql.mysql:db'
     ]}
 )
