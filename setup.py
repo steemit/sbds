@@ -10,11 +10,12 @@ setup(
         'websocket-client==0.37.0',
         'boto3',
         'python-json-logger',
-        'requests'
+        'requests==2.10.0',
+        'mysql-connector'
     ],
     entry_points={'console_scripts': [
             'sbds=sbds.sbds:cli',
             'notify=sbds.notify:notify',
-            's3=sbds.s3:s3'
+            's3=sbds.storages.s3.s3:s3'
     ]}
 )

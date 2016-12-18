@@ -1,15 +1,12 @@
 import sys
 import json
-import logging
-log = logging.getLogger(__name__)
+import concurrent.futures
+import requests
 
-try:
-    import requests
-except ImportError:
-    raise ImportError("Missing dependency: python-requests")
+import sbds.logging
+logger = sbds.logging.getLogger(__name__)
 
 """ Error Classes """
-
 
 class UnauthorizedError(Exception):
     pass
@@ -23,7 +20,6 @@ class RPCConnection(Exception):
     pass
 
 """ API class """
-
 
 class SimpleSteemAPI(object):
     """ Simple Steem JSON-HTTP-RPC API
@@ -59,13 +55,19 @@ class SimpleSteemAPI(object):
         and hence the calls available to the witness-rpc can be seen as read-only for
         the blockchain.
     """
-    def __init__(self, url='http://this.piston.rocks', **kwargs):
-        self.url = url
+    def __init__(self, urls=None, **kwargs):
+        self.fallback_urls = ['http://this.piston.rocks','http://34.192.222.110:80']
+        self.urls =  self.fallback_urls
+        if isinstance(urls, (list, tuple)):
+            self.urls += urls
+        elif isinstance(urls, str):
+            self.urls.append(urls)
+
         self.headers  = {'content-type': 'application/json'}
         self.username = kwargs.get('username','')
         self.password = kwargs.get('password','')
 
-    def rpcexec(self, payload):
+    def rpcexec(self, url, payload, *args):
         """ Manual execute a command on API (internally used)
 
             param str payload: The payload containing the request
@@ -82,10 +84,12 @@ class SimpleSteemAPI(object):
                 info -> grapheneapi.info()
         """
         try:
-            response = requests.post(self.url,
+            logger.info('rpcrequest to {}'.format(url), extra=dict(appinfo=dict(payload=payload, args=args)))
+            response = requests.post(url,
                                      data=json.dumps(payload, ensure_ascii=False).encode('utf8'),
                                      headers=self.headers,
                                      auth=(self.username, self.password))
+            logger.info(dict(appinfo=response))
             if response.status_code == 401:
                 raise UnauthorizedError
             ret = json.loads(response.text)
@@ -107,6 +111,7 @@ class SimpleSteemAPI(object):
         else:
             return ret["result"]
 
+
     def __getattr__(self, name):
         """ Map all methods to RPC calls and pass through the arguments
         """
@@ -115,8 +120,11 @@ class SimpleSteemAPI(object):
                      "params": args,
                      "jsonrpc": "2.0",
                      "id": 0}
-            r = self.rpcexec(query)
-            return r
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = [executor.submit(self.rpcexec,u,query) for u in self.urls]
+                r = concurrent.futures.wait(futures,
+                    return_when=concurrent.futures.FIRST_COMPLETED)
+                return r.done.pop().result()
         return method
 
     def head_block_height(self):

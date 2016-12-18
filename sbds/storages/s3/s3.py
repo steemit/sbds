@@ -103,12 +103,13 @@ def put_json_blocks(blocks, bucket):
             logdata['last']['key'] = res_key
         except Exception as e:
             logdata['blocks']['fail']['count'] += 1
-            logdata['blocks']['fail']['last']['blocknum'] = res_blocknum
             logdata['blocks']['fail']['last']['time'] = now_str
             logdata['last']['blocknum'] = None
             logdata['last']['result'] = 'fail'
-            logger.error('Error {} with block {}'.format(e, block))
-        logger.info('appinfo',extra=dict(appinfo=logdata))
+            logger.error('Error {} with block {}'.format(e, block))    
+        
+        if logdata['blocks']['attempt']['count'] % 10 == 0:
+            logger.info('appinfo',extra=dict(appinfo=logdata))
 
 
 
