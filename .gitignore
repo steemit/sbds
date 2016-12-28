@@ -90,3 +90,6 @@ ENV/
 
 # Vim
 Session.vim
+
+# Pycharm
+.idea

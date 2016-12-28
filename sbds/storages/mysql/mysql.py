@@ -18,7 +18,7 @@ ADD_BLOCK_SQL = 'INSERT INTO Blocks (raw) VALUES (%(raw)s)'
 
 
 @click.group(name='db')
-@click.argument('database_url', type=str, envvar='DATABASE_URL')
+@click.option('database_url', type=str, envvar='DATABASE_URL')
 @click.pass_context
 def db(ctx, database_url):
     db_url = URL.make_url(database_url)
