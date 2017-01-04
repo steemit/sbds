@@ -12,7 +12,8 @@ setup(
         'python-json-logger',
         'requests==2.10.0',
         'mysql-connector',
-        'mysqlclient'
+        'mysqlclient',
+        'sqlalchemy'
     ],
     entry_points={'console_scripts': [
         'sbds=sbds.sbds:cli',

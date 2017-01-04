@@ -29,7 +29,7 @@ Block = namedtuple('Block',['previous',
                             'transactions'])
 
 
-class AbstractBlockContainer(object):
+class AbstractBlocksContainer(object):
     def __init__(self):
         return NotImplementedError
 
@@ -95,7 +95,7 @@ Transaction = namedtuple('Transaction', ['expiration',
                                          'ref_block_num',
                                          'ref_block_prefix'])
 
-class AbstractTransactionContainer(object):
+class AbstractTransactionsContainer(object):
     def __init__(self):
         raise NotImplementedError
 
