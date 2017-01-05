@@ -11,7 +11,6 @@ setup(
         'boto3',
         'python-json-logger',
         'requests==2.10.0',
-        'mysql-connector',
         'mysqlclient',
         'sqlalchemy'
     ],

@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
+import json
 
 import click
-
-from pprint import pformat
-import sys
-import json
 
 from steemapi.steemnoderpc import SteemNodeRPC
 
@@ -30,15 +27,15 @@ def parse_blocknums(ctx, param, value):
               required=False,
               callback=parse_blocknums)
 @click.option('--start',
-                help='Starting block number',
+                help='Starting block number, default is 0',
                 default=0,
                 type=int)
 @click.option('--end',
-                help='Ending block number',
+                help='Ending block number, default is continuous',
                 type=int)
 @click.option('--pretty/--no-pretty',
-                help='Pretty print',
-                default=True)
+                help='Pretty print, default is no pretty print',
+                default=None)
 def cli(server, blocks, start, end, pretty):
     '''Stream Steem blocks to stdout. You may specify blocks to fetch in several ways:
 
@@ -55,7 +52,7 @@ def cli(server, blocks, start, end, pretty):
             click.echo(json.dumps(block, indent=pretty))
     else:
         for block in stream_blocks(rpc, start, end):
-            click.echo(json.dumps(block, indent=None))
+            click.echo(json.dumps(block, indent=pretty))
 
 
 def get_blocks(rpc, blocknums):
@@ -68,6 +65,4 @@ def get_blocks(rpc, blocknums):
 
 def stream_blocks(rpc, start, end):
     for block in rpc.block_stream(start=start):
-        if block == end:
-            return
         yield block

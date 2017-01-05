@@ -1,12 +1,15 @@
-import sys
-import json
+# coding=utf-8
 import concurrent.futures
+import json
+
 import requests
 
 import sbds.logging
+
 logger = sbds.logging.getLogger(__name__)
 
 """ Error Classes """
+
 
 class UnauthorizedError(Exception):
     pass
@@ -19,15 +22,17 @@ class RPCError(Exception):
 class RPCConnection(Exception):
     pass
 
+
 """ API class """
 
-class SimpleSteemAPI(object):
+
+class SimpleSteemAPIClient(object):
     """ Simple Steem JSON-HTTP-RPC API
 
         This class serves as an abstraction layer for easy use of the
         Steem API.
 
-        :param str url: urlof the API server
+        :param str url: url of the API server
 
         All RPC commands of the Simple Steem client are exposed as methods
         in the class ``grapheneapi``. Once an instance of Simple SteemAPI is
@@ -35,8 +40,8 @@ class SimpleSteemAPI(object):
 
         .. code-block:: python
 
-            from sbds.client import SimpleSteemAPI
-            rpc = SimpleSteemAPI("http://domain.com:port")
+            from sbds.client import SimpleSteemAPIClient
+            rpc = SimpleSteemAPIClient("http://domain.com:port")
 
         any call available to that port can be issued using the instance
         via the syntax rpc.*command*(*parameters*). Example:
@@ -55,27 +60,28 @@ class SimpleSteemAPI(object):
         and hence the calls available to the witness-rpc can be seen as read-only for
         the blockchain.
     """
+
     def __init__(self, urls=None, **kwargs):
-        self.fallback_urls = ['http://this.piston.rocks','http://34.192.222.110:80']
-        self.urls =  self.fallback_urls
+        self.fallback_urls = ['http://this.piston.rocks', 'http://34.192.222.110:80']
+        self.urls = self.fallback_urls
         if isinstance(urls, (list, tuple)):
             self.urls += urls
         elif isinstance(urls, str):
             self.urls.append(urls)
 
-        self.headers  = {'content-type': 'application/json'}
-        self.username = kwargs.get('username','')
-        self.password = kwargs.get('password','')
+        self.headers = {'content-type': 'application/json'}
+        self.username = kwargs.get('username', '')
+        self.password = kwargs.get('password', '')
 
-    def rpcexec(self, url, payload, *args):
+    def rpc_exec(self, url, payload, *args):
         """ Manual execute a command on API (internally used)
 
             param str payload: The payload containing the request
             return: Servers answer to the query
             rtype: json
-            raises RPCConnection: if no connction can be made
+            raises RPCConnection: if no connection can be made
             raises UnauthorizedError: if the user is not authorized
-            raise ValueError: if the API returns a non-JSON formated answer
+            raise ValueError: if the API returns a non-JSON formatted answer
 
             It is not recommended to use this method directly, unless
             you know what you are doing. All calls available to the API
@@ -106,25 +112,28 @@ class SimpleSteemAPI(object):
             raise ValueError("Client returned invalid format. Expected JSON!")
         except RPCError as err:
             raise err
-#        if isinstance(ret["result"], list) and len(ret["result"]) == 1:
-#            return ret["result"][0]
+        # if isinstance(ret["result"], list) and len(ret["result"]) == 1:
+        #            return ret["result"][0]
         else:
             return ret["result"]
-
 
     def __getattr__(self, name):
         """ Map all methods to RPC calls and pass through the arguments
         """
+
         def method(*args):
-            query = {"method": name,
-                     "params": args,
-                     "jsonrpc": "2.0",
-                     "id": 0}
+            query = {
+                "method": name,
+                "params": args,
+                "jsonrpc": "2.0",
+                "id": 0
+            }
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = [executor.submit(self.rpcexec,u,query) for u in self.urls]
+                futures = [executor.submit(self.rpc_exec, u, query) for u in self.urls]
                 r = concurrent.futures.wait(futures,
-                    return_when=concurrent.futures.FIRST_COMPLETED)
+                                            return_when=concurrent.futures.FIRST_COMPLETED)
                 return r.done.pop().result()
+
         return method
 
     def head_block_height(self):
@@ -132,4 +141,3 @@ class SimpleSteemAPI(object):
 
     def last_irreversible_block_num(self):
         return self.get_dynamic_global_properties()['last_irreversible_block_num']
-
