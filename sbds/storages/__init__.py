@@ -29,42 +29,47 @@ Block = namedtuple('Block',['previous',
                             'transactions'])
 
 
-class AbstractBlocksContainer(object):
+class AbstractStorageContainer(object):
     def __init__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __iter__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __reversed__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __contains__(self, item):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __getitem__(self, item):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __setitem__(self, key, value):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __delitem__(self, key):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __len__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __hash__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
     def __eq__(self):
-        return NotImplementedError
+        raise NotImplementedError
 
-    def __and__(self, other):
-        return NotImplementedError
+    def __str__(self):
+        raise NotImplementedError
 
-    def __or__(self, other):
-        return NotImplementedError
+    def add(self, item):
+        raise NotImplementedError
+
+    def add_many(self, items):
+        raise NotImplementedError
+
+
 
 '''
 transaction
@@ -95,24 +100,3 @@ Transaction = namedtuple('Transaction', ['expiration',
                                          'ref_block_num',
                                          'ref_block_prefix'])
 
-class AbstractTransactionsContainer(object):
-    def __init__(self):
-        raise NotImplementedError
-
-    def __iter__(self):
-        raise NotImplementedError
-
-    def __contains__(self, item):
-        raise NotImplementedError
-
-    def __getitem__(self, item):
-        raise NotImplementedError
-
-    def __setitem__(self, key, value):
-        raise NotImplementedError
-
-    def __delitem__(self, key):
-        raise NotImplementedError
-
-    def __len__(self):
-        raise NotImplementedError

@@ -6,63 +6,125 @@ import click
 from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
+from sbds.utils import block_num_from_previous
+
 logger = sbds.logging.getLogger(__name__)
 
-def parse_blocknums(ctx, param, value):
+def parse_block_nums(ctx, param, value):
     if not value:
         return None
     try:
-        return json.load(value)
+        block_nums =json.load(value)
     except:
-        return None
+        raise click.BadParameter('Must be valid JSON array')
+    if not isinstance(block_nums, list):
+        raise click.BadParameter('Must be valid JSON array')
+    else:
+        return block_nums
+
+
+def parse_out(ctx, param, value):
+    val = value.lower().strip()
+    if not any(val.startswith(c) for c in ('stdout', 'tcp','ipc','pgm','epgm')):
+        raise click.BadParameter('Must be "STDOUT" or valid zeromq PUB socket URL')
+    else:
+        return val
 
 @click.command()
 @click.option('--server',
                 metavar='WEBSOCKET_URL',
                 envvar='WEBSOCKET_URL',
-                help='Specify API server',
+                help='Steemd server URL',
               default='wss://steemit.com/wspa')
-@click.argument('blocks',
+@click.option('--block_nums',
               type=click.File('r'),
               required=False,
-              callback=parse_blocknums)
+              callback=parse_block_nums)
 @click.option('--start',
-                help='Starting block number, default is 0',
-                default=0,
-                type=int)
+                help='Starting block_num, default is 1',
+                default=1,
+                metavar="INTEGER BLOCK_NUM",
+                type=click.IntRange(min=1))
 @click.option('--end',
-                help='Ending block number, default is continuous',
-                type=int)
-@click.option('--pretty/--no-pretty',
-                help='Pretty print, default is no pretty print',
-                default=None)
-def cli(server, blocks, start, end, pretty):
-    '''Stream Steem blocks to stdout. You may specify blocks to fetch in several ways:
+                help='Ending block_num, default is infinity',
+              metavar="INTEGER BLOCK_NUM",
+                type=click.IntRange(min=0),
+                default=0)
+@click.option('--out',
+                envvar='BLOCKS_OUT',
+              help='Block output, "STDOUT" (default) or zeromq PUB socket URL',
+              default='STDOUT',
+              callback=parse_out)
+def cli(server, block_nums, start, end, out):
+    '''Output blocks from steemd in JSON format.
 
-    Stream blocks with beginning with current block by omitting --start, --end, and BLOCKS
+    \b
+    Which Steemd:
+    \b
+    1. CLI "--server" option if provided
+    2. ENV var "WEBSOCKET_URL" if provided
+    3. Default: "wss://steemit.com/wspa"
 
-    Fetch a range of blocks using --start and/or --end
+    \b
+    Which Blocks To Output:
+    \b
+    - Stream blocks beginning with current block by omitting --start, --end, and BLOCKS
+    - Fetch a range of blocks using --start and/or --end
+    - Fetch list of blocks by passing BLOCKS a JSON array of block numbers (either filename or "-" for STDIN)
 
-    Fetch list of blocks by passing BLOCKS a JSON array of block numbers (either filename or "-" for STDIN)
+    Where To Output Blocks:
 
+    \b
+    1. CLI "--out" option if provided
+    2. ENV var "BLOCKS_OUT" if provided
+    3. Default: STDOUT
     '''
+    # Setup steemd source
     rpc = SteemNodeRPC(server)
-    if blocks:
-        for block in get_blocks(rpc, blocks):
-            click.echo(json.dumps(block, indent=pretty))
+    total_blocks_requested = None
+    if block_nums:
+        output_blocks = get_blocks(rpc, block_nums)
+        total_blocks_requested = len(block_nums)
+
+    elif end > 0:
+        output_blocks = get_blocks(rpc, range(start, end))
+        total_blocks_requested = end - start
     else:
-        for block in stream_blocks(rpc, start, end):
-            click.echo(json.dumps(block, indent=pretty))
+        output_blocks = stream_blocks(rpc, start)
+
+    progress_file = click.get_text_stream('stdout')
+    if out == 'stdout':
+        output_func = click.echo
+        #progress_file = click.get_text_stream('error')
+    else:
+        # setup zeromq socket stuff here
+        click.echo('TODO zeromq')
+        output_func = click.echo
+
+    with click.progressbar(output_blocks, length=total_blocks_requested, file=click.get_text_stream('stdout'),
+                           bar_template='%(label)s %(bar)s %(info)s', show_pos=True, empty_char='▒', fill_char='█', ) as blocks:
+        for block in blocks:
+            pass
+            # click.echo(message=block, file=click.get_text_stream('stderr'))
 
 
-def get_blocks(rpc, blocknums):
+def get_blocks(rpc, block_nums):
     # Blocks from start until head block
-    for blocknum in blocknums:
+    blocks_requested = len(block_nums)
+    for i, block_num in enumerate(block_nums,1):
         # Get full block
-        block = rpc.get_block(blocknum)
-        block.update({"block_num": blocknum})
+        blocks_remaining = blocks_requested - i
+        block = rpc.get_block(block_num)
+        block.update({"block_num": block_num})
+        # logger.info(dict(blocks_retreived=i, blocks_requested=blocks_requested,
+        #                blocks_remaining=blocks_remaining, block_num=block_num))
         yield block
 
-def stream_blocks(rpc, start, end):
-    for block in rpc.block_stream(start=start):
+
+def stream_blocks(rpc, start):
+    for i, block in enumerate(rpc.block_stream(start=start),1):
+        block_num = block_num_from_previous(block['previous'])
         yield block
+        # logger.info(dict(blocks_streamed=i, block_num=block_num))
+
+

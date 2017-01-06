@@ -3,6 +3,9 @@ import json
 
 import click
 from sqlalchemy import create_engine
+from sqlalchemy.schema import MetaData
+from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
 
 import sbds.logging
 from sbds.storages.mysql import Blocks
@@ -62,9 +65,15 @@ def insert_blocks(ctx, blocks):
     "Insert or update blocks in the database"
     engine = ctx.obj['engine']
     block_storage = Blocks(engine=engine)
+    missing = find_missing_tables(engine, meta.tables)
+    if missing:
+        meta.create_all(bind=engine, checkfirst=True)
     for block in blocks:
         data = json.loads(block)
-        block_storage[data['block_num']] = block
+        try:
+            block_storage[data['block_num']] = block
+        except IntegrityError as e:
+            logger.info(e)
 
 
 @db.command(name='init')
@@ -84,3 +93,20 @@ def reset_db(ctx):
     engine = ctx.obj['engine']
     meta.drop_all(bind=engine, checkfirst=True)
     meta.create_all(bind=engine)
+
+
+def add_all(database_url, blocks):
+    
+
+
+def find_missing_tables(engine, correct_tables):
+    meta = MetaData()
+    meta.reflect(bind=engine)
+    missing = []
+    for table in correct_tables.values():
+        try:
+            table.exists(bind=engine)
+        except Exception as e:
+            logger.info('%s table missing from %s', table, engine)
+            missing.append(table)
+    return missing

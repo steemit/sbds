@@ -5,6 +5,8 @@ from collections import namedtuple
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
 
+from sbds.storages import AbstractStorageContainer
+
 from sbds.storages.mysql.tables import blocks_table
 from sbds.storages.mysql.tables import transactions_table
 from sbds.utils import block_num_from_previous
@@ -40,7 +42,7 @@ tx_types = {
 }
 
 
-class BaseSQLClass(object):
+class BaseSQLClass(AbstractStorageContainer):
     def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None):
         self.engine = engine
         self.table = table
@@ -65,8 +67,8 @@ class BaseSQLClass(object):
         with self.engine.connect() as conn:
             return conn.scalar(stmt)
 
-    def _prepare_for_storage(self, item):
-        return item
+    def _prepare_for_storage(self, key, value):
+        return key, value
 
     @property
     def _engine_config_dict(self):
@@ -113,16 +115,26 @@ class BaseSQLClass(object):
             return self._execute_iter(stmt)
 
     def __setitem__(self, key, value):
-        data = self._prepare_for_storage(key, value)
+        key, value = self._prepare_for_storage(key, value)
         with self.engine.connect() as conn:
-            return conn.execute(self.table.insert(), **data)
+            return conn.execute(self.table.insert(), **value)
 
     def __delitem__(self, key):
         raise NotImplementedError
 
     def __len__(self):
-        stmt = 'SELECT n_rows FROM mysql.innodb_table_stats WHERE TABLE_NAME ="{}"'.format(self.table_name)
+        stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
         return self._scalar(stmt)
+
+    def __str__(self):
+        return json.dumps(self)
+
+    def add(self, item):
+        raise NotImplementedError
+
+    def add_many(self, items):
+        raise NotImplementedError
+
 
 
 class Blocks(BaseSQLClass):
@@ -135,10 +147,19 @@ class Blocks(BaseSQLClass):
         return self.table.c['block_num']
 
     def _prepare_for_storage(self, block_num, block):
-        block_dict = json.loads(block)
-        block_num = block_num_from_previous(block_dict['previous'])
-        block_dict.update(raw=block, block_num=block_num)
-        return block_dict
+        raw = None
+        if not isinstance(block, dict):
+            block_dict = json.loads(block)
+            raw = block
+        else:
+            block_dict = block
+        if not block_dict.get('raw'):
+            raw = raw or json.dumps(block)
+            block_dict.update(raw=raw)
+        if not block_dict.get('block_num'):
+            block_num = block_num or block_num_from_previous(block_dict['previous'])
+        block_dict.update(block_num=block_num)
+        return block_dict['block_num'], block_dict
 
     @property
     def block_nums(self):
@@ -154,6 +175,11 @@ class Blocks(BaseSQLClass):
         stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
         return self._scalar(stmt)
 
+    def add(self, block):
+        self.__setitem__(None, block)
+
+    def add_many(self, blocks):
+        pass
 
 class Transactions(BaseSQLClass):
     def __init__(self, *args, **kwargs):

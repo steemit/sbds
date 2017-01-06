@@ -11,7 +11,7 @@ from sqlalchemy.types import VARCHAR
 
 meta = MetaData()
 
-blocks_table = Table('Blocks', meta,
+blocks_table = Table('sbds_blocks', meta,
                      Column('raw', JSON(), nullable=False),
                      Column('block_num',
                             mysql.INTEGER(display_width=10, unsigned=True),
@@ -71,10 +71,10 @@ transaction_types_enum = mysql.ENUM(
         'reset_account_operation',
         'set_reset_account_operation')
 
-transactions_table = Table('Transactions', meta,
+transactions_table = Table('sbds_transactions', meta,
                            Column('block_num',
                                   mysql.INTEGER(display_width=10, unsigned=True),
-                                  ForeignKey('Blocks.block_num',
+                                  ForeignKey('sbds_blocks.block_num',
                                              use_alter=True,
                                              onupdate="CASCADE",
                                              ondelete="CASCADE"),
