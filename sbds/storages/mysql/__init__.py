@@ -4,10 +4,14 @@ from collections import namedtuple
 
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
+from sqlalchemy.exc import IntegrityError
+
 
 from sbds.storages.mysql.tables import blocks_table
 from sbds.storages.mysql.tables import transactions_table
 from sbds.utils import block_num_from_previous
+
+from sbds.client import SimpleSteemAPIClient
 
 tx_types = {
     'account_create': 'TxAccountCreates',
@@ -39,6 +43,19 @@ tx_types = {
     'witness_update': 'TxWintessUpdates'
 }
 
+def chunkify(iterable, chunksize=10000):
+    """Yield successive n-sized chunks from l."""
+    i = 0
+    chunk = []
+    for item in iterable:
+        chunk.append(item)
+        i +=1
+        if i == chunksize:
+            yield chunk
+            i = 0
+            chunk = []
+    if len(chunk) > 0:
+        yield chunk
 
 class BaseSQLClass(object):
     def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None):
@@ -48,14 +65,15 @@ class BaseSQLClass(object):
         self.meta = self.table.metadata
         self.execution_options = execution_options or dict(stream_results=True)
         self.chunksize = 10000
+        self.client = SimpleSteemAPIClient()
 
     @property
     def pk(self):
         raise NotImplementedError
 
-    def _execute(self, stmt):
+    def _execute(self, stmt, *args, **kwargs):
         with self.engine.connect() as conn:
-            return conn.execute(stmt)
+            return conn.execute(stmt, *args, **kwargs)
 
     def _first(self, stmt):
         with self.engine.connect() as conn:
@@ -72,15 +90,17 @@ class BaseSQLClass(object):
     def _engine_config_dict(self):
         return self.engine.url.__dict__
 
-    def _execute_iter(self, stmt):
+    def _execute_iter(self, stmt, chunksize=None):
+        chunksize=chunksize or self.chunksize
         with self.engine.connect() as conn:
             result = conn.execute(stmt, execution_options=self.execution_options)
             while True:
-                chunk = result.fetchmany(self.chunksize)
+                chunk = result.fetchmany(chunksize)
                 if not chunk:
                     break
                 for block in chunk:
                     yield block
+
 
     def __iter__(self):
         stmt = self.table.select()
@@ -115,7 +135,11 @@ class BaseSQLClass(object):
     def __setitem__(self, key, value):
         data = self._prepare_for_storage(key, value)
         with self.engine.connect() as conn:
-            return conn.execute(self.table.insert(), **data)
+            try:
+                return conn.execute(self.table.insert(), **data)
+            # handle existing value
+            except IntegrityError:
+                return conn.execute(self.table.update(), **data)
 
     def __delitem__(self, key):
         raise NotImplementedError
@@ -123,6 +147,7 @@ class BaseSQLClass(object):
     def __len__(self):
         stmt = 'SELECT n_rows FROM mysql.innodb_table_stats WHERE TABLE_NAME ="{}"'.format(self.table_name)
         return self._scalar(stmt)
+
 
 
 class Blocks(BaseSQLClass):
@@ -143,12 +168,17 @@ class Blocks(BaseSQLClass):
     @property
     def block_nums(self):
         stmt = select([self.table.c.block_num])
-        result = self._execute(stmt)
-        nums = result.fetchall()
-        return (n[0] for n in nums)
+        result = self._execute_iter(stmt)
+        return (row[0] for row in result)
 
     def missing(self):
-        return frozenset(range(1, len(self))) - frozenset(self.block_nums)
+        block_nums = frozenset(self.block_nums)
+        return frozenset(range(1, max(block_nums))) - block_nums
+
+    def add_missing(self, missing=None):
+        missing = missing or self.missing
+        for block_num in missing:
+            pass
 
     def __len__(self):
         stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
@@ -163,3 +193,35 @@ class Transactions(BaseSQLClass):
     @property
     def pk(self):
         return self.table.c['block_num']
+
+    def _extract_from_block(self, block):
+        if isinstance(block, (str,bytes)):
+            block = json.loads(block)
+        for transaction_num, t in enumerate(block['transactions']):
+            yield dict(block_num=block['block_num'],
+                       transaction_num=transaction_num,
+                       ref_block_num=t['ref_block_num'],
+                       ref_block_prefix=t['ref_block_prefix'],
+                       expiration=t['expiration'],
+                       type=t['operations'][0][0],
+                       operations=t['operations'])
+
+    def add_many(self, items, chunksize=10000):
+        for chunk in chunkify(items, chunksize=chunksize):
+            values = [item for item in chunk]
+            stmt = (self.table.insert(), values)
+            self._execute(self.table.insert(), values)
+
+
+def extract_transaction_from_block(block):
+        if isinstance(block, (str,bytes)):
+            block = json.loads(block)
+        for transaction_num, t in enumerate(block['transactions']):
+            yield dict(block_num=block['block_num'],
+                       transaction_num=transaction_num,
+                       ref_block_num=t['ref_block_num'],
+                       ref_block_prefix=t['ref_block_prefix'],
+                       expiration=t['expiration'],
+                       type=t['operations'][0][0],
+                       operations=t['operations'])
+

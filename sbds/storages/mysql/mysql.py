@@ -54,17 +54,35 @@ def query(ctx, sql):
     engine = ctx.obj['engine']
     click.echo(engine.execute(sql).fetchall())
 
-# help='File like object to read blocks from, accepts "-" for STDIN (default)'
+
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    "Insert or update blocks in the database"
+    'Insert or update blocks in the database, accepts "-" for STDIN (default)'
     engine = ctx.obj['engine']
     block_storage = Blocks(engine=engine)
     for block in blocks:
         data = json.loads(block)
-        block_storage[data['block_num']] = block
+        try:
+            block_storage[data['block_num']] = block
+        except Exception as e:
+            logger.error(e)
+
+
+@db.command(name='insert-transactions')
+@click.argument('blocks', type=click.File('r'), default='-')
+@click.pass_context
+def insert_transactions(ctx, transactions):
+    'Insert or update transactions in the database, accepts "-" for STDIN (default)'
+    engine = ctx.obj['engine']
+    transaction_storage = Transactions(engine=engine)
+    for block in transactions:
+        data = json.loads(block)
+        try:
+            transaction_storage[data['block_num']] = block
+        except Exception as e:
+            logger.error(e)
 
 
 @db.command(name='init')
