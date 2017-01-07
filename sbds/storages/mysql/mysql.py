@@ -62,7 +62,7 @@ def query(ctx, sql):
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    "Insert or update blocks in the database"
+    'Insert or update blocks in the database, accepts "-" for STDIN (default)'
     engine = ctx.obj['engine']
     block_storage = Blocks(engine=engine)
     missing = find_missing_tables(engine, meta.tables)
@@ -74,6 +74,21 @@ def insert_blocks(ctx, blocks):
             block_storage[data['block_num']] = block
         except IntegrityError as e:
             logger.info(e)
+
+
+@db.command(name='insert-transactions')
+@click.argument('blocks', type=click.File('r'), default='-')
+@click.pass_context
+def insert_transactions(ctx, transactions):
+    'Insert or update transactions in the database, accepts "-" for STDIN (default)'
+    engine = ctx.obj['engine']
+    transaction_storage = Transactions(engine=engine)
+    for block in transactions:
+        data = json.loads(block)
+        try:
+            transaction_storage[data['block_num']] = block
+        except Exception as e:
+            logger.error(e)
 
 
 @db.command(name='init')
@@ -96,7 +111,7 @@ def reset_db(ctx):
 
 
 def add_all(database_url, blocks):
-    
+
 
 
 def find_missing_tables(engine, correct_tables):

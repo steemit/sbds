@@ -3,6 +3,7 @@
 from sqlalchemy import MetaData
 from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import Column
+from sqlalchemy.schema import Index
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.schema import Table
 from sqlalchemy.types import DATETIME
@@ -72,19 +73,22 @@ transaction_types_enum = mysql.ENUM(
         'set_reset_account_operation')
 
 transactions_table = Table('sbds_transactions', meta,
+                           Column('txid',
+                                  mysql.INTEGER(display_width=10, unsigned=True),
+                                  primary_key=True,
+                                  autoincrement=True
+                                  ),
                            Column('block_num',
                                   mysql.INTEGER(display_width=10, unsigned=True),
                                   ForeignKey('sbds_blocks.block_num',
                                              use_alter=True,
                                              onupdate="CASCADE",
                                              ondelete="CASCADE"),
-                                  primary_key=True,
-                                  autoincrement=False,
                                   nullable=False),
                            Column('transaction_num',
                                   mysql.TINYINT(display_width=3, unsigned=True),
-                                  primary_key=True,
                                   nullable=False),
+                           Index('tx_index','block_num','transaction_num', unique=True),
                            Column('ref_block_num',
                                   mysql.INTEGER(display_width=10, unsigned=True),
                                   nullable=False),
@@ -98,6 +102,12 @@ transactions_table = Table('sbds_transactions', meta,
                                   transaction_types_enum,
                                   nullable=False,
                                   index=True),
+                           Column('operations',
+                                   JSON()),
+                           Column('extentions',
+                                  JSON()),
+                           Column('signatures',
+                                  JSON()),
                            mysql_engine='InnoDB',
                            mysql_charset='utf8',
                            mysql_collate='utf8_general_ci'
