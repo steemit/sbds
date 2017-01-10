@@ -48,7 +48,7 @@ def parse_block_nums(ctx, param, value):
               metavar="INTEGER BLOCK_NUM",
                 type=click.IntRange(min=0),
                 default=None)
-def cli(server, block_nums, start, end, out):
+def cli(server, block_nums, start, end):
     '''Output blocks from steemd in JSON format.
 
     \b
@@ -68,7 +68,6 @@ def cli(server, block_nums, start, end, out):
     Where To Output Blocks:
 
     \b
-    1. CLI "--out" option if provided
     2. ENV var "BLOCKS_OUT" if provided
     3. Default: STDOUT
     '''
