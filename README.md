@@ -19,7 +19,7 @@ wss://steemit.com/wspa | notify`
 
 ### Docker
 #### Build
-`docker build --name sbds-image .`
+`docker build --name steemit/sbds .`
 
 #### Block Streaming To DB
 
@@ -29,7 +29,7 @@ docker run --rm \
     --env 'DATABASE_URL=sqlite:///local.db' \
     --env 'WEBSOCKET_URL=wss://steemit.com/wspa' \
     --name sbds-blocks \
-    sbds-image sbds-populate.sh
+    steemit/sbds sbds-populate.sh
 
 ```
 
@@ -41,6 +41,6 @@ docker run --rm \
     --env 'WEBSOCKET_URL=wss://steemit.com/wspa' \
     --publish 127.0.0.1:8080:8080 \
     --name sbds-web \
-    sbds-image dev-server 
+    steemit/sbds dev-server 
 ```
 
