@@ -62,9 +62,8 @@ def insert_blocks(ctx, blocks):
     _init_db(engine, meta)
 
     block_storage = Blocks(engine=engine)
-    for chunk in chunkify(blocks, chunksize=100):
-        pass
-        block_storage.add_many(chunk)
+    for block in blocks:
+        block_storage.add(block)
 
 
 @db.command(name='insert-transactions')
@@ -78,9 +77,8 @@ def insert_transactions(ctx, blocks):
     transaction_storage = Transactions(engine=engine)
     for block in blocks:
         transactions = map(extract_transaction_from_block, block)
-        for chunk in chunkify(transactions):
-            transaction_storage.add_many(transactions)
-            pass
+        for transaction in transactions:
+            transaction_storage.add(transaction)
 
 
 @db.command(name='init')
