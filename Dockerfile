@@ -19,4 +19,6 @@ WORKDIR /usr/src/app
 RUN pip install . \
 	&& apk del .build-deps
 
-ENTRYPOINT ["sbds"]
+EXPOSE 8080/tcp
+
+CMD ["sbds"]

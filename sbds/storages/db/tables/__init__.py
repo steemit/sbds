@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 
 from sqlalchemy import MetaData
-from sqlalchemy.dialects import mysql
+
 from sqlalchemy.schema import Column
 from sqlalchemy.schema import Index
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.schema import Table
 from sqlalchemy.types import DATETIME
-from sqlalchemy.types import JSON
 from sqlalchemy.types import VARCHAR
+from sqlalchemy.types import TEXT
+from sqlalchemy.types import INTEGER
+from sqlalchemy.types import SMALLINT
+from sqlalchemy.types import BIGINT
+from sqlalchemy.types import Enum
 
 meta = MetaData()
 
 blocks_table = Table('sbds_blocks', meta,
-                     Column('raw', JSON(), nullable=False),
+                     Column('raw', TEXT, nullable=False),
                      Column('block_num',
-                            mysql.INTEGER(display_width=10, unsigned=True),
+                            INTEGER(),
                             primary_key=True,
                             nullable=False,
                             autoincrement=False),
@@ -24,14 +28,14 @@ blocks_table = Table('sbds_blocks', meta,
                      Column('witness', VARCHAR(length=50)),
                      Column('witness_signature', VARCHAR(length=150)),
                      Column('transaction_merkle_root', VARCHAR(length=50)),
-                     Column('extensions', JSON()),
-                     Column('transactions', JSON()),
+                     Column('extensions', TEXT),
+                     Column('transactions', TEXT),
                      mysql_engine='InnoDB',
                      mysql_charset='utf8',
                      mysql_collate='utf8_general_ci'
                      )
 
-transaction_types_enum = mysql.ENUM(
+transaction_types_enum = Enum(
         'vote',
         'comment',
         'transfer',
@@ -74,26 +78,26 @@ transaction_types_enum = mysql.ENUM(
 
 transactions_table = Table('sbds_transactions', meta,
                            Column('txid',
-                                  mysql.INTEGER(display_width=10, unsigned=True),
+                                  INTEGER(),
                                   primary_key=True,
                                   autoincrement=True
                                   ),
                            Column('block_num',
-                                  mysql.INTEGER(display_width=10, unsigned=True),
+                                  INTEGER(),
                                   ForeignKey('sbds_blocks.block_num',
                                              use_alter=True,
                                              onupdate="CASCADE",
                                              ondelete="CASCADE"),
                                   nullable=False),
                            Column('transaction_num',
-                                  mysql.TINYINT(display_width=3, unsigned=True),
+                                  SMALLINT(),
                                   nullable=False),
                            Index('tx_index','block_num','transaction_num', unique=True),
                            Column('ref_block_num',
-                                  mysql.INTEGER(display_width=10, unsigned=True),
+                                  INTEGER(),
                                   nullable=False),
                            Column('ref_block_prefix',
-                                  mysql.BIGINT(display_width=20, unsigned=True),
+                                  BIGINT(),
                                   nullable=False),
                            Column('expiration',
                                   DATETIME(),
@@ -103,11 +107,11 @@ transactions_table = Table('sbds_transactions', meta,
                                   nullable=False,
                                   index=True),
                            Column('operations',
-                                   JSON()),
+                                   TEXT()),
                            Column('extentions',
-                                  JSON()),
+                                  TEXT()),
                            Column('signatures',
-                                  JSON()),
+                                  TEXT()),
                            mysql_engine='InnoDB',
                            mysql_charset='utf8',
                            mysql_collate='utf8_general_ci'

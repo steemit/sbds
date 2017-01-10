@@ -96,3 +96,6 @@ Session.vim
 
 # junk
 blocks.json
+
+# sqlite db for testing
+local.db

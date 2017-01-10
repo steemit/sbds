@@ -8,16 +8,20 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 import sbds.logging
-from sbds.storages.mysql import Blocks
-from sbds.storages.mysql.tables import meta
-
+from sbds.storages.db import Blocks
+from sbds.storages.db import Transactions
+from sbds.storages.db.tables import meta
+from sbds.http_client import SimpleSteemAPIClient
+from sbds.storages.db import extract_transaction_from_block
+from sbds.utils import chunkify
 logger = sbds.logging.getLogger(__name__)
 
 
 @click.group()
 @click.option('--database_url', type=str, envvar='DATABASE_URL',
+              default='sqlite:///local.db',
               help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default')
-@click.option('--echo/--no-echo', is_flag=True, default=True,
+@click.option('--echo/--no-echo', is_flag=True, default=False,
               help="Enable(default)/disable the echoing of SQL commands issued to database")
 @click.pass_context
 def db(ctx, database_url, echo):
@@ -49,46 +53,34 @@ def test(ctx):
     click.echo('Success! Connected to database and found %s tables' % (len(result)))
 
 
-@db.command()
-@click.argument('sql', type=str)
-@click.pass_context
-def query(ctx, sql):
-    "Execute SQL on the database"
-    engine = ctx.obj['engine']
-    click.echo(engine.execute(sql).fetchall())
-
-# help='File like object to read blocks from, accepts "-" for STDIN (default)'
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
     'Insert or update blocks in the database, accepts "-" for STDIN (default)'
     engine = ctx.obj['engine']
+    _init_db(engine, meta)
+
     block_storage = Blocks(engine=engine)
-    missing = find_missing_tables(engine, meta.tables)
-    if missing:
-        meta.create_all(bind=engine, checkfirst=True)
-    for block in blocks:
-        data = json.loads(block)
-        try:
-            block_storage[data['block_num']] = block
-        except IntegrityError as e:
-            logger.info(e)
+    for chunk in chunkify(blocks, chunksize=100):
+        pass
+        block_storage.add_many(chunk)
 
 
 @db.command(name='insert-transactions')
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
-def insert_transactions(ctx, transactions):
+def insert_transactions(ctx, blocks):
     'Insert or update transactions in the database, accepts "-" for STDIN (default)'
     engine = ctx.obj['engine']
+    _init_db(engine, meta)
+
     transaction_storage = Transactions(engine=engine)
-    for block in transactions:
-        data = json.loads(block)
-        try:
-            transaction_storage[data['block_num']] = block
-        except Exception as e:
-            logger.error(e)
+    for block in blocks:
+        transactions = map(extract_transaction_from_block, block)
+        for chunk in chunkify(transactions):
+            transaction_storage.add_many(transactions)
+            pass
 
 
 @db.command(name='init')
@@ -109,19 +101,9 @@ def reset_db(ctx):
     meta.drop_all(bind=engine, checkfirst=True)
     meta.create_all(bind=engine)
 
-
-def add_all(database_url, blocks):
-
-
-
-def find_missing_tables(engine, correct_tables):
-    meta = MetaData()
-    meta.reflect(bind=engine)
-    missing = []
-    for table in correct_tables.values():
-        try:
-            table.exists(bind=engine)
-        except Exception as e:
-            logger.info('%s table missing from %s', table, engine)
-            missing.append(table)
-    return missing
+def _init_db(engine, meta, echo=click.echo):
+    #echo('Adding any missing tables')
+    try:
+        meta.create_all(bind=engine, checkfirst=True)
+    except:
+        pass

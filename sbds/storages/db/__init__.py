@@ -1,19 +1,15 @@
 # -*- coding: utf-8 -*-
-import json
-from collections import namedtuple
+import ujson as json
+import dateutil.parser
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
-from sqlalchemy.exc import IntegrityError
-
 
 from sbds.storages import AbstractStorageContainer
-
-from sbds.storages.mysql.tables import blocks_table
-from sbds.storages.mysql.tables import transactions_table
-from sbds.utils import block_num_from_previous
-
-from sbds.client import SimpleSteemAPIClient
+from sbds.storages.db.tables import blocks_table
+from sbds.storages.db.tables import transactions_table
+from sbds.utils import block_num_from_previous, chunkify
 
 tx_types = {
     'account_create': 'TxAccountCreates',
@@ -45,19 +41,6 @@ tx_types = {
     'witness_update': 'TxWintessUpdates'
 }
 
-def chunkify(iterable, chunksize=10000):
-    """Yield successive n-sized chunks from l."""
-    i = 0
-    chunk = []
-    for item in iterable:
-        chunk.append(item)
-        i +=1
-        if i == chunksize:
-            yield chunk
-            i = 0
-            chunk = []
-    if len(chunk) > 0:
-        yield chunk
 
 class BaseSQLClass(AbstractStorageContainer):
     def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None):
@@ -66,15 +49,15 @@ class BaseSQLClass(AbstractStorageContainer):
         self.table_name = self.table.name
         self.meta = self.table.metadata
         self.execution_options = execution_options or dict(stream_results=True)
-        self.chunksize = 10000
+        self.chunksize = chunksize
 
     @property
     def pk(self):
         raise NotImplementedError
 
-    def _execute(self, stmt):
+    def _execute(self, stmt, *args, **kwargs):
         with self.engine.connect() as conn:
-            return conn.execute(stmt)
+            return conn.execute(stmt, *args, **kwargs)
 
     def _first(self, stmt):
         with self.engine.connect() as conn:
@@ -177,11 +160,14 @@ class Blocks(BaseSQLClass):
         else:
             block_dict = block
         if not block_dict.get('raw'):
-            raw = raw or json.dumps(block)
+            raw = raw or json.dumps(block_dict)
             block_dict.update(raw=raw)
         if not block_dict.get('block_num'):
-            block_num = block_num or block_num_from_previous(block_dict['previous'])
+           block_num = block_num or block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
+        block_dict.update(timestamp=dateutil.parser.parse(block_dict['timestamp']))
+        block_dict.update(extensions=str(block_dict['extensions']))
+        block_dict.update(transactions=str(block_dict['transactions']))
         return block_dict['block_num'], block_dict
 
     @property
@@ -207,7 +193,12 @@ class Blocks(BaseSQLClass):
         self.__setitem__(None, block)
 
     def add_many(self, blocks):
-        pass
+        values = [self._prepare_for_storage(None,b)[1] for b in blocks]
+        with self.engine.connect() as conn:
+            try:
+                return conn.execute(self.table.insert(), values)
+            except Exception as e:
+                raise ValueError(values[0], e)
 
 class Transactions(BaseSQLClass):
     def __init__(self, *args, **kwargs):
@@ -232,16 +223,17 @@ class Transactions(BaseSQLClass):
 
     def add_many(self, items, chunksize=10000):
         for chunk in chunkify(items, chunksize=chunksize):
-            values = [item for item in chunk]
+            values = [item[0] for item in chunk]
             stmt = (self.table.insert(), values)
             self._execute(self.table.insert(), values)
 
 
-def extract_transaction_from_block(block):
+def extract_transaction_from_block(block, block_num=None):
         if isinstance(block, (str,bytes)):
             block = json.loads(block)
+        block_num = block_num or block_num_from_previous(block['previous'])
         for transaction_num, t in enumerate(block['transactions']):
-            yield dict(block_num=block['block_num'],
+            yield dict(block_num=block_num,
                        transaction_num=transaction_num,
                        ref_block_num=t['ref_block_num'],
                        ref_block_prefix=t['ref_block_prefix'],

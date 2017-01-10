@@ -6,18 +6,25 @@ setup(
     packages=find_packages(),
     install_requires=[
         'Click',
+        'pytest',
         'steem-piston==0.4.1',
         'websocket-client==0.37.0',
         'boto3',
         'python-json-logger',
         'requests==2.10.0',
         'mysqlclient',
-        'sqlalchemy'
+        'sqlalchemy',
+        'ujson',
+        'bottle',
+        'urllib3'
     ],
+    scripts=['sbds/scripts/populate-sbds.sh'],
     entry_points={'console_scripts': [
-        'sbds=sbds.sbds:cli',
+        'sbds=sbds.cli:cli',
+        'block-height=sbds.cli:block_height',
         'notify=sbds.notify:notify',
-        's3=sbds.storages.s3.s3:s3',
-        'db=sbds.storages.mysql.mysql:db'
+        's3=sbds.storages.s3.cli:s3',
+        'db=sbds.storages.db.cli:db',
+        'dev-server=sbds.http_server:dev_server'
     ]}
 )

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import json
+import ujson as json
+import concurrent.futures
 
 import click
 
@@ -7,6 +8,10 @@ from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
 from sbds.utils import block_num_from_previous
+from sbds.utils import chunkify
+from sbds.http_client import SimpleSteemAPIClient
+from sbds.ws_client import SimpleSteemWSAPI
+from sbds.ws_client import GrapheneWebsocketRPC
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -23,19 +28,12 @@ def parse_block_nums(ctx, param, value):
         return block_nums
 
 
-def parse_out(ctx, param, value):
-    val = value.lower().strip()
-    if not any(val.startswith(c) for c in ('stdout', 'tcp','ipc','pgm','epgm')):
-        raise click.BadParameter('Must be "STDOUT" or valid zeromq PUB socket URL')
-    else:
-        return val
-
 @click.command()
 @click.option('--server',
                 metavar='WEBSOCKET_URL',
                 envvar='WEBSOCKET_URL',
                 help='Steemd server URL',
-              default='wss://steemit.com/wspa')
+              default='ws://steemd-dev5.us-east-1.elasticbeanstalk.com:80')
 @click.option('--block_nums',
               type=click.File('r'),
               required=False,
@@ -49,12 +47,7 @@ def parse_out(ctx, param, value):
                 help='Ending block_num, default is infinity',
               metavar="INTEGER BLOCK_NUM",
                 type=click.IntRange(min=0),
-                default=0)
-@click.option('--out',
-                envvar='BLOCKS_OUT',
-              help='Block output, "STDOUT" (default) or zeromq PUB socket URL',
-              default='STDOUT',
-              callback=parse_out)
+                default=None)
 def cli(server, block_nums, start, end, out):
     '''Output blocks from steemd in JSON format.
 
@@ -81,32 +74,16 @@ def cli(server, block_nums, start, end, out):
     '''
     # Setup steemd source
     rpc = SteemNodeRPC(server)
-    total_blocks_requested = None
-    if block_nums:
-        output_blocks = get_blocks(rpc, block_nums)
-        total_blocks_requested = len(block_nums)
+    for block in rpc.block_stream(start=1):
+        block_num = block_num_from_previous(block['previous'])
+        block.update(block_num=block_num)
+        click.echo(json.dumps(block))
 
-    elif end > 0:
-        output_blocks = get_blocks(rpc, range(start, end))
-        total_blocks_requested = end - start
-    else:
-        output_blocks = stream_blocks(rpc, start)
 
-    progress_file = click.get_text_stream('stdout')
-    if out == 'stdout':
-        output_func = click.echo
-        #progress_file = click.get_text_stream('error')
-    else:
-        # setup zeromq socket stuff here
-        click.echo('TODO zeromq')
-        output_func = click.echo
-
-    with click.progressbar(output_blocks, length=total_blocks_requested, file=click.get_text_stream('stdout'),
-                           bar_template='%(label)s %(bar)s %(info)s', show_pos=True, empty_char='▒', fill_char='█', ) as blocks:
-        for block in blocks:
-            pass
-            # click.echo(message=block, file=click.get_text_stream('stderr'))
-
+@click.command()
+def block_height():
+    rpc = SimpleSteemAPIClient()
+    click.echo(rpc.last_irreversible_block_num())
 
 def get_blocks(rpc, block_nums):
     # Blocks from start until head block
@@ -122,9 +99,15 @@ def get_blocks(rpc, block_nums):
 
 
 def stream_blocks(rpc, start):
-    for i, block in enumerate(rpc.block_stream(start=start),1):
+    for block in rpc.block_stream(start=start):
         block_num = block_num_from_previous(block['previous'])
         yield block
-        # logger.info(dict(blocks_streamed=i, block_num=block_num))
 
 
+def get_blocks_fast(rpc, block_nums):
+    for chunk in chunkify(block_nums, chunksize=100):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            for b in executor.map(rpc.get_block, chunk):
+                 block_num = block_num_from_previous(b['previous'])
+                 b.update(block_num=block_num)
+                 yield b
