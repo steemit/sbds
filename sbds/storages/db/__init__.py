@@ -10,6 +10,8 @@ from sbds.storages import AbstractStorageContainer
 from sbds.storages.db.tables import blocks_table
 from sbds.storages.db.tables import transactions_table
 from sbds.utils import block_num_from_previous, chunkify
+import sbds.logging
+logger = sbds.logging.getLogger(__name__)
 
 tx_types = {
     'account_create': 'TxAccountCreates',
@@ -117,13 +119,16 @@ class BaseSQLClass(AbstractStorageContainer):
 
     def __setitem__(self, key, value):
         key, value = self._prepare_for_storage(key, value)
+        logger.debug(dict(key=key, value=value))
         with self.engine.connect() as conn:
-
             try:
                 return conn.execute(self.table.insert(), **value)
             # handle existing value
             except IntegrityError:
-                return conn.execute(self.table.update(), **value)
+                pass
+            except Exception as e:
+
+                raise ValueError('%s:::key=%s:::value=%s' % (e, key,value))
 
     def __delitem__(self, key):
         raise NotImplementedError
@@ -136,11 +141,23 @@ class BaseSQLClass(AbstractStorageContainer):
         return json.dumps(self)
 
     def add(self, item):
-        raise NotImplementedError
+        self.__setitem__(None, item)
 
     def add_many(self, items):
-        raise NotImplementedError
-
+        for chunk in chunkify(items, 1000):
+            kv_pairs = [self._prepare_for_storage(None,item) for item in chunk]
+            values = [v[1] for v in kv_pairs]
+            with self.engine.connect() as conn:
+                try:
+                    return conn.execute(self.table.insert(), values)
+                except IntegrityError:
+                    logger.debug('Adding single items for this chunk becuase of duplicates')
+                    try:
+                        for key, value in kv_pairs:
+                            conn.execute(self.table.insert(), value)
+                    except IntegrityError:
+                        # ignore single item duplicates
+                        pass
 
 
 class Blocks(BaseSQLClass):
@@ -155,15 +172,14 @@ class Blocks(BaseSQLClass):
     def _prepare_for_storage(self, block_num, block):
         raw = None
         if not isinstance(block, dict):
-            block_dict = json.loads(block)
             raw = block
+            block_dict = json.loads(block)
         else:
             block_dict = block
         if not block_dict.get('raw'):
             raw = raw or json.dumps(block_dict)
             block_dict.update(raw=raw)
-        if not block_dict.get('block_num'):
-           block_num = block_num or block_num_from_previous(block_dict['previous'])
+        block_num =  block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
         block_dict.update(timestamp=dateutil.parser.parse(block_dict['timestamp']))
         block_dict.update(extensions=str(block_dict['extensions']))
@@ -180,25 +196,9 @@ class Blocks(BaseSQLClass):
         block_nums = frozenset(self.block_nums)
         return frozenset(range(1, max(block_nums))) - block_nums
 
-    def add_missing(self, missing=None):
-        missing = missing or self.missing
-        for block_num in missing:
-            pass
-
     def __len__(self):
         stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
         return self._scalar(stmt)
-
-    def add(self, block):
-        self.__setitem__(None, block)
-
-    def add_many(self, blocks):
-        values = [self._prepare_for_storage(None,b)[1] for b in blocks]
-        with self.engine.connect() as conn:
-            try:
-                return conn.execute(self.table.insert(), values)
-            except IntegrityError as e:
-                pass
 
 
 
@@ -211,31 +211,11 @@ class Transactions(BaseSQLClass):
     def pk(self):
         return self.table.c['block_num']
 
-    def _extract_from_block(self, block):
+
+def extract_transaction_from_block(block):
         if isinstance(block, (str,bytes)):
             block = json.loads(block)
-        for transaction_num, t in enumerate(block['transactions']):
-            yield dict(block_num=block['block_num'],
-                       transaction_num=transaction_num,
-                       ref_block_num=t['ref_block_num'],
-                       ref_block_prefix=t['ref_block_prefix'],
-                       expiration=t['expiration'],
-                       type=t['operations'][0][0],
-                       operations=t['operations'])
-
-    def add_many(self, items, chunksize=10000):
-        for chunk in chunkify(items, chunksize=chunksize):
-            values = [item[0] for item in chunk]
-            stmt = (self.table.insert(), values)
-            try:
-                self._execute(self.table.insert(), values)
-            except IntegrityError as e:
-               pass
-
-def extract_transaction_from_block(block, block_num=None):
-        if isinstance(block, (str,bytes)):
-            block = json.loads(block)
-        block_num = block_num or block_num_from_previous(block['previous'])
+        block_num = block.get('block_num', block_num_from_previous(block['previous']))
         for transaction_num, t in enumerate(block['transactions']):
             yield dict(block_num=block_num,
                        transaction_num=transaction_num,

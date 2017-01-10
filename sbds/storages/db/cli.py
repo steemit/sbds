@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from itertools import chain
 
 import click
 from sqlalchemy import create_engine
@@ -62,8 +63,7 @@ def insert_blocks(ctx, blocks):
     _init_db(engine, meta)
 
     block_storage = Blocks(engine=engine)
-    for block in blocks:
-        block_storage.add(block)
+    block_storage.add_many(blocks)
 
 
 @db.command(name='insert-transactions')
@@ -75,10 +75,9 @@ def insert_transactions(ctx, blocks):
     _init_db(engine, meta)
 
     transaction_storage = Transactions(engine=engine)
-    for block in blocks:
-        transactions = map(extract_transaction_from_block, block)
-        for transaction in transactions:
-            transaction_storage.add(transaction)
+    transactions_by_block = chain(map(extract_transaction_from_block, blocks))
+    transactions = chain.from_iterable(transactions_by_block)
+    transaction_storage.add_many(transactions)
 
 
 @db.command(name='init')

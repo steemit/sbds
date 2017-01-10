@@ -75,10 +75,8 @@ def cli(server, block_nums, start, end):
     #rpc = SteemNodeRPC(server)
     rpc = SimpleSteemAPIClient()
     #rpc = SimpleSteemWSAPI(server)
-    
-    for block in get_blocks_fast(rpc, range(1,9000000)):
-        block_num = block_num_from_previous(block['previous'])
-        block.update(block_num=block_num)
+    block_height = rpc.last_irreversible_block_num()
+    for block in get_blocks_fast(rpc, range(1, block_height)):
         click.echo(json.dumps(block))
 
 
@@ -105,10 +103,19 @@ def stream_blocks(rpc, start):
         block_num = block_num_from_previous(block['previous'])
         yield block
 
+@click.command()
+@click.option('--start', type=click.INT)
+@click.option('--end', type=click.INT)
+@click.option('--chunksize', type=click.INT)
+@click.option('--max_workers', type=click.INT)
+def bulk_blocks(start=1, end=9000000, chunksize=100000, max_workers=10):
+    return get_blocks_fast(start, end, chunksize, max_workers, None)
 
-def get_blocks_fast(rpc, block_nums):
-    for chunk in chunkify(block_nums, chunksize=100000):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+
+def get_blocks_fast(start=1, end=9000000, chunksize=100000, max_workers=10, rpc=None):
+    rpc = rpc or SimpleSteemAPIClient()
+    for chunk in chunkify(range(start, end), chunksize=chunksize):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for b in executor.map(rpc.get_block, chunk):
                  block_num = block_num_from_previous(b['previous'])
                  b.update(block_num=block_num)
