@@ -19,7 +19,7 @@ wss://steemit.com/wspa | notify`
 
 ### Docker
 #### Build
-`docker build --name steemit/sbds .`
+`docker build --tag steemit/sbds .`
 
 #### Block Streaming To DB
 
