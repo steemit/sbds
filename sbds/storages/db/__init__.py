@@ -197,8 +197,10 @@ class Blocks(BaseSQLClass):
         with self.engine.connect() as conn:
             try:
                 return conn.execute(self.table.insert(), values)
-            except Exception as e:
-                raise ValueError(values[0], e)
+            except IntegrityError as e:
+                pass
+
+
 
 class Transactions(BaseSQLClass):
     def __init__(self, *args, **kwargs):
@@ -225,8 +227,10 @@ class Transactions(BaseSQLClass):
         for chunk in chunkify(items, chunksize=chunksize):
             values = [item[0] for item in chunk]
             stmt = (self.table.insert(), values)
-            self._execute(self.table.insert(), values)
-
+            try:
+                self._execute(self.table.insert(), values)
+            except IntegrityError as e:
+               pass
 
 def extract_transaction_from_block(block, block_num=None):
         if isinstance(block, (str,bytes)):
