@@ -72,8 +72,11 @@ def cli(server, block_nums, start, end):
     3. Default: STDOUT
     '''
     # Setup steemd source
-    rpc = SteemNodeRPC(server)
-    for block in rpc.block_stream(start=1):
+    #rpc = SteemNodeRPC(server)
+    rpc = SimpleSteemAPIClient()
+    #rpc = SimpleSteemWSAPI(server)
+    
+    for block in get_blocks_fast(rpc, range(1,9000000)):
         block_num = block_num_from_previous(block['previous'])
         block.update(block_num=block_num)
         click.echo(json.dumps(block))
@@ -104,8 +107,8 @@ def stream_blocks(rpc, start):
 
 
 def get_blocks_fast(rpc, block_nums):
-    for chunk in chunkify(block_nums, chunksize=100):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    for chunk in chunkify(block_nums, chunksize=100000):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             for b in executor.map(rpc.get_block, chunk):
                  block_num = block_num_from_previous(b['previous'])
                  b.update(block_num=block_num)

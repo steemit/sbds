@@ -343,7 +343,7 @@ class SimpleSteemWSAPI(GrapheneWebsocketRPC):
     def register_apis(self):
         for api in self.apis:
             api = api.replace("_api", "")
-            self.api_id[api] = self.get_api_by_name("%s_api" % api, api_id=1)
+            self.api_id[api] = self.exec('get_api_by_name',"%s_api" % api, api_id=1)
             if not self.api_id[api] and not isinstance(self.api_id[api], int):
                 raise NoAccessApi("No permission to access %s API. " % api)
 
