@@ -1,0 +1,17 @@
+version: '2'
+services:
+  web:
+    image: sbdsimg
+    ports:
+     - "8080:8080"
+    entrypoint:
+      - dev-server
+  block_loader:
+    build: .
+    image: sbdsimg
+    env_file: .env
+    entrypoint:
+      - /usr/src/app/sbds/scripts/populate-sbds.sh
+  block_streamer:
+    image: sbdsimg
+

@@ -94,8 +94,5 @@ Session.vim
 # Pycharm
 .idea
 
-# junk
-blocks.json
-
 # sqlite db for testing
 local.db

@@ -1,11 +1,11 @@
 # coding=utf-8
+import os
 
-import ujson as json
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
 import urllib3
-
+import ujson as json
 import sbds.logging
 import sbds.utils
 
@@ -42,7 +42,7 @@ class SimpleSteemAPIClient(object):
 
     """
     def __init__(self, url=None, http=None, log_level='INFO', **kwargs):
-        url = url or 'http://steemd-dev5.us-east-1.elasticbeanstalk.com:80'
+        url = url or os.environ.get('STEEMD_HTTP_URL')
         self.url = url
         self.hostname = urlparse(url).hostname
         maxsize = kwargs.get('maxsize', 20)

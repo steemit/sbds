@@ -21,6 +21,7 @@ setup(
     scripts=['sbds/scripts/populate-sbds.sh'],
     entry_points={'console_scripts': [
         'sbds=sbds.cli:cli',
+        'bulk-blocks=sbds.cli:bulk_blocks',
         'block-height=sbds.cli:block_height',
         'notify=sbds.notify:notify',
         's3=sbds.storages.s3.cli:s3',

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 import ujson as json
 import dateutil.parser
 
@@ -45,13 +46,14 @@ tx_types = {
 
 
 class BaseSQLClass(AbstractStorageContainer):
-    def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None):
+    def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None, name='item'):
         self.engine = engine
         self.table = table
         self.table_name = self.table.name
         self.meta = self.table.metadata
         self.execution_options = execution_options or dict(stream_results=True)
         self.chunksize = chunksize
+        self.name = name
 
     @property
     def pk(self):
@@ -119,16 +121,18 @@ class BaseSQLClass(AbstractStorageContainer):
 
     def __setitem__(self, key, value):
         key, value = self._prepare_for_storage(key, value)
-        logger.debug(dict(key=key, value=value))
         with self.engine.connect() as conn:
             try:
                 return conn.execute(self.table.insert(), **value)
             # handle existing value
             except IntegrityError:
-                pass
+                self.handle_integrity_error(e)
+                extra = dict(key=key, value=value)
+                logger.info('__setitem__ IntegrityError', extra=extra)
             except Exception as e:
-
-                raise ValueError('%s:::key=%s:::value=%s' % (e, key,value))
+                extra = dict(key=key, value=value, error=e)
+                logger.error('Unable to __setitem__', extra=extra)
+                raise e
 
     def __delitem__(self, key):
         raise NotImplementedError
@@ -140,29 +144,48 @@ class BaseSQLClass(AbstractStorageContainer):
     def __str__(self):
         return json.dumps(self)
 
-    def add(self, item):
-        self.__setitem__(None, item)
+    def add(self, item, prepared=False):
+        if not prepared:
+            self.__setitem__(None, item)
+            return
+        with self.engine.connect() as conn:
+            try:
+                conn.execute(self.table.insert(), **item)
+            except IntegrityError as e:
+                self.handle_integrity_error(e)
 
-    def add_many(self, items):
-        for chunk in chunkify(items, 1000):
-            kv_pairs = [self._prepare_for_storage(None,item) for item in chunk]
-            values = [v[1] for v in kv_pairs]
-            with self.engine.connect() as conn:
+    def add_many(self, items, chunksize=1000):
+        skipped = []
+        added_count = 0
+        chunk_count = 0
+        with self.engine.connect() as conn:
+            for i,chunk in enumerate(chunkify(items, chunksize), 1):
+                kv_pairs = [self._prepare_for_storage(None,item) for item in chunk]
+                values = [v[1] for v in kv_pairs]
+                extra = dict(chunk_count=i, values_count=len(values),
+                             skipped_item_count=len(skipped), added_item_count=added_count)
+                logger.debug('adding chunk of %ss' % self.name, extra=extra)
                 try:
-                    return conn.execute(self.table.insert(), values)
-                except IntegrityError:
-                    logger.debug('Adding single items for this chunk becuase of duplicates')
-                    try:
-                        for key, value in kv_pairs:
-                            conn.execute(self.table.insert(), value)
-                    except IntegrityError:
-                        # ignore single item duplicates
-                        pass
+                    conn.execute(self.table.insert(), values)
+                except IntegrityError as e:
+                    self.handle_integrity_error(e)
+                    skipped.extend(values)
+                    extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
+                    logger.debug('add_many IntegrityError, adding chunk to skipped %s' % self.name, extra=extra)
+                    continue
+                added_count += chunksize
+        return added_count, skipped
 
+    def handle_integrity_error(self, e):
+        if not is_duplicate_entry_error(e):
+            extra = dict(error=e)
+            logger.error('Non duplicate entry IntegrityError', extra=extra)
+            raise e
 
 class Blocks(BaseSQLClass):
     def __init__(self, *args, **kwargs):
         kwargs['table'] = blocks_table
+        kwargs['name'] = 'block'
         super(Blocks, self).__init__(*args, **kwargs)
 
     @property
@@ -205,6 +228,7 @@ class Blocks(BaseSQLClass):
 class Transactions(BaseSQLClass):
     def __init__(self, *args, **kwargs):
         kwargs['table'] = transactions_table
+        kwargs['name'] = 'transaction'
         super(Transactions, self).__init__(*args, **kwargs)
 
     @property
@@ -214,14 +238,37 @@ class Transactions(BaseSQLClass):
 
 def extract_transaction_from_block(block):
         if isinstance(block, (str,bytes)):
-            block = json.loads(block)
+            try:
+                block = json.loads(block)
+            except ValueError as e:
+                extra = dict(block=block, error=e)
+                logger.error('Unable load json block', extra=extra)
+                raise e
         block_num = block.get('block_num', block_num_from_previous(block['previous']))
         for transaction_num, t in enumerate(block['transactions']):
             yield dict(block_num=block_num,
                        transaction_num=transaction_num,
                        ref_block_num=t['ref_block_num'],
                        ref_block_prefix=t['ref_block_prefix'],
-                       expiration=t['expiration'],
+                       expiration=dateutil.parser.parse(t['expiration']),
                        type=t['operations'][0][0],
-                       operations=t['operations'])
+                       operations=json.dumps(t['operations']))
 
+
+def extract_transaction_from_prepared_block(block):
+    transactions = json.loads(block['transactions'])
+    for transaction_num, t in enumerate(transactions):
+        yield dict(block_num=block['block_num'],
+                   transaction_num=transaction_num,
+                   ref_block_num=t['ref_block_num'],
+                   ref_block_prefix=t['ref_block_prefix'],
+                   expiration=dateutil.parser.parse(t['expiration']),
+                   type=t['operations'][0][0],
+                   operations=json.dumps(t['operations']))
+
+
+def is_duplicate_entry_error(error):
+    try:
+        return "Duplicate entry" in str(error.orig)
+    except:
+        return False

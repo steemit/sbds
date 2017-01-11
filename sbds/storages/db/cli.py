@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
-import json
+import ujson as json
 from itertools import chain
 
 import click
 from sqlalchemy import create_engine
-from sqlalchemy.schema import MetaData
-from sqlalchemy import inspect
-from sqlalchemy.exc import IntegrityError
 
 import sbds.logging
 from sbds.storages.db import Blocks
 from sbds.storages.db import Transactions
 from sbds.storages.db.tables import meta
-from sbds.http_client import SimpleSteemAPIClient
+
 from sbds.storages.db import extract_transaction_from_block
-from sbds.utils import chunkify
+from sbds.storages.db import extract_transaction_from_prepared_block
+
 logger = sbds.logging.getLogger(__name__)
 
 
@@ -58,26 +56,47 @@ def test(ctx):
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    'Insert or update blocks in the database, accepts "-" for STDIN (default)'
+    '''Insert or update blocks in the database, accepts "-" for STDIN (default)'''
     engine = ctx.obj['engine']
     _init_db(engine, meta)
 
     block_storage = Blocks(engine=engine)
-    block_storage.add_many(blocks)
+    added_count, skipped_blocks = block_storage.add_many(blocks)
+    extra = dict(added_count=added_count, skipped_count=len(skipped_blocks))
+    logger.info('Completed adding blocks', extra=extra)
+    if len(skipped_blocks) is 0:
+        return
+
+    # Added skipped blocks and transactions
+    logger.info('Adding skipped blocks and transactions')
+    transaction_storage = Transactions(engine=engine)
+    for block in skipped_blocks:
+        block_storage.add(block, prepared=True)
+        for transaction in extract_transaction_from_prepared_block(block):
+            transaction_storage.add(transaction, prepared=True)
 
 
 @db.command(name='insert-transactions')
 @click.argument('blocks', type=click.File('r'), default='-')
 @click.pass_context
 def insert_transactions(ctx, blocks):
-    'Insert or update transactions in the database, accepts "-" for STDIN (default)'
+    '''Insert or update transactions in the database, accepts "-" for STDIN (default)'''
     engine = ctx.obj['engine']
     _init_db(engine, meta)
 
     transaction_storage = Transactions(engine=engine)
     transactions_by_block = chain(map(extract_transaction_from_block, blocks))
     transactions = chain.from_iterable(transactions_by_block)
-    transaction_storage.add_many(transactions)
+    added_count, skipped_transactions = transaction_storage.add_many(transactions)
+
+    extra = dict(added_count=added_count, skipped_count=len(skipped_transactions))
+    logger.info('Completed adding transactions', extra=extra)
+    if len(skipped_transactions) is 0:
+        return
+    logger.info('Adding skipped transactions')
+    for transaction in skipped_transactions:
+        transaction_storage.add(transaction, prepared=True)
+
 
 
 @db.command(name='init')
@@ -98,8 +117,16 @@ def reset_db(ctx):
     meta.drop_all(bind=engine, checkfirst=True)
     meta.create_all(bind=engine)
 
+@db.command(name='last-block')
+@click.pass_context
+def last_block(ctx):
+    "Create any missing tables on the database"
+    engine = ctx.obj['engine']
+    block_storage = Blocks(engine=engine)
+    return click.echo(len(block_storage))
+
 def _init_db(engine, meta, echo=click.echo):
-    #echo('Adding any missing tables')
+    '''Add missing tables'''
     try:
         meta.create_all(bind=engine, checkfirst=True)
     except:

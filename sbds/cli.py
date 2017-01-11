@@ -72,30 +72,20 @@ def cli(server, block_nums, start, end):
     3. Default: STDOUT
     '''
     # Setup steemd source
-    #rpc = SteemNodeRPC(server)
-    rpc = SimpleSteemAPIClient()
-    #rpc = SimpleSteemWSAPI(server)
-    block_height = rpc.last_irreversible_block_num()
-    for block in get_blocks_fast(rpc, range(1, block_height)):
+    rpc = SteemNodeRPC(server)
+
+    for block in stream_blocks(rpc, start):
         click.echo(json.dumps(block))
 
 
 @click.command()
-def block_height():
-    rpc = SimpleSteemAPIClient()
+@click.option('--url',
+                metavar='STEEMD_HTTP_URL',
+                envvar='STEEMD_HTTP_URL',
+                help='Steemd HTTP server URL')
+def block_height(url):
+    rpc = SimpleSteemAPIClient(url)
     click.echo(rpc.last_irreversible_block_num())
-
-def get_blocks(rpc, block_nums):
-    # Blocks from start until head block
-    blocks_requested = len(block_nums)
-    for i, block_num in enumerate(block_nums,1):
-        # Get full block
-        blocks_remaining = blocks_requested - i
-        block = rpc.get_block(block_num)
-        block.update({"block_num": block_num})
-        # logger.info(dict(blocks_retreived=i, blocks_requested=blocks_requested,
-        #                blocks_remaining=blocks_remaining, block_num=block_num))
-        yield block
 
 
 def stream_blocks(rpc, start):
@@ -104,19 +94,29 @@ def stream_blocks(rpc, start):
         yield block
 
 @click.command()
-@click.option('--start', type=click.INT)
-@click.option('--end', type=click.INT)
-@click.option('--chunksize', type=click.INT)
-@click.option('--max_workers', type=click.INT)
-def bulk_blocks(start=1, end=9000000, chunksize=100000, max_workers=10):
-    return get_blocks_fast(start, end, chunksize, max_workers, None)
+@click.option('--start', type=click.INT, default=1)
+@click.option('--end', type=click.INT, default=9000000)
+@click.option('--chunksize', type=click.INT, default=100)
+@click.option('--max_workers', type=click.INT, default=10)
+@click.option('--url',
+                metavar='STEEMD_HTTP_URL',
+                envvar='STEEMD_HTTP_URL',
+                help='Steemd HTTP server URL')
+def bulk_blocks(start, end, chunksize, max_workers, url):
+    for block in get_blocks_fast(start, end, chunksize, max_workers, None, url):
+        click.echo(json.dumps(block))
 
 
-def get_blocks_fast(start=1, end=9000000, chunksize=100000, max_workers=10, rpc=None):
-    rpc = rpc or SimpleSteemAPIClient()
-    for chunk in chunkify(range(start, end), chunksize=chunksize):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+def get_blocks_fast(start=1, end=9000000, chunksize=100, max_workers=5, rpc=None, url=None):
+    extra = dict(start=start, end=end, chunksize=chunksize, max_workers=max_workers, rpc=rpc, url=url)
+    logger.debug('get_blocks_fast',extra=extra)
+    rpc = rpc or SimpleSteemAPIClient(url)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
+            logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
+            results = []
             for b in executor.map(rpc.get_block, chunk):
                  block_num = block_num_from_previous(b['previous'])
                  b.update(block_num=block_num)
-                 yield b
+                 results.append(b)
+            yield results
