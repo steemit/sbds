@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-import sys
 import ujson as json
-import dateutil.parser
 
+import dateutil.parser
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
 
+import sbds.logging
 from sbds.storages import AbstractStorageContainer
 from sbds.storages.db.tables import blocks_table
 from sbds.storages.db.tables import transactions_table
 from sbds.utils import block_num_from_previous, chunkify
-import sbds.logging
+
 logger = sbds.logging.getLogger(__name__)
 
 tx_types = {
@@ -41,12 +41,12 @@ tx_types = {
     'transfer_to_vesting': 'TxTransfers',
     'vote': 'TxVotes',
     'withdraw_vesting': None,
-    'witness_update': 'TxWintessUpdates'
+    'witness_update': 'TxWitnessUpdates'
 }
 
 
 class BaseSQLClass(AbstractStorageContainer):
-    def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None, name='item'):
+    def __init__(self, engine=None, table=None, chunksize=10000, execution_options=None, name='item', **kwargs):
         self.engine = engine
         self.table = table
         self.table_name = self.table.name
@@ -54,6 +54,7 @@ class BaseSQLClass(AbstractStorageContainer):
         self.execution_options = execution_options or dict(stream_results=True)
         self.chunksize = chunksize
         self.name = name
+        super(BaseSQLClass, self).__init__(**kwargs)
 
     @property
     def pk(self):
@@ -79,7 +80,7 @@ class BaseSQLClass(AbstractStorageContainer):
         return self.engine.url.__dict__
 
     def _execute_iter(self, stmt, chunksize=None):
-        chunksize=chunksize or self.chunksize
+        chunksize = chunksize or self.chunksize
         with self.engine.connect() as conn:
             result = conn.execute(stmt, execution_options=self.execution_options)
             while True:
@@ -116,7 +117,7 @@ class BaseSQLClass(AbstractStorageContainer):
                 limit = item.stop - 1
             else:
                 limit = None
-            stmt = self.table.select(limit=item.stop - 1, offset=item.start)
+            stmt = self.table.select(limit=limit, offset=item.start)
             return self._execute_iter(stmt)
 
     def __setitem__(self, key, value):
@@ -125,7 +126,7 @@ class BaseSQLClass(AbstractStorageContainer):
             try:
                 return conn.execute(self.table.insert(), **value)
             # handle existing value
-            except IntegrityError:
+            except IntegrityError as e:
                 self.handle_integrity_error(e)
                 extra = dict(key=key, value=value)
                 logger.info('__setitem__ IntegrityError', extra=extra)
@@ -142,7 +143,7 @@ class BaseSQLClass(AbstractStorageContainer):
         return self._scalar(stmt)
 
     def __str__(self):
-        return json.dumps(self, ensure_ascii=False).encode('utf8')
+        return json.dumps(self, ensure_ascii=True).encode('utf8')
 
     def add(self, item, prepared=False):
         if not prepared:
@@ -157,10 +158,9 @@ class BaseSQLClass(AbstractStorageContainer):
     def add_many(self, items, chunksize=1000):
         skipped = []
         added_count = 0
-        chunk_count = 0
         with self.engine.connect() as conn:
-            for i,chunk in enumerate(chunkify(items, chunksize), 1):
-                kv_pairs = [self._prepare_for_storage(None,item) for item in chunk]
+            for i, chunk in enumerate(chunkify(items, chunksize), 1):
+                kv_pairs = [self._prepare_for_storage(None, item) for item in chunk]
                 values = [v[1] for v in kv_pairs]
                 extra = dict(chunk_count=i, values_count=len(values),
                              skipped_item_count=len(skipped), added_item_count=added_count)
@@ -176,13 +176,27 @@ class BaseSQLClass(AbstractStorageContainer):
                 added_count += chunksize
         return added_count, skipped
 
-    def handle_integrity_error(self, e):
+    @staticmethod
+    def handle_integrity_error(e):
         if not is_duplicate_entry_error(e):
             extra = dict(error=e)
             logger.error('Non duplicate entry IntegrityError', extra=extra)
             raise e
 
+    def __hash__(self):
+        pass
+
+    def __eq__(self):
+        pass
+
+
 class Blocks(BaseSQLClass):
+    def __delitem__(self, key):
+        pass
+
+    def __eq__(self):
+        pass
+
     def __init__(self, *args, **kwargs):
         kwargs['table'] = blocks_table
         kwargs['name'] = 'block'
@@ -195,18 +209,18 @@ class Blocks(BaseSQLClass):
     def _prepare_for_storage(self, block_num, block):
         raw = None
         if not isinstance(block, dict):
-            raw = block
+            raw = block.encode('utf8')
             block_dict = json.loads(block)
         else:
             block_dict = block
         if not block_dict.get('raw'):
-            raw = raw or json.dumps(block_dict, ensure_ascii=False).encode('utf8')
+            raw = raw or json.dumps(block_dict, ensure_ascii=True).encode('utf8')
             block_dict.update(raw=raw)
-        block_num =  block_num_from_previous(block_dict['previous'])
+        block_num = block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
         block_dict.update(timestamp=dateutil.parser.parse(block_dict['timestamp']))
-        block_dict.update(extensions=str(block_dict['extensions']))
-        block_dict.update(transactions=str(block_dict['transactions']))
+        block_dict.update(extensions=json.dumps(block_dict['extensions']).encode('utf8'))
+        block_dict.update(transactions=json.dumps(block_dict['transactions']).encode('utf8'))
         return block_dict['block_num'], block_dict
 
     @property
@@ -224,8 +238,13 @@ class Blocks(BaseSQLClass):
         return self._scalar(stmt)
 
 
-
 class Transactions(BaseSQLClass):
+    def __delitem__(self, key):
+        pass
+
+    def __eq__(self):
+        pass
+
     def __init__(self, *args, **kwargs):
         kwargs['table'] = transactions_table
         kwargs['name'] = 'transaction'
@@ -237,22 +256,22 @@ class Transactions(BaseSQLClass):
 
 
 def extract_transaction_from_block(block):
-        if isinstance(block, (str,bytes)):
-            try:
-                block = json.loads(block)
-            except ValueError as e:
-                extra = dict(block=block, error=e)
-                logger.error('Unable load json block', extra=extra)
-                raise e
-        block_num = block.get('block_num', block_num_from_previous(block['previous']))
-        for transaction_num, t in enumerate(block['transactions']):
-            yield dict(block_num=block_num,
-                       transaction_num=transaction_num,
-                       ref_block_num=t['ref_block_num'],
-                       ref_block_prefix=t['ref_block_prefix'],
-                       expiration=dateutil.parser.parse(t['expiration']),
-                       type=t['operations'][0][0],
-                       operations=json.dumps(t['operations'], ensure_ascii=False).encode('utf8'))
+    if isinstance(block, (str, bytes)):
+        try:
+            block = json.loads(block)
+        except ValueError as e:
+            extra = dict(block=block, error=e)
+            logger.error('Unable load json block', extra=extra)
+            raise e
+    block_num = block.get('block_num', block_num_from_previous(block['previous']))
+    for transaction_num, t in enumerate(block['transactions']):
+        yield dict(block_num=block_num,
+                   transaction_num=transaction_num,
+                   ref_block_num=t['ref_block_num'],
+                   ref_block_prefix=t['ref_block_prefix'],
+                   expiration=dateutil.parser.parse(t['expiration']),
+                   type=t['operations'][0][0],
+                   operations=json.dumps(t['operations'], ensure_ascii=True).encode('utf8'))
 
 
 def extract_transaction_from_prepared_block(block):
@@ -264,11 +283,12 @@ def extract_transaction_from_prepared_block(block):
                    ref_block_prefix=t['ref_block_prefix'],
                    expiration=dateutil.parser.parse(t['expiration']),
                    type=t['operations'][0][0],
-                   operations=json.dumps(t['operations'], ensure_ascii=False).encode('utf8'))
+                   operations=json.dumps(t['operations'], ensure_ascii=True).encode('utf8'))
 
 
 def is_duplicate_entry_error(error):
     try:
         return "Duplicate entry" in str(error.orig)
-    except:
+    except Exception as e:
+        logger.exception(e)
         return False

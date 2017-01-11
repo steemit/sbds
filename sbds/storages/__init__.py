@@ -30,8 +30,8 @@ Block = namedtuple('Block',['previous',
 
 
 class AbstractStorageContainer(object):
-    def __init__(self):
-        raise NotImplementedError
+    def __init__(self, **kwargs):
+        pass
 
     def __iter__(self):
         raise NotImplementedError

@@ -46,17 +46,17 @@ def db(ctx, database_url, echo):
 @db.command()
 @click.pass_context
 def test(ctx):
-    "Test connection to database"
+    """Test connection to database"""
     engine = ctx.obj['engine']
     result = engine.execute('SHOW TABLES').fetchall()
     click.echo('Success! Connected to database and found %s tables' % (len(result)))
 
 
 @db.command(name='insert-blocks')
-@click.argument('blocks', type=click.File('r'), default='-')
+@click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    '''Insert or update blocks in the database, accepts "-" for STDIN (default)'''
+    """Insert or update blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     _init_db(engine, meta)
 
@@ -77,10 +77,10 @@ def insert_blocks(ctx, blocks):
 
 
 @db.command(name='insert-transactions')
-@click.argument('blocks', type=click.File('r'), default='-')
+@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
 @click.pass_context
 def insert_transactions(ctx, blocks):
-    '''Insert or update transactions in the database, accepts "-" for STDIN (default)'''
+    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     _init_db(engine, meta)
 
@@ -98,12 +98,11 @@ def insert_transactions(ctx, blocks):
         transaction_storage.add(transaction, prepared=True)
 
 
-
 @db.command(name='init')
 @click.confirmation_option(prompt='Are you sure you want to create the db?')
 @click.pass_context
 def init_db(ctx):
-    "Create any missing tables on the database"
+    """Create any missing tables on the database"""
     engine = ctx.obj['engine']
     meta.create_all(bind=engine, checkfirst=True)
 
@@ -112,22 +111,25 @@ def init_db(ctx):
 @click.confirmation_option(prompt='Are you sure you want to drop and then create the db?')
 @click.pass_context
 def reset_db(ctx):
-    "Drop and then create tables on the database"
+    """Drop and then create tables on the database"""
     engine = ctx.obj['engine']
     meta.drop_all(bind=engine, checkfirst=True)
     meta.create_all(bind=engine)
 
+
 @db.command(name='last-block')
 @click.pass_context
 def last_block(ctx):
-    "Create any missing tables on the database"
+    """Create any missing tables on the database"""
     engine = ctx.obj['engine']
     block_storage = Blocks(engine=engine)
     return click.echo(len(block_storage))
 
-def _init_db(engine, meta, echo=click.echo):
-    '''Add missing tables'''
+
+def _init_db(engine, _meta):
+    """Add missing tables"""
     try:
-        meta.create_all(bind=engine, checkfirst=True)
-    except:
-        pass
+        _meta.create_all(bind=engine, checkfirst=True)
+    except Exception as e:
+        logger.debug(e)
+
