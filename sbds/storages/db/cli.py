@@ -4,6 +4,7 @@ from itertools import chain
 
 import click
 from sqlalchemy import create_engine
+from sqlalchemy import MetaData
 
 import sbds.logging
 from sbds.storages.db import Blocks
@@ -113,8 +114,17 @@ def init_db(ctx):
 def reset_db(ctx):
     """Drop and then create tables on the database"""
     engine = ctx.obj['engine']
-    meta.drop_all(bind=engine, checkfirst=True)
-    meta.create_all(bind=engine)
+    try:
+        _meta = MetaData()
+        _meta.reflect(bind=engine)
+        _meta.drop_all(bind=engine, checkfirst=True)
+    except Exception as e:
+        logger.info(e)
+    try:
+        meta.create_all(bind=engine, checkfirst=True)
+    except Exception as e:
+        logger.info(e)
+
 
 
 @db.command(name='last-block')
