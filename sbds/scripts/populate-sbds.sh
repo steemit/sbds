@@ -47,7 +47,6 @@ Loading blocks...
 EOF
 
   bulk-blocks --start ${LATEST_DB_BLOCK} --end ${LATEST_CHAIN_BLOCK}  \
-    | cat \
     | pv ${PV_OPTS}  \
     | tee  \
       >( db --database_url "${DATABASE_URL}" insert-blocks )  \

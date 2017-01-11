@@ -114,9 +114,7 @@ def get_blocks_fast(start=1, end=9000000, chunksize=100, max_workers=5, rpc=None
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
-            results = []
             for b in executor.map(rpc.get_block, chunk):
                  block_num = block_num_from_previous(b['previous'])
                  b.update(block_num=block_num)
-                 results.append(b)
-            yield results
+                 yield b
