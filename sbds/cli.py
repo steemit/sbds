@@ -75,7 +75,7 @@ def cli(server, block_nums, start, end):
     rpc = SteemNodeRPC(server)
 
     for block in stream_blocks(rpc, start):
-        click.echo(json.dumps(block))
+        click.echo(json.dumps(block, ensure_ascii=False).encode('utf8'))
 
 
 @click.command()
@@ -104,7 +104,7 @@ def stream_blocks(rpc, start):
                 help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
     for block in get_blocks_fast(start, end, chunksize, max_workers, None, url):
-        click.echo(json.dumps(block))
+        click.echo(json.dumps(block, ensure_ascii=False).encode('utf8'))
 
 
 def get_blocks_fast(start=1, end=9000000, chunksize=100, max_workers=5, rpc=None, url=None):

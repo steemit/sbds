@@ -142,7 +142,7 @@ class BaseSQLClass(AbstractStorageContainer):
         return self._scalar(stmt)
 
     def __str__(self):
-        return json.dumps(self)
+        return json.dumps(self, ensure_ascii=False).encode('utf8')
 
     def add(self, item, prepared=False):
         if not prepared:
@@ -200,7 +200,7 @@ class Blocks(BaseSQLClass):
         else:
             block_dict = block
         if not block_dict.get('raw'):
-            raw = raw or json.dumps(block_dict)
+            raw = raw or json.dumps(block_dict, ensure_ascii=False).encode('utf8')
             block_dict.update(raw=raw)
         block_num =  block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
@@ -252,7 +252,7 @@ def extract_transaction_from_block(block):
                        ref_block_prefix=t['ref_block_prefix'],
                        expiration=dateutil.parser.parse(t['expiration']),
                        type=t['operations'][0][0],
-                       operations=json.dumps(t['operations']))
+                       operations=json.dumps(t['operations'], ensure_ascii=False).encode('utf8'))
 
 
 def extract_transaction_from_prepared_block(block):
@@ -264,7 +264,7 @@ def extract_transaction_from_prepared_block(block):
                    ref_block_prefix=t['ref_block_prefix'],
                    expiration=dateutil.parser.parse(t['expiration']),
                    type=t['operations'][0][0],
-                   operations=json.dumps(t['operations']))
+                   operations=json.dumps(t['operations'], ensure_ascii=False).encode('utf8'))
 
 
 def is_duplicate_entry_error(error):
