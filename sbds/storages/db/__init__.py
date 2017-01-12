@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from itertools import chain
 import ujson as json
 
 import dateutil.parser
@@ -235,7 +236,7 @@ class Blocks(BaseSQLClass):
 
     def __len__(self):
         stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
-        return self._scalar(stmt)
+        return self._scalar(stmt) or 0
 
 
 class Transactions(BaseSQLClass):
@@ -255,7 +256,7 @@ class Transactions(BaseSQLClass):
         return self.table.c['block_num']
 
 
-def extract_transaction_from_block(block):
+def extract_transactions_from_block(block):
     if isinstance(block, (str, bytes)):
         try:
             block = json.loads(block)
@@ -272,19 +273,6 @@ def extract_transaction_from_block(block):
                    expiration=dateutil.parser.parse(t['expiration']),
                    type=t['operations'][0][0],
                    operations=json.dumps(t['operations'], ensure_ascii=True).encode('utf8'))
-
-
-def extract_transaction_from_prepared_block(block):
-    transactions = json.loads(block['transactions'])
-    for transaction_num, t in enumerate(transactions):
-        yield dict(block_num=block['block_num'],
-                   transaction_num=transaction_num,
-                   ref_block_num=t['ref_block_num'],
-                   ref_block_prefix=t['ref_block_prefix'],
-                   expiration=dateutil.parser.parse(t['expiration']),
-                   type=t['operations'][0][0],
-                   operations=json.dumps(t['operations'], ensure_ascii=True).encode('utf8'))
-
 
 def is_duplicate_entry_error(error):
     try:

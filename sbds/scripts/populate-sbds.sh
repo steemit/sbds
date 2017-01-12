@@ -48,17 +48,10 @@ EOF
 
   bulk-blocks --start ${LATEST_DB_BLOCK} --end ${LATEST_CHAIN_BLOCK}  \
     | pv ${PV_OPTS}  \
-    | tee  \
-      >( db --database_url "${DATABASE_URL}" insert-blocks )  \
-      >( db --database_url "${DATABASE_URL}" insert-transactions )  \
-      >/dev/null
+    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
 
-  local LATEST_DB_BLOCK=$(db --database_url "${DATABASE_URL}" last-block)
   sbds --start ${LATEST_DB_BLOCK}  \
-    | tee  \
-      >( db --database_url "${DATABASE_URL}" insert-blocks )  \
-      >( db --database_url "${DATABASE_URL}" insert-transactions )  \
-      >/dev/null
+    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
 }
 
 block_load() {
@@ -69,10 +62,7 @@ block_load() {
 
   local LATEST_DB_BLOCK=$(db --database_url "${DATABASE_URL}" last-block)
   sbds --start ${LATEST_DB_BLOCK}  \
-    | tee  \
-    >( db --database_url "${DATABASE_URL}" insert-blocks )  \
-    >( db --database_url "${DATABASE_URL}" insert-transactions )  \
-    >/dev/null
+    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
 }
 
 

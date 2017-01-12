@@ -15,7 +15,7 @@ from sbds.storages.db import Blocks
 from sbds.storages.db import Transactions
 from sbds.storages.db.tables import meta
 from sbds.http_client import SimpleSteemAPIClient
-from sbds.storages.db import extract_transaction_from_block
+from sbds.storages.db import extract_transactions_from_block
 from sbds.utils import chunkify
 
 

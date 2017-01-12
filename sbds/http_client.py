@@ -62,7 +62,8 @@ class SimpleSteemAPIClient(object):
             "id": 0
         }, ensure_ascii=False).encode('utf8')
 
-        self.request = partial(self.http.urlopen, 'POST', url, body=body)
+        self.request = partial(self.http.urlopen, 'POST', url,
+                               retries=2, body=body)
 
         logger.setLevel(log_level)
 
