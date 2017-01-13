@@ -6,12 +6,12 @@ services:
      - "8080:8080"
     entrypoint:
       - dev-server
-  block_loader:
+  db_block_loader:
     build: .
     image: sbdsimg
     env_file: .env
     entrypoint:
-      - /usr/src/app/sbds/scripts/populate-sbds.sh
+      - /usr/src/app/sbds/storages/db/scripts/populate.sh
   block_streamer:
     image: sbdsimg
 

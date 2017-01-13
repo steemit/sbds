@@ -46,12 +46,10 @@ approximate blocks to add:      ${BLOCKS_TO_ADD}
 Loading blocks...
 EOF
 
-  bulk-blocks --start ${LATEST_DB_BLOCK} --end ${LATEST_CHAIN_BLOCK}  \
+  bulk-blocks --start $(( ${LATEST_DB_BLOCK} + 1 )) --end ${LATEST_CHAIN_BLOCK}  \
     | pv ${PV_OPTS}  \
-    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
+    | db --database_url "${DATABASE_URL}" add-blocks-fast
 
-  sbds --start ${LATEST_DB_BLOCK}  \
-    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
 }
 
 block_load() {
@@ -65,6 +63,10 @@ block_load() {
     | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
 }
 
+stream_blocks() {
+  sbds --start ${LATEST_DB_BLOCK}  \
+    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
+}
 
 main () {
   # confirm required environment vars are set

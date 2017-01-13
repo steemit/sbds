@@ -18,7 +18,7 @@ setup(
         'bottle',
         'urllib3'
     ],
-    scripts=['sbds/scripts/populate-sbds.sh'],
+    scripts=['sbds/storages/db/scripts/populate.sh'],
     entry_points={'console_scripts': [
         'sbds=sbds.cli:cli',
         'bulk-blocks=sbds.cli:bulk_blocks',

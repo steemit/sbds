@@ -6,6 +6,7 @@ import dateutil.parser
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
+from sqlalchemy.sql import func
 
 import sbds.logging
 from sbds.storages import AbstractStorageContainer
@@ -130,7 +131,6 @@ class BaseSQLClass(AbstractStorageContainer):
             except IntegrityError as e:
                 self.handle_integrity_error(e)
                 extra = dict(key=key, value=value)
-                logger.info('__setitem__ IntegrityError', extra=extra)
             except Exception as e:
                 extra = dict(key=key, value=value, error=e)
                 logger.error('Unable to __setitem__', extra=extra)
@@ -141,7 +141,7 @@ class BaseSQLClass(AbstractStorageContainer):
 
     def __len__(self):
         stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
-        return self._scalar(stmt)
+        return self._scalar(stmt) or 0
 
     def __str__(self):
         return json.dumps(self, ensure_ascii=True).encode('utf8')
@@ -156,7 +156,7 @@ class BaseSQLClass(AbstractStorageContainer):
             except IntegrityError as e:
                 self.handle_integrity_error(e)
 
-    def add_many(self, items, chunksize=1000):
+    def add_many(self, items, chunksize=1000, retry_skipped=False):
         skipped = []
         added_count = 0
         with self.engine.connect() as conn:
@@ -165,16 +165,35 @@ class BaseSQLClass(AbstractStorageContainer):
                 values = [v[1] for v in kv_pairs]
                 extra = dict(chunk_count=i, values_count=len(values),
                              skipped_item_count=len(skipped), added_item_count=added_count)
-                logger.debug('adding chunk of %ss' % self.name, extra=extra)
+                logger.debug('adding chunk of %ss', self.name, extra=extra)
                 try:
                     conn.execute(self.table.insert(), values)
+                    added_count += len(values)
                 except IntegrityError as e:
                     self.handle_integrity_error(e)
                     skipped.extend(values)
                     extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
-                    logger.debug('add_many IntegrityError, adding chunk to skipped %s' % self.name, extra=extra)
-                    continue
-                added_count += chunksize
+                    logger.debug('add_many IntegrityError, adding chunk to skipped %s', self.name, extra=extra)
+
+
+        logger.info('add_many results: added %s, skipped %s %ss',
+                    added_count, len(skipped), self.name)
+        if not retry_skipped:
+            return added_count, skipped
+
+        with self.engine.connect() as conn:
+            logger.info('retrying to add %s skipped %ss', len(skipped), self.name)
+            for i, item in enumerate(skipped):
+                try:
+                    self.add(item, prepared=True)
+                    added_count += 1
+                    del skipped[i]
+                except Exception as e:
+                    extra=dict(item_type=self.name,
+                               block_num=item['block_num'],
+                               error=e)
+                    logger.error('Error while retrying skipped %s', self.name, extra=extra)
+
         return added_count, skipped
 
     @staticmethod
@@ -192,12 +211,6 @@ class BaseSQLClass(AbstractStorageContainer):
 
 
 class Blocks(BaseSQLClass):
-    def __delitem__(self, key):
-        pass
-
-    def __eq__(self):
-        pass
-
     def __init__(self, *args, **kwargs):
         kwargs['table'] = blocks_table
         kwargs['name'] = 'block'
@@ -210,7 +223,7 @@ class Blocks(BaseSQLClass):
     def _prepare_for_storage(self, block_num, block):
         raw = None
         if not isinstance(block, dict):
-            raw = block.encode('utf8')
+            raw = block
             block_dict = json.loads(block)
         else:
             block_dict = block
@@ -219,9 +232,6 @@ class Blocks(BaseSQLClass):
             block_dict.update(raw=raw)
         block_num = block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
-        block_dict.update(timestamp=dateutil.parser.parse(block_dict['timestamp']))
-        block_dict.update(extensions=json.dumps(block_dict['extensions']).encode('utf8'))
-        block_dict.update(transactions=json.dumps(block_dict['transactions']).encode('utf8'))
         return block_dict['block_num'], block_dict
 
     @property
@@ -230,22 +240,39 @@ class Blocks(BaseSQLClass):
         result = self._execute_iter(stmt)
         return (row[0] for row in result)
 
-    def missing(self):
-        block_nums = frozenset(self.block_nums)
-        return frozenset(range(1, max(block_nums))) - block_nums
+    def missing(self, block_height=None):
+        block_height = block_height or len(self)
+        existing_block_nums = frozenset(self.block_nums)
+        return frozenset(range(1, block_height)) -  existing_block_nums
 
-    def __len__(self):
-        stmt = 'SELECT MAX({}) FROM {}'.format(self.pk.name, self.table.name)
-        return self._scalar(stmt) or 0
+    def get_blocks_with_transactions(self, block_num_only=False, transactions_only=False):
+        c = self.table.c
+        if block_num_only:
+            stmt = select([c.block_num]).where(func.LENGTH(c.transactions) > 10)
+            result = self._execute_iter(stmt)
+            return (b[0] for b in result)
+        elif transactions_only:
+            stmt = select([c.block_num, c.transactions]).where(func.LENGTH(c.transactions) > 10)
+            result = self._execute_iter(stmt)
+            for block_num, transaction_txt in result:
+                transactions = json.loads(transaction_txt)
+                for transaction in transactions:
+                    transaction['block_num'] = block_num
+                    yield transaction
+        else:
+            stmt = self.table.select().where(func.LENGTH(c.transactions) > 10)
+            return self._execute_iter(stmt)
 
-
-class Transactions(BaseSQLClass):
     def __delitem__(self, key):
         pass
 
     def __eq__(self):
         pass
 
+
+
+
+class Transactions(BaseSQLClass):
     def __init__(self, *args, **kwargs):
         kwargs['table'] = transactions_table
         kwargs['name'] = 'transaction'
@@ -253,8 +280,17 @@ class Transactions(BaseSQLClass):
 
     @property
     def pk(self):
-        return self.table.c['block_num']
+        return self.table.c['txid']
 
+    def __delitem__(self, key):
+        pass
+
+    def __eq__(self):
+        pass
+
+def extract_transactions_from_blocks(blocks):
+    transactions = chain.from_iterable(map(extract_transactions_from_block, blocks))
+    return transactions
 
 def extract_transactions_from_block(block):
     if isinstance(block, (str, bytes)):
@@ -270,9 +306,9 @@ def extract_transactions_from_block(block):
                    transaction_num=transaction_num,
                    ref_block_num=t['ref_block_num'],
                    ref_block_prefix=t['ref_block_prefix'],
-                   expiration=dateutil.parser.parse(t['expiration']),
+                   expiration=t['expiration'],
                    type=t['operations'][0][0],
-                   operations=json.dumps(t['operations'], ensure_ascii=True).encode('utf8'))
+                   operations=t['operations'])
 
 def is_duplicate_entry_error(error):
     try:

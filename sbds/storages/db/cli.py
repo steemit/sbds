@@ -12,13 +12,14 @@ from sbds.storages.db import Transactions
 from sbds.storages.db.tables import meta
 
 from sbds.storages.db import extract_transactions_from_block
+from sbds.storages.db import extract_transactions_from_blocks
+from sbds.http_client import SimpleSteemAPIClient
 
 logger = sbds.logging.getLogger(__name__)
 
 
 @click.group()
 @click.option('--database_url', type=str, envvar='DATABASE_URL',
-              default='sqlite:///local.db',
               help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default')
 @click.option('--echo/--no-echo', is_flag=True, default=False,
               help="Enable(default)/disable the echoing of SQL commands issued to database")
@@ -141,3 +142,63 @@ def _init_db(engine, _meta):
     except Exception as e:
         logger.debug(e)
 
+
+@db.command(name='add-blocks-fast')
+@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--url',
+              metavar='STEEMD_HTTP_URL',
+              envvar='STEEMD_HTTP_URL',
+              help='Steemd HTTP server URL')
+@click.pass_context
+def add_blocks_fast(ctx, blocks, chunksize, url):
+    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    _init_db(engine, meta)
+    block_storage = Blocks(engine=engine)
+
+    # attempt to add, retrying once
+    total_added, skipped_blocks  = block_storage.add_many(blocks,
+                                                         chunksize=chunksize,
+                                                         retry_skipped=True)
+    extra = dict(skipped_count=len(skipped_blocks), added=total_added)
+    logger.debug('Finished initial pass', extra=extra)
+
+    # get missing blocks, including blocks generated since command initiated
+    logger.debug('Checking for missing blocks')
+    rpc = SimpleSteemAPIClient(url)
+    block_height = rpc.last_irreversible_block_num()
+    db_last_block = len(block_storage)
+    missing_block_nums = block_storage.missing(block_height=block_height)
+    extra = dict(block_height=block_height,
+                 db_last_block=db_last_block,
+                 missing_count=len(missing_block_nums))
+    logger.info('Current blocks table status', extra=extra)
+
+    # add missing blocks
+    logger.info('Adding %s missing blocks', len(missing_block_nums))
+    blocks = map(rpc.get_block, missing_block_nums)
+    skipped_blocks, total_added = block_storage.add_many(blocks,
+                                                         chunksize=chunksize,
+                                                         retry_skipped=True)
+
+
+@db.command(name='add-transactions-fast')
+@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--url',
+              metavar='STEEMD_HTTP_URL',
+              envvar='STEEMD_HTTP_URL',
+              help='Steemd HTTP server URL')
+@click.pass_context
+def add_transactions_fast(ctx, blocks, chunksize, url):
+    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    _init_db(engine, meta)
+    transaction_storage = Transactions(engine=engine)
+    transactions = extract_transactions_from_blocks(blocks)
+    total_added, skipped_transactions  = transaction_storage.add_many(blocks,
+                                                         chunksize=chunksize,
+                                                         retry_skipped=True)
+    extra = dict(skipped_count=len(skipped_transactions), added=total_added)
+    logger.debug('Finished initial pass', extra=extra)

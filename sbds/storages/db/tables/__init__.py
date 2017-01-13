@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
 
 from sqlalchemy import MetaData
-
 from sqlalchemy.schema import Column
+from sqlalchemy.schema import ForeignKeyConstraint
 from sqlalchemy.schema import Index
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.schema import Table
+from sqlalchemy.types import BIGINT
 from sqlalchemy.types import DATETIME
-from sqlalchemy.types import VARCHAR
-from sqlalchemy.types import TEXT
+from sqlalchemy.types import Enum
 from sqlalchemy.types import INTEGER
 from sqlalchemy.types import SMALLINT
-from sqlalchemy.types import BIGINT
-from sqlalchemy.types import Enum
-
+from sqlalchemy.types import TEXT
+from sqlalchemy.types import VARCHAR
+from sqlalchemy.types import JSON
 meta = MetaData()
 
 blocks_table = Table('sbds_blocks', meta,
-                     Column('raw', TEXT, nullable=False),
+                     Column('raw', JSON, nullable=False),
                      Column('block_num',
                             INTEGER(),
                             primary_key=True,
@@ -28,8 +27,8 @@ blocks_table = Table('sbds_blocks', meta,
                      Column('witness', VARCHAR(length=50)),
                      Column('witness_signature', VARCHAR(length=150)),
                      Column('transaction_merkle_root', VARCHAR(length=50)),
-                     Column('extensions', TEXT),
-                     Column('transactions', TEXT),
+                     Column('extensions', JSON),
+                     Column('transactions', JSON),
                      mysql_engine='InnoDB',
                      mysql_charset='utf8',
                      mysql_collate='utf8_general_ci'
@@ -84,15 +83,11 @@ transactions_table = Table('sbds_transactions', meta,
                                   ),
                            Column('block_num',
                                   INTEGER(),
-                                  ForeignKey('sbds_blocks.block_num',
-                                             use_alter=True,
-                                             ondelete="CASCADE",
-                                             onupdate="CASCADE"),
                                   nullable=False),
                            Column('transaction_num',
                                   SMALLINT(),
                                   nullable=False),
-                           Index('tx_index','block_num','transaction_num', unique=True),
+
                            Column('ref_block_num',
                                   INTEGER(),
                                   nullable=False),
@@ -107,11 +102,17 @@ transactions_table = Table('sbds_transactions', meta,
                                   nullable=False,
                                   index=True),
                            Column('operations',
-                                   TEXT()),
-                           Column('extentions',
-                                  TEXT()),
+                                  JSON),
+                           Column('extensions',
+                                  JSON),
                            Column('signatures',
-                                  TEXT()),
+                                  JSON),
+                           ForeignKeyConstraint(columns=['block_num'],
+                                                refcolumns=[blocks_table.c.block_num],
+                                                use_alter=True,
+                                                ondelete="CASCADE",
+                                                onupdate="CASCADE"),
+                           Index('tx_index', 'block_num', 'transaction_num', unique=True),
                            mysql_engine='InnoDB',
                            mysql_charset='utf8',
                            mysql_collate='utf8_general_ci'
