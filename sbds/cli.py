@@ -114,8 +114,8 @@ def get_blocks(rpc, block_nums):
 @click.command()
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=9000000)
-@click.option('--chunksize', type=click.INT, default=100)
-@click.option('--max_workers', type=click.INT, default=10)
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--max_workers', type=click.INT, default=None)
 @click.option('--url',
               metavar='STEEMD_HTTP_URL',
               envvar='STEEMD_HTTP_URL',

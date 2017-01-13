@@ -16,7 +16,8 @@ setup(
         'sqlalchemy',
         'ujson',
         'bottle',
-        'urllib3'
+        'urllib3',
+        'elasticsearch-dsl>=2.0.0,<3.0.0'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh'],
     entry_points={'console_scripts': [
@@ -26,6 +27,7 @@ setup(
         'notify=sbds.notify:notify',
         's3=sbds.storages.s3.cli:s3',
         'db=sbds.storages.db.cli:db',
+        'es=sbds.storages.elasticsearch.cli:es',
         'dev-server=sbds.http_server:dev_server'
     ]}
 )

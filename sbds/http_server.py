@@ -22,9 +22,9 @@ from sbds.utils import chunkify
 logger = getLogger(__name__)
 
 
-url = os.environ.get('STEEMD_HTTP_URL', 'http://this.piston.rocks')
+url = os.environ.get('STEEMD_HTTP_URL')
 rpc = SimpleSteemAPIClient(url=url)
-database_url = os.environ.get('DATABASE_URL', 'sqlite:///local.db')
+database_url = os.environ.get('DATABASE_URL')
 engine = create_engine(database_url, execution_options={'stream_results': True})
 blocks = Blocks(engine=engine)
 transactions = Transactions(engine=engine)
