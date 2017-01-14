@@ -12,7 +12,8 @@ from elasticsearch_dsl import Index
 from elasticsearch.helpers import streaming_bulk
 
 import sbds.logging
-from sbds.storages.elasticsearch import Block
+from sbds.storages.elasticsearch import Block, Transaction, Operation
+from sbds.storages.elasticsearch import all_from_block
 from sbds.storages.elasticsearch import prepare_bulk_block
 from sbds.http_client import SimpleSteemAPIClient
 
@@ -40,9 +41,10 @@ def es(ctx, elasticsearch_url, index):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    connections.create_connection(hosts=[elasticsearch_url])
-    ctx.obj = dict(es=es, index=index)
-    ctx.obj['elasticsearch_url'] = elasticsearch_url
+    es = connections.create_connection(hosts=[elasticsearch_url])
+
+    ctx.obj = dict(es=es, index=index,elasticsearch_url=elasticsearch_url)
+
 
 @es.command()
 @click.pass_context
@@ -58,32 +60,40 @@ def test(ctx):
 def insert_blocks(ctx, blocks):
     """Insert or update blocks in the database, accepts "-" for STDIN (default)"""
     es = ctx.obj['es']
-
-    es_blocks = map(Block.from_block, blocks)
-    for es_block in es_blocks:
-        es_block.save()
+    for block in blocks:
+        all_from_block(block)
 
 
 @es.command(name='init')
-@click.confirmation_option(prompt='Are you sure you want to create the db?')
+@click.confirmation_option(prompt='Are you sure you want to create the index?')
 @click.pass_context
-def init_db(ctx):
+def init_es(ctx):
     """Create any missing tables on the database"""
-    es = ctx.obj['es']
+    es = elasticsearch.Elasticsearch([ctx.obj['elasticsearch_url']])
     index = ctx.obj['index']
-    block_storage = Block(using=es)
-    block_storage.init()
 
+    try:
+        es.indices.create(index)
+        block_storage = Block(using=es)
+        block_storage.init()
+    except Exception as e:
+        click.echo(e)
 
 @es.command(name='reset')
-@click.confirmation_option(prompt='Are you sure you want to drop and then create the db?')
+@click.confirmation_option(prompt='Are you sure you want to drop and then create the index?')
 @click.pass_context
-def reset_db(ctx):
+def reset_es(ctx):
     """Drop and then create tables on the database"""
-    es = ctx.obj['es']
-    index = Index(using=ctx.obj['index'])
-    index.delete()
-    index.create()
+    es = elasticsearch.Elasticsearch([ctx.obj['elasticsearch_url']])
+    index = ctx.obj['index']
+    try:
+        es.indices.delete(index)
+        es.indices.create(index)
+        block_storage = Block(using=es)
+        block_storage.init()
+    except Exception as e:
+        click.echo(e)
+
 
 
 @es.command(name='insert-bulk-blocks')
