@@ -17,7 +17,8 @@ setup(
         'ujson',
         'bottle',
         'urllib3',
-        'elasticsearch-dsl>=2.0.0,<3.0.0'
+        'elasticsearch-dsl>=2.0.0,<3.0.0',
+        'certifi'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh'],
     entry_points={'console_scripts': [

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import ujson as json
 from itertools import chain
-from functools import partial
+
 
 import click
 import certifi
@@ -12,9 +12,10 @@ from elasticsearch_dsl import Index
 from elasticsearch.helpers import streaming_bulk
 
 import sbds.logging
-from sbds.storages.elasticsearch import Block, Transaction, Operation
+from sbds.storages.elasticsearch import Operation
 from sbds.storages.elasticsearch import all_from_block
 from sbds.storages.elasticsearch import prepare_bulk_block
+from sbds.storages.elasticsearch import prepare_block
 from sbds.http_client import SimpleSteemAPIClient
 
 logger = sbds.logging.getLogger(__name__)
@@ -41,7 +42,11 @@ def es(ctx, elasticsearch_url, index):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    es = connections.create_connection(hosts=[elasticsearch_url])
+    es = connections.create_connection(hosts=[elasticsearch_url],
+                                       port=443,
+                                        use_ssl=True,
+                                        verify_certs=True,
+                                        ca_certs=certifi.where(),)
 
     ctx.obj = dict(es=es, index=index,elasticsearch_url=elasticsearch_url)
 
@@ -60,8 +65,13 @@ def test(ctx):
 def insert_blocks(ctx, blocks):
     """Insert or update blocks in the database, accepts "-" for STDIN (default)"""
     es = ctx.obj['es']
-    for block in blocks:
-        all_from_block(block)
+    for i, block in enumerate(blocks):
+        for operation_dict in prepare_block(block):
+            try:
+                o = Operation(**operation_dict)
+                o.save()
+            except Exception as e:
+                logger.exception(e)
 
 
 @es.command(name='init')
@@ -88,8 +98,11 @@ def reset_es(ctx):
     index = ctx.obj['index']
     try:
         es.indices.delete(index)
+    except Exception as e:
+        click.echo(e)
+    try:
         es.indices.create(index)
-        block_storage = Block(using=es)
+        block_storage = Operation(using=es)
         block_storage.init()
     except Exception as e:
         click.echo(e)
@@ -101,9 +114,19 @@ def reset_es(ctx):
 @click.pass_context
 def insert_bulk_blocks(ctx, blocks):
     """Insert or update blocks in the database, accepts "-" for STDIN (default)"""
-    es = elasticsearch.Elasticsearch(hosts=[ctx.obj['elasticsearch_url']])
 
-    actions = map(prepare_bulk_block, blocks)
-    results = streaming_bulk(es, actions=actions)
+    es = elasticsearch.Elasticsearch(hosts=[ctx.obj['elasticsearch_url']],
+                                     port=443,
+                                     use_ssl=True,
+                                     verify_certs=True,
+                                     ca_certs=certifi.where(),
+                                     maxsize=100,
+                                     timeout=10
+                                     )
+
+    actions = chain.from_iterable(map(prepare_bulk_block, blocks))
+    results = streaming_bulk(es, chunk_size=10,
+                             actions=actions)
+
     for r in results:
-        click.echo(r)
+        pass
