@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
-
+from itertools import chain
+from collections import defaultdict
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
@@ -50,3 +51,51 @@ def chunkify(iterable, chunksize=10000):
             chunk = []
     if len(chunk) > 0:
         yield chunk
+
+def flatten_obj(y):
+    out = {}
+    def flatten(x, name=''):
+        if type(x) is dict:
+            for a in x:
+                flatten(x[a], name + a + '.')
+        elif type(x) is list:
+            i = 0
+            for a in x:
+                flatten(a, name + '[%s]' % i)
+                i += 1
+        else:
+
+            out[name.rstrip('.')] =x
+
+    flatten(y)
+    return out
+
+def safe_flatten_obj(y):
+    out = {}
+    def flatten(x, name=''):
+        if type(x) is dict:
+            for a in x:
+                flatten(x[a], name + a + '_')
+        elif type(x) is list:
+            i = 0
+            for a in x:
+                flatten(a, name + '%s_' % i)
+                i += 1
+        else:
+
+            out[name.rstrip('.')] =x
+
+    flatten(y)
+    return out
+
+
+
+def build_op_type_maps(blocks):
+    transactions = chain.from_iterable(b['transactions'] for b in blocks)
+    operations = chain.from_iterable(t['operations'] for t in transactions)
+    ops_dict=defaultdict(dict)
+    for op_type, op in operations:
+        keyval = {k:type(v) for k,v in op.items()}
+        ops_dict[op_type][frozenset(keyval)]=flatten_obj(op)
+    return ops_dict
+
