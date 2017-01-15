@@ -202,3 +202,4 @@ def add_transactions_fast(ctx, blocks, chunksize, url):
                                                          retry_skipped=True)
     extra = dict(skipped_count=len(skipped_transactions), added=total_added)
     logger.debug('Finished initial pass', extra=extra)
+
