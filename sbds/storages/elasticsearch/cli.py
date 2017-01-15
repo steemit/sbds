@@ -114,18 +114,15 @@ def insert_bulk_blocks(ctx, blocks, raise_on_error, raise_on_exception):
                                      use_ssl=True,
                                      verify_certs=True,
                                      ca_certs=certifi.where(),
-                                     maxsize=100,
+                                     maxsize=10,
+                                     block=True,
                                      timeout=10
                                      )
 
     actions = chain.from_iterable(map(extract_bulk_operation_from_block, blocks))
-    results = streaming_bulk(es, chunk_size=1000, actions=actions, raise_on_error=raise_on_error,
+    results = streaming_bulk(es, chunk_size=2000, max_chunk_bytes=10485760, actions=actions, raise_on_error=raise_on_error,
                              raise_on_exception=raise_on_exception)
 
     for status, details in results:
         if status is False:
-            try:
-                click.echo(details['index']['error']['caused_by']['reason'])
-                click.echo(details['index']['_id'])
-            except KeyError:
-                click.echo(details)
+            click.echo(details, err=True)

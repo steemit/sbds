@@ -46,9 +46,12 @@ class SimpleSteemAPIClient(object):
         self.url = url
         self.hostname = urlparse(url).hostname
         maxsize = kwargs.get('maxsize', 20)
+        timeout = kwargs.get('timeout', 10)
+        pool_block = kwargs.get('pool_block',True)
         self.http = http or urllib3.HTTPConnectionPool(
                 self.hostname,
-                maxsize=maxsize)
+                maxsize=maxsize,
+                timeout=timeout)
         '''
         urlopen(method, url, body=None, headers=None, retries=None,
         redirect=True, assert_same_host=True, timeout=<object object>,

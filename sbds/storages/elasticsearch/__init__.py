@@ -54,31 +54,28 @@ class Operation(DocType):
         {
             "key_auths_long_as_strings": {
                 "match_mapping_type": "long",
-                "path_match": "operation.account*.*.*_auths",
+                "path_match": "operation.*.*.*_auths",
                 #"match": "key_auths",
                 "mapping": {
                     "type": "string"
                 }
             }
         },
+        
         {
-            "pow2": {
-                "match_mapping_type": "long",
-                "path_match": "operation.pow2.work",
+            "pow": {
+                "path_match": "operation.pow.nonce",
                 "mapping": {
-                    "type": "object",
-                    "fields":{
-                        "raw": {"type":"string"}
-                    }
+                    "type": "string",
                 }
             }
         },
         {
             "extensions": {
-                "match_mapping_type": "long",
+                "match_mapping_type": "*",
                 "path_match": "block.extensions",
                 "mapping": {
-                    "type": "string"
+                    "type": "object"
                 }
             }
         }
@@ -107,8 +104,7 @@ def extract_operations_from_block(orig_block):
 
     block_num = block_num_from_previous(block_dict['previous'])
     block_dict['block_num'] = block_num
-    #if len(block_dict['extensions']):
-    #    block_dict['extensions'] = list(map(flatten_obj, block_dict['extensions']))
+    del block_dict['extensions']
     base_doc_dict['block'] = deepcopy(block_dict)
 
     # return with just block if no transactions present
@@ -122,7 +118,7 @@ def extract_operations_from_block(orig_block):
     for transaction_num, raw_trans in enumerate(block_dict['transactions']):
         trans_dict = deepcopy(raw_trans)
         trans_dict['transaction_num'] = transaction_num
-
+        del trans_dict['extensions']
         # operations
         for operation_num, raw_op in enumerate(trans_dict['operations']):
             op_type, raw_operation_dict = raw_op
