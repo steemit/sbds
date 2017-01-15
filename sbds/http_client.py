@@ -101,3 +101,6 @@ class SimpleSteemAPIClient(object):
 
     def head_block_height(self):
         return self.get_dynamic_global_properties()['last_irreversible_block_num']
+
+    def block_height(self):
+        return self.get_dynamic_global_properties()['last_irreversible_block_num']

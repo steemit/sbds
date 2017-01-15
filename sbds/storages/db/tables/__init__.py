@@ -75,8 +75,9 @@ transaction_types_enum = Enum(
         'reset_account_operation',
         'set_reset_account_operation')
 
+
 transactions_table = Table('sbds_transactions', meta,
-                           Column('txid',
+                           Column('tx_id',
                                   INTEGER(),
                                   primary_key=True,
                                   autoincrement=True
@@ -101,6 +102,9 @@ transactions_table = Table('sbds_transactions', meta,
                                   transaction_types_enum,
                                   nullable=False,
                                   index=True),
+                           Column('operation_count',
+                                  SMALLINT(),
+                                  nullable=False),
                            Column('operations',
                                   JSON),
                            Column('extensions',
@@ -117,3 +121,26 @@ transactions_table = Table('sbds_transactions', meta,
                            mysql_charset='utf8',
                            mysql_collate='utf8_general_ci'
                            )
+
+'''
+operations_table = Table('sbds_operations', meta,
+                           Column('op_id',
+                                  INTEGER(),
+                                  primary_key=True,
+                                  autoincrement=True
+                                  ),
+                           Column('tx_id',
+                                  INTEGER(),
+                                  nullable=False),
+                           Column('operation',
+                                  JSON),
+                           ForeignKeyConstraint(columns=['tx_id'],
+                                                refcolumns=[transactions_table.c.tx_id],
+                                                use_alter=True,
+                                                ondelete="CASCADE",
+                                                onupdate="CASCADE"),
+                           mysql_engine='InnoDB',
+                           mysql_charset='utf8',
+                           mysql_collate='utf8_general_ci'
+                           )
+'''

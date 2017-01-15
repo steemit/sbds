@@ -308,7 +308,8 @@ def extract_transactions_from_block(block):
                    ref_block_prefix=t['ref_block_prefix'],
                    expiration=t['expiration'],
                    type=t['operations'][0][0],
-                   operations=t['operations'])
+                   operations=t['operations'],
+                   op_count=len(t['operations']))
 
 def is_duplicate_entry_error(error):
     try:
@@ -316,3 +317,4 @@ def is_duplicate_entry_error(error):
     except Exception as e:
         logger.exception(e)
         return False
+
