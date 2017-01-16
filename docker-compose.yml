@@ -2,6 +2,7 @@ version: '2'
 services:
   web:
     image: sbdsimg
+    env_file: .env
     ports:
      - "8080:8080"
     entrypoint:
@@ -14,4 +15,4 @@ services:
       - /usr/src/app/sbds/storages/db/scripts/populate.sh
   block_streamer:
     image: sbdsimg
-
+    env_file: .env

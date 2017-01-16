@@ -5,20 +5,24 @@ import os
 import click
 from sqlalchemy import create_engine
 
-from bottle import route, run
+from bottle import route, run, request, response
+
 from sbds.http_client import SimpleSteemAPIClient
 import maya
 
 from sbds.logging import getLogger
 
 
-from sbds.storages.db import Blocks
-from sbds.storages.db import Transactions
-from sbds.storages.db.tables import meta
-from sbds.http_client import SimpleSteemAPIClient
-from sbds.storages.db import extract_transactions_from_block
-from sbds.utils import chunkify
 
+
+from sbds.http_client import SimpleSteemAPIClient
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+
+from sbds.storages.db.tables import Block, Transaction
+from sbds.storages.db import Blocks, Transactions
 
 logger = getLogger(__name__)
 
@@ -27,9 +31,11 @@ url = os.environ.get('STEEMD_HTTP_URL')
 rpc = SimpleSteemAPIClient(url=url)
 database_url = os.environ.get('DATABASE_URL')
 engine = create_engine(database_url, execution_options={'stream_results': True})
-blocks = Blocks(engine=engine)
-transactions = Transactions(engine=engine)
 
+
+
+Session = sessionmaker(bind=engine)
+session = Session()
 
 def past_24_hours():
     return maya.now().iso8601(), maya.when('yesterday').iso8601()
@@ -41,16 +47,22 @@ def past_72_hours():
     return maya.now().iso8601(), maya.when('72 hours ago').iso8601()
 
 '''
+Accounts
+=========
+-  total accounts
+SELECT COUNT(type) FROM sbds_transactions WHERE type='account_create'
 
-
+-
 
 '''
 
-
+def account_queries():
+    acounts=dict()
+    accounts['total'] =
 
 @route('/health')
 def health():
-    last_db_block = len(blocks)
+    last_db_block = session.query(Block.block_num).order_by('block_num DESC').first()[0]
     last_irreversible_block = rpc.last_irreversible_block_num()
     diff = last_irreversible_block - last_db_block
     return dict(last_db_block=last_db_block,
@@ -58,8 +70,8 @@ def health():
                 diff=diff,
                 timestamp=datetime.utcnow().isoformat())
 
-
-
+@route('/query')
+def query():
 
 
 # Development server

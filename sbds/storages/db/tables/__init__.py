@@ -14,25 +14,36 @@ from sqlalchemy.types import TEXT
 from sqlalchemy.types import VARCHAR
 from sqlalchemy.types import JSON
 meta = MetaData()
+from sqlalchemy.orm import mapper
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
+
 
 blocks_table = Table('sbds_blocks', meta,
-                     Column('raw', JSON, nullable=False),
+                     #Column('raw', JSON, nullable=False),
                      Column('block_num',
                             INTEGER(),
                             primary_key=True,
                             nullable=False,
                             autoincrement=False),
                      Column('previous', VARCHAR(length=50)),
-                     Column('timestamp', DATETIME()),
+                     Column('timestamp', DATETIME(), index=True),
                      Column('witness', VARCHAR(length=50)),
                      Column('witness_signature', VARCHAR(length=150)),
                      Column('transaction_merkle_root', VARCHAR(length=50)),
                      Column('extensions', JSON),
-                     Column('transactions', JSON),
                      mysql_engine='InnoDB',
                      mysql_charset='utf8',
                      mysql_collate='utf8_general_ci'
                      )
+
+class Block(object):
+
+    def __repr__(self):
+        return "<Block(block_num='%s', timestamp='%s')>" % (
+        self.block_num, self.timestamp)
+
+mapper(Block, blocks_table)
 
 transaction_types_enum = Enum(
         'vote',
@@ -73,7 +84,9 @@ transaction_types_enum = Enum(
         'custom_binary_operation',
         'decline_voting_rights_operation',
         'reset_account_operation',
-        'set_reset_account_operation')
+        'set_reset_account_operation',
+        name='sbds_transaction_types',
+        metadata=meta)
 
 
 transactions_table = Table('sbds_transactions', meta,
@@ -88,7 +101,6 @@ transactions_table = Table('sbds_transactions', meta,
                            Column('transaction_num',
                                   SMALLINT(),
                                   nullable=False),
-
                            Column('ref_block_num',
                                   INTEGER(),
                                   nullable=False),
@@ -104,7 +116,7 @@ transactions_table = Table('sbds_transactions', meta,
                                   index=True),
                            Column('operation_count',
                                   SMALLINT(),
-                                  nullable=False),
+                                  default=0),
                            Column('operations',
                                   JSON),
                            Column('extensions',
@@ -122,25 +134,30 @@ transactions_table = Table('sbds_transactions', meta,
                            mysql_collate='utf8_general_ci'
                            )
 
-'''
+
+class Transaction(object):
+
+    def __repr__(self):
+        return "<Transaction(block_num='%s', transaction_num='%s' op_type='%s')>" % (
+            self.block_num, self.transaction_num, self.type)
+
+mapper(Transaction, transactions_table, properties={
+    'block' : relationship(Block, backref='transactions')})
+
 operations_table = Table('sbds_operations', meta,
-                           Column('op_id',
-                                  INTEGER(),
-                                  primary_key=True,
-                                  autoincrement=True
-                                  ),
-                           Column('tx_id',
-                                  INTEGER(),
-                                  nullable=False),
-                           Column('operation',
-                                  JSON),
-                           ForeignKeyConstraint(columns=['tx_id'],
+                         Column('op_id',
+                                INTEGER(),
+                                primary_key=True,
+                                autoincrement=True
+                                ),
+                        Column('tx_id',INTEGER()),
+                         Column('operation_num',
+                                SMALLINT(),
+                                nullable=False),
+                         Column('op_meta', JSONB),
+                        ForeignKeyConstraint(columns=['tx_id'],
                                                 refcolumns=[transactions_table.c.tx_id],
                                                 use_alter=True,
                                                 ondelete="CASCADE",
                                                 onupdate="CASCADE"),
-                           mysql_engine='InnoDB',
-                           mysql_charset='utf8',
-                           mysql_collate='utf8_general_ci'
-                           )
-'''
+)

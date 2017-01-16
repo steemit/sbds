@@ -11,6 +11,8 @@ from sbds.storages.db import Blocks
 from sbds.storages.db import Transactions
 from sbds.storages.db.tables import meta
 
+from sbds.storages.db.tables import transaction_types_enum
+
 from sbds.storages.db import extract_transactions_from_block
 from sbds.storages.db import extract_transactions_from_blocks
 from sbds.http_client import SimpleSteemAPIClient
@@ -40,7 +42,10 @@ def db(ctx, database_url, echo):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    engine = create_engine(database_url, echo=echo, execution_options={'stream_results': True}, encoding='utf8')
+    engine = create_engine(database_url,
+                           echo=echo,
+                           execution_options={'stream_results': True},
+                           encoding='utf8')
     ctx.obj = dict(engine=engine)
 
 

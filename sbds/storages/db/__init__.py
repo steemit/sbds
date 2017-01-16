@@ -172,11 +172,10 @@ class BaseSQLClass(AbstractStorageContainer):
                 except IntegrityError as e:
                     extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
                     logger.debug('add_many IntegrityError, adding chunk to skipped %s', self.name, extra=extra)
-                    if is_duplicate_entry_error(e):
-                        skipped.extend(values)
-                    else:
-                        raise(e)
+                    skipped.extend(values)
+
                 except Exception as e:
+                    skipped.extend(values)
                     logger.exception(e)
                     if raise_on_error:
                         raise(e)
