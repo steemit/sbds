@@ -156,7 +156,7 @@ class BaseSQLClass(AbstractStorageContainer):
             except IntegrityError as e:
                 self.handle_integrity_error(e)
 
-    def add_many(self, items, chunksize=1000, retry_skipped=False):
+    def add_many(self, items, chunksize=1000, retry_skipped=False, raise_on_error=True):
         skipped = []
         added_count = 0
         with self.engine.connect() as conn:
@@ -170,11 +170,16 @@ class BaseSQLClass(AbstractStorageContainer):
                     conn.execute(self.table.insert(), values)
                     added_count += len(values)
                 except IntegrityError as e:
-                    self.handle_integrity_error(e)
-                    skipped.extend(values)
                     extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
                     logger.debug('add_many IntegrityError, adding chunk to skipped %s', self.name, extra=extra)
-
+                    if is_duplicate_entry_error(e):
+                        skipped.extend(values)
+                    else:
+                        raise(e)
+                except Exception as e:
+                    logger.exception(e)
+                    if raise_on_error:
+                        raise(e)
 
         logger.info('add_many results: added %s, skipped %s %ss',
                     added_count, len(skipped), self.name)
