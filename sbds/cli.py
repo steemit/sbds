@@ -81,7 +81,7 @@ def cli(server, block_nums, start, end):
         elif start and end:
             blocks = get_blocks(rpc, range(start, end))
         else:
-            blocks = stream_blocks(rpc, start)
+            blocks = rpc.block_stream(start)
 
         json_blocks = map(json.dumps, blocks)
 

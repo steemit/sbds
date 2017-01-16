@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 
 from bottle import route, run
 from sbds.http_client import SimpleSteemAPIClient
+import maya
 
 from sbds.logging import getLogger
 
@@ -28,6 +29,23 @@ database_url = os.environ.get('DATABASE_URL')
 engine = create_engine(database_url, execution_options={'stream_results': True})
 blocks = Blocks(engine=engine)
 transactions = Transactions(engine=engine)
+
+
+def past_24_hours():
+    return maya.now().iso8601(), maya.when('yesterday').iso8601()
+
+def past_48_hours():
+    return maya.now().iso8601(), maya.when('day before yesterday').iso8601()
+
+def past_72_hours():
+    return maya.now().iso8601(), maya.when('72 hours ago').iso8601()
+
+'''
+
+
+
+'''
+
 
 
 @route('/health')

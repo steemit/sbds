@@ -183,7 +183,7 @@ class BaseSQLClass(AbstractStorageContainer):
 
         logger.info('add_many results: added %s, skipped %s %ss',
                     added_count, len(skipped), self.name)
-        if not retry_skipped:
+        if not retry_skipped or len(skipped) == 0:
             return added_count, skipped
 
         with self.engine.connect() as conn:

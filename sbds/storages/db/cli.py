@@ -193,16 +193,19 @@ def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
               metavar='STEEMD_HTTP_URL',
               envvar='STEEMD_HTTP_URL',
               help='Steemd HTTP server URL')
+@click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=False,
+              help="Raise errors")
 @click.pass_context
-def add_transactions_fast(ctx, blocks, chunksize, url):
+def add_transactions_fast(ctx, blocks, chunksize, url, raise_on_error):
     """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     _init_db(engine, meta)
     transaction_storage = Transactions(engine=engine)
     transactions = extract_transactions_from_blocks(blocks)
-    total_added, skipped_transactions  = transaction_storage.add_many(blocks,
+    total_added, skipped_transactions  = transaction_storage.add_many(transactions,
                                                          chunksize=chunksize,
-                                                         retry_skipped=True)
+                                                         retry_skipped=True,
+                                                         raise_on_error=raise_on_error)
     extra = dict(skipped_count=len(skipped_transactions), added=total_added)
     logger.debug('Finished initial pass', extra=extra)
 
