@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-import ujson as json
+import json
+import os
 from itertools import chain
+from functools import partial
 
 import click
 from sqlalchemy import create_engine
@@ -8,18 +10,16 @@ from sqlalchemy import MetaData
 
 import sbds.logging
 from sbds.storages.db import Blocks
-from sbds.storages.db import Transactions
+
 from sbds.storages.db import Operations
 from sbds.storages.db.tables import meta
 
-
-from sbds.storages.db import extract_transactions_from_block
-from sbds.storages.db import extract_transactions_from_blocks
-
-from sbds.storages.db import extract_operations_from_block
 from sbds.storages.db import extract_operations_from_blocks
 
 from sbds.http_client import SimpleSteemAPIClient
+
+from sbds.utils import chunkify
+from sbds.utils import write_json_items
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -59,6 +59,26 @@ def test(ctx):
     click.echo('Success! Connected to database and found %s tables' % (len(result)))
 
 
+@db.command(name='insert-all')
+@click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
+@click.pass_context
+def insert_all(ctx, blocks):
+    """Insert block data into all database tables, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    _init_db(engine, meta)
+
+    block_storage = Blocks(engine=engine)
+    operation_storage = Operations(engine=engine)
+    for block in blocks:
+        try:
+            block_storage.add(block)
+        except Exception as e:
+            logger.exception(e)
+        try:
+            operation_storage.add_from_block(block)
+        except Exception as e:
+            logger.exception(e)
+
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context
@@ -73,26 +93,10 @@ def insert_blocks(ctx, blocks):
         click.echo(block)
 
 
-
-@db.command(name='insert-transactions')
-@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
-@click.pass_context
-def insert_transactions(ctx, blocks):
-    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
-    engine = ctx.obj['engine']
-    _init_db(engine, meta)
-    transaction_storage = Transactions(engine=engine)
-
-    transactions_by_block = chain(map(extract_transactions_from_block, blocks))
-    transactions = chain.from_iterable(transactions_by_block)
-    map(transaction_storage.add, transactions)
-
-
-
 @db.command(name='init')
 @click.confirmation_option(prompt='Are you sure you want to create the db?')
 @click.pass_context
-def init_db(ctx):
+def init_db_tables(ctx):
     """Create any missing tables on the database"""
     engine = ctx.obj['engine']
     meta.create_all(bind=engine, checkfirst=True)
@@ -101,7 +105,7 @@ def init_db(ctx):
 @db.command(name='reset')
 @click.confirmation_option(prompt='Are you sure you want to drop and then create the db?')
 @click.pass_context
-def reset_db(ctx):
+def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
     engine = ctx.obj['engine']
     try:
@@ -145,7 +149,7 @@ def _init_db(engine, _meta):
               help="Raise errors")
 @click.pass_context
 def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
-    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+    """Quickly Insert  blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     _init_db(engine, meta)
     block_storage = Blocks(engine=engine)
@@ -177,44 +181,46 @@ def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
                                                          retry_skipped=True)
 
 
-@db.command(name='add-transactions-fast')
-@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
-@click.option('--chunksize', type=click.INT, default=1000)
-@click.option('--url',
-              metavar='STEEMD_HTTP_URL',
-              envvar='STEEMD_HTTP_URL',
-              help='Steemd HTTP server URL')
-@click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=False,
-              help="Raise errors")
-@click.pass_context
-def add_transactions_fast(ctx, blocks, chunksize, url, raise_on_error):
-    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
-    engine = ctx.obj['engine']
-    _init_db(engine, meta)
-    transaction_storage = Transactions(engine=engine)
-    transactions = extract_transactions_from_blocks(blocks)
-    total_added, skipped_transactions  = transaction_storage.add_many(transactions,
-                                                         chunksize=chunksize,
-                                                         retry_skipped=True,
-                                                         raise_on_error=raise_on_error)
-    extra = dict(skipped_count=len(skipped_transactions), added=total_added)
-    logger.debug('Finished initial pass', extra=extra)
-
 @db.command(name='add-operations-fast')
 @click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
 @click.option('--chunksize', type=click.INT, default=1000)
 @click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=False,
               help="Raise errors")
+@click.option('--skipped_operations_file',
+                default='skipped_operations.json',
+                help='filename to write skipped operations',
+                type=click.Path(dir_okay=False, file_okay=True, resolve_path=True))
 @click.pass_context
-def add_operations_fast(ctx, blocks, chunksize, raise_on_error):
-    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+def add_operations_fast(ctx, blocks, chunksize, raise_on_error, skipped_operations_file):
+    """Quickly Insert operations in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     _init_db(engine, meta)
     operation_storage = Operations(engine=engine)
     operations = extract_operations_from_blocks(blocks)
-    total_added, skipped_operations  = operation_storage.add_many(operations,
+    total_added = 0
+    skipped_operations = 0
+    operations_read = 0
+    write_json = partial(write_json_items, skipped_operations_file)
+    for chunk_num,chunk in enumerate(chunkify(operations, chunksize=chunksize),1):
+        click.echo('adding chunk %s (%s items)' % (chunk_num, len(chunk)), err=True)
+        chunk_total_added, chunk_skipped_operations  = operation_storage.add_many(chunk,
                                                          chunksize=chunksize,
                                                          retry_skipped=True,
                                                          raise_on_error=raise_on_error)
-    extra = dict(skipped_count=len(skipped_operations), added=total_added)
+        # logging info
+        total_added += chunk_total_added
+        operations_read += len(chunk)
+        skipped_operations += len(chunk_skipped_operations)
+        write_json(chunk_skipped_operations)
+        extra = dict(chunk_num=chunk_num,
+                     chunk_added=chunk_total_added,
+                     total_added=total_added,
+                     operations_read=operations_read,
+                     skipped_operations=skipped_operations)
+
+        logger.info('Chunk %s processed', chunk_num, extra=extra)
+        [h.flush() for h in logger.handlers]
+    extra = dict(skipped_count=skipped_operations,
+                     added=total_added)
     logger.debug('Finished initial pass', extra=extra)
+

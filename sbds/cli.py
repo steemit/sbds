@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import ujson as json
+import json
 import concurrent.futures
 import fnmatch
 import os
@@ -48,7 +48,7 @@ def parse_block_nums(ctx, param, value):
 @click.option('--start',
               help='Starting block_num, default is 1',
               default=1,
-              metavar="INTEGER BLOCK_NUM",
+              envvar='STARTING_BLOCK_NUM',
               type=click.IntRange(min=1))
 @click.option('--end',
               help='Ending block_num, default is infinity',
@@ -155,10 +155,10 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
     '''Load blocks from locally stored "checkpoint" files'''
     checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
     checkpoint_filenames = sorted(checkpoint_filenames)
-    click.echo('Using the following checkpoints for the requested blocks:',err=True)
-    [click.echo('\t%s' % f, err=True) for f in checkpoint_filenames]
-    with fileinput.FileInput(files=checkpoint_filenames,
-                   openhook=fileinput.hook_compressed) as blocks:
+    display_load_blocks_info(checkpoints_dir, start, end, checkpoint_filenames)
+    with fileinput.FileInput(mode='r',
+                    files=checkpoint_filenames,
+                   openhook=hook_compressed_encoded('utf8')) as blocks:
         for block in blocks:
             block = json.loads(block)
             block_num = block_num_from_previous(block['previous'])
@@ -167,7 +167,23 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
             if end and end > 0 and block_num > end:
                 break
             block['block_num'] = block_num
-            click.echo(json.dumps(block).encode('utf8'))
+            click.echo(json.dumps(block,ensure_ascii=True).encode('utf8'))
+
+def display_load_blocks_info(checkpoints_dir, start, end, checkpoint_filenames):
+    import os
+    checkpoints=os.linesep.join([click.format_filename(fn) for fn in checkpoint_filenames])
+    output='''
+Loading blocks from checkpoints
+===============================
+start:         {start}
+end:           {end}
+total blocks:  {total_blocks}
+checkpoints:
+{checkpoints}
+
+'''.format(start=start, end=end, total_blocks=end-start,
+               checkpoints=checkpoints)
+    click.echo(output, err=True)
 
 
 def required_checkpoint_files(path, start, end=None, files=None):
@@ -193,3 +209,17 @@ def roundup(x, factor=1000000):
 
 def rounddown(x, factor=1000000):
     return ((x // factor) * factor)
+
+
+def hook_compressed_encoded(encoding, real_mode='rt'):
+    def openhook_compressed(filename, mode):
+        ext = os.path.splitext(filename)[1]
+        if ext == '.gz':
+            import gzip
+            return gzip.open(filename, mode=real_mode, encoding=encoding)
+        elif ext == '.bz2':
+            import bz2
+            return bz2.BZ2File(filename, mode=real_mode,encoding=encoding)
+        else:
+            return open(filename, mode=real_mode, encoding=encoding)
+    return openhook_compressed

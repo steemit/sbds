@@ -3,6 +3,7 @@ asyncio==3.4.3
 boto3==1.4.3
 botocore==1.4.93
 bottle==0.12.13
+certifi
 click==6.7
 colorama==0.3.6
 diff-match-patch==20121119

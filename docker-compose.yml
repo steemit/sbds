@@ -16,3 +16,6 @@ services:
   block_streamer:
     image: sbdsimg
     env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - WEBSOCKET_URL=${WEBSOCKET_URL}

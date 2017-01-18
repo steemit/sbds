@@ -70,24 +70,6 @@ def flatten_obj(y):
     flatten(y)
     return out
 
-def safe_flatten_obj(y):
-    out = {}
-    def flatten(x, name=''):
-        if type(x) is dict:
-            for a in x:
-                flatten(x[a], name + a + '_')
-        elif type(x) is list:
-            i = 0
-            for a in x:
-                flatten(a, name + '%s_' % i)
-                i += 1
-        else:
-
-            out[name.rstrip('.')] =x
-
-    flatten(y)
-    return out
-
 
 
 def build_op_type_maps(blocks):
@@ -99,3 +81,11 @@ def build_op_type_maps(blocks):
         ops_dict[op_type][frozenset(keyval)]=flatten_obj(op)
     return ops_dict
 
+
+def write_json_items(filename, items):
+    try:
+        lineitems = os.linesep.join(json.dumps(item, ensure_ascii=True) for item in items)
+        with open(filename, mode='a', encoding='utf8') as f:
+           f.writelines(lineitems)
+    except Exception as e:
+        logger.error(e)

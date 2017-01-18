@@ -5,7 +5,6 @@ from collections import defaultdict
 
 import ujson as json
 
-import dateutil.parser
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
@@ -237,6 +236,8 @@ class Blocks(BaseSQLClass):
         if not block_dict.get('raw'):
             raw = raw or json.dumps(block_dict, ensure_ascii=True).encode('utf8')
             block_dict.update(raw=raw)
+        elif isinstance(block_dict['raw'], bytes):
+            block_dict['raw'] = block_dict['raw'].decode('utf8')
         block_num = block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
         return block_dict['block_num'], block_dict
@@ -312,6 +313,9 @@ class Operations(BaseSQLClass):
     def __eq__(self):
         pass
 
+    def add_from_block(self, block):
+        operations = extract_operations_from_block(block)
+        self.add_many(operations)
 
 def extract_transactions_from_blocks(blocks):
     transactions = chain.from_iterable(map(extract_transactions_from_block, blocks))
@@ -381,7 +385,8 @@ def is_duplicate_entry_error(error):
     try:
         return "duplicate" in str(error.orig).lower()
     except Exception as e:
-        logger.exception(e)
+        extra=dict(exception_type=type(e),exception_dir=dir(e))
+        logger.exception(e, extra=extra)
         return False
 
 
@@ -390,7 +395,7 @@ def handle_comment(op, raise_on_error=True):
         json_metadata = op['json_metadata']
         if not json_metadata:
             return op
-        metadata = json.loads(json_metadata, encoding='utf8')
+        metadata = json.loads(json_metadata.encode())
         op['json_metadata'] = metadata
         return op
     except KeyError:

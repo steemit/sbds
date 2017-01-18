@@ -17,4 +17,6 @@ COPY . /usr/src/app
 WORKDIR /usr/src/app
 RUN pip install . && apk del .build-deps
 
-CMD ["sbds --start $(db last-block)| db insert-blocks"]
+EXPOSE 8080
+
+CMD "/usr/local/bin/stream.sh"

@@ -22,7 +22,8 @@ setup(
         'maya',
         'psycopg2'
     ],
-    scripts=['sbds/storages/db/scripts/populate.sh'],
+    scripts=['sbds/storages/db/scripts/populate.sh',
+             'sbds/scripts/stream.sh'],
     entry_points={'console_scripts': [
         'sbds=sbds.cli:cli',
         'bulk-blocks=sbds.cli:bulk_blocks',
