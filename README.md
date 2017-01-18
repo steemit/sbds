@@ -67,13 +67,14 @@ Options:
 $ notify --help
 Usage: notify [OPTIONS] [BLOCKS]
 
+wsdump.py --text '{"jsonrpc": "2.0", "method": "call", "params": ["database_api","set_block_applied_callback",[1234]], "id": 1}' --raw
+wss://steemit.com/wspa | notify
+
 Options:
   --help  Show this message and exit.
 
 ```
 
-`wsdump.py --text '{"jsonrpc": "2.0", "method": "call", "params": ["database_api","set_block_applied_callback",[1234]], "id": 1}' --raw
-wss://steemit.com/wspa | notify`
 
 #### `block-height`
 ```
@@ -114,7 +115,6 @@ Options:
   --end INTEGER
   --help           Show this message and exit.
 
-
 ```
 
 #### Storage Commands
@@ -127,11 +127,11 @@ Usage: s3 [OPTIONS] COMMAND [ARGS]...
 
   This command provides AWS S3 steem block storage. 
   
-  `s3 create-bucket <bucket name>` 
+  s3 create-bucket <bucket name>
   
   or
   
-  `sbds --start 1 | s3 put-json-blocks <bucket-name> -`
+  sbds --start 1 | s3 put-json-blocks <bucket-name> -
 
 Options:
   --help  Show this message and exit.
