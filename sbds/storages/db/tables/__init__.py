@@ -21,7 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 
 blocks_table = Table('sbds_blocks', meta,
-                     Column('raw', JSONB, nullable=False),
+                     Column('raw', JSONB),
                      Column('block_num',
                             INTEGER(),
                             primary_key=True,
@@ -157,6 +157,7 @@ operations_table = Table('sbds_operations', meta,
                         Column('timestamp', TIMESTAMP(timezone=False), index=True),
                         Column('op_type', transaction_types_enum, nullable=False, index=True),
                         Column('op_meta', JSONB()),
+                        Index('op_index', 'block_num', 'transaction_num', 'operation_num', unique=True)
 )
 
 class Operation(object):
