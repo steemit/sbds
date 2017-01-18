@@ -31,7 +31,7 @@ logger = sbds.logging.getLogger(__name__)
               help="Enable(default)/disable the echoing of SQL commands issued to database")
 @click.pass_context
 def db(ctx, database_url, echo):
-    """Group of commands used to interact with the MySQL storage backend.
+    """Group of commands used to interact with the SQL storage backend.
         Typical usage would be reading blocks in JSON format from STDIN
         and then storing those blocks in the database:
 
@@ -39,7 +39,7 @@ def db(ctx, database_url, echo):
         sbds | db insert-blocks
 
         In the example above, the "sbds" command streams new blocks to STDOUT, which are piped to STDIN of
-        the "insert-blocks" db command by default. The "database_url" was read from the "DATABASE_URL"
+        the "db insert-blocks" command by default. The "database_url" was read from the "DATABASE_URL"
         ENV var, though it may optionally be provided on the command line:
 
         \b

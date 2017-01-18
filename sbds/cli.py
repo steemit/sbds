@@ -126,6 +126,7 @@ def get_blocks(rpc, block_nums):
               envvar='STEEMD_HTTP_URL',
               help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
+    '''Quickly request blocks from steemd'''
     with click.open_file('-', 'w', encoding='utf8') as f:
         blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
         json_blocks = map(json.dumps, blocks)
@@ -151,7 +152,11 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None, rpc=
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 def load_blocks_from_checkpoints(checkpoints_dir, start, end):
+    '''Load blocks from locally stored "checkpoint" files'''
     checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
+    checkpoint_filenames = sorted(checkpoint_filenames)
+    click.echo('Using the following checkpoints for the requested blocks:',err=True)
+    [click.echo('\t%s' % f, err=True) for f in checkpoint_filenames]
     with fileinput.FileInput(files=checkpoint_filenames,
                    openhook=fileinput.hook_compressed) as blocks:
         for block in blocks:
