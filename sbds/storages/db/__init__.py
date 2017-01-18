@@ -177,7 +177,6 @@ class BaseSQLClass(AbstractStorageContainer):
                     extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
                     logger.debug('add_many IntegrityError, adding chunk to skipped %s', self.name, extra=extra)
                     skipped.extend(values)
-
                 except Exception as e:
                     skipped.extend(values)
                     logger.exception(e)
@@ -354,8 +353,15 @@ def extract_operations_from_block(_block):
     for transaction in transactions:
         for operation_num, operation in enumerate(transaction['operations']):
             op_type, op = operation
-            op = operation_handlers[op_type](op) or op
-
+            try:
+                op = operation_handlers[op_type](op) or op
+            except Exception as e:
+                extra = dict(block_num=transaction['block_num'] ,
+                            transaction_num=transaction['transaction_num'],
+                             op_type=op_type,
+                             op=op,
+                             error=e)
+                logger.error('Error handling %s op_type', op_type, extra=extra)
             yield dict(
                block_num=transaction['block_num'],
                transaction_num=transaction['transaction_num'],
@@ -379,21 +385,21 @@ def is_duplicate_entry_error(error):
         return False
 
 
-def handle_comment(op):
+def handle_comment(op, raise_on_error=True):
     try:
         json_metadata = op['json_metadata']
         if not json_metadata:
             return op
-        metadata = json.loads(json_metadata)
+        metadata = json.loads(json_metadata, encoding='utf8')
         op['json_metadata'] = metadata
         return op
     except KeyError:
         return op
-
     except Exception as e:
         extra = dict(op=op, error=e)
         logger.error('Unable load json_metadata from op', op, extra=extra)
-        raise e
+        if raise_on_error:
+            raise e
 
 operation_handlers= defaultdict(lambda : lambda x: x )
 operation_handlers['comment'] = handle_comment
