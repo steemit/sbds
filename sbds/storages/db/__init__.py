@@ -379,7 +379,7 @@ def extract_operations_from_blocks(blocks):
 
 def is_duplicate_entry_error(error):
     try:
-        return "Duplicate entry" in str(error.orig)
+        return "duplicate" in str(error.orig).lower()
     except Exception as e:
         logger.exception(e)
         return False
