@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
+from copy import deepcopy
+from collections import defaultdict
+
 import ujson as json
 
 import dateutil.parser
@@ -12,6 +15,7 @@ import sbds.logging
 from sbds.storages import AbstractStorageContainer
 from sbds.storages.db.tables import blocks_table
 from sbds.storages.db.tables import transactions_table
+from sbds.storages.db.tables import operations_table
 from sbds.utils import block_num_from_previous, chunkify
 
 logger = sbds.logging.getLogger(__name__)
@@ -284,13 +288,31 @@ class Transactions(BaseSQLClass):
 
     @property
     def pk(self):
-        return self.table.c['txid']
+        return self.table.c['tx_id']
 
     def __delitem__(self, key):
         pass
 
     def __eq__(self):
         pass
+
+
+class Operations(BaseSQLClass):
+    def __init__(self, *args, **kwargs):
+        kwargs['table'] = operations_table
+        kwargs['name'] = 'operation'
+        super(Operations, self).__init__(*args, **kwargs)
+
+    @property
+    def pk(self):
+        return self.table.c['op_id']
+
+    def __delitem__(self, key):
+        pass
+
+    def __eq__(self):
+        pass
+
 
 def extract_transactions_from_blocks(blocks):
     transactions = chain.from_iterable(map(extract_transactions_from_block, blocks))
@@ -315,6 +337,40 @@ def extract_transactions_from_block(block):
                    operations=t['operations'],
                    op_count=len(t['operations']))
 
+
+def extract_operations_from_block(_block):
+    block = deepcopy(_block)
+    if isinstance(block, (str, bytes)):
+        try:
+            block = json.loads(block)
+        except ValueError as e:
+            extra = dict(block=block, error=e)
+            logger.error('Unable load json block', extra=extra)
+            raise e
+
+    timestamp = block['timestamp']
+
+    transactions = extract_transactions_from_block(block)
+    for transaction in transactions:
+        for operation_num, operation in enumerate(transaction['operations']):
+            op_type, op = operation
+            op = operation_handlers[op_type](op) or op
+
+            yield dict(
+               block_num=transaction['block_num'],
+               transaction_num=transaction['transaction_num'],
+               operation_num=operation_num,
+               timestamp=timestamp,
+               op_type=op_type,
+               op_meta=op
+           )
+
+
+def extract_operations_from_blocks(blocks):
+    operations = chain.from_iterable(map(extract_operations_from_block, blocks))
+    return operations
+
+
 def is_duplicate_entry_error(error):
     try:
         return "Duplicate entry" in str(error.orig)
@@ -322,3 +378,22 @@ def is_duplicate_entry_error(error):
         logger.exception(e)
         return False
 
+
+def handle_comment(op):
+    try:
+        json_metadata = op['json_metadata']
+        if not json_metadata:
+            return op
+        metadata = json.loads(json_metadata)
+        op['json_metadata'] = metadata
+        return op
+    except KeyError:
+        return op
+
+    except Exception as e:
+        extra = dict(op=op, error=e)
+        logger.error('Unable load json_metadata from op', op, extra=extra)
+        raise e
+
+operation_handlers= defaultdict(lambda : lambda x: x )
+operation_handlers['comment'] = handle_comment

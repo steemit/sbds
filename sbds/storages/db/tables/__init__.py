@@ -6,7 +6,8 @@ from sqlalchemy.schema import ForeignKeyConstraint
 from sqlalchemy.schema import Index
 from sqlalchemy.schema import Table
 from sqlalchemy.types import BIGINT
-from sqlalchemy.types import DATETIME
+from sqlalchemy.types import TIMESTAMP
+
 from sqlalchemy.types import Enum
 from sqlalchemy.types import INTEGER
 from sqlalchemy.types import SMALLINT
@@ -20,18 +21,18 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 
 blocks_table = Table('sbds_blocks', meta,
-                     #Column('raw', JSON, nullable=False),
+                     Column('raw', JSONB, nullable=False),
                      Column('block_num',
                             INTEGER(),
                             primary_key=True,
                             nullable=False,
                             autoincrement=False),
                      Column('previous', VARCHAR(length=50)),
-                     Column('timestamp', DATETIME(), index=True),
+                     Column('timestamp', TIMESTAMP(timezone=False), index=True),
                      Column('witness', VARCHAR(length=50)),
                      Column('witness_signature', VARCHAR(length=150)),
                      Column('transaction_merkle_root', VARCHAR(length=50)),
-                     Column('extensions', JSON),
+                     Column('extensions', JSONB),
                      mysql_engine='InnoDB',
                      mysql_charset='utf8',
                      mysql_collate='utf8_general_ci'
@@ -108,21 +109,21 @@ transactions_table = Table('sbds_transactions', meta,
                                   BIGINT(),
                                   nullable=False),
                            Column('expiration',
-                                  DATETIME(),
+                                  TIMESTAMP(timezone=False),
                                   nullable=False),
                            Column('type',
                                   transaction_types_enum,
                                   nullable=False,
                                   index=True),
-                           Column('operation_count',
+                           Column('op_count',
                                   SMALLINT(),
                                   default=0),
                            Column('operations',
-                                  JSON),
+                                  JSONB),
                            Column('extensions',
-                                  JSON),
+                                  JSONB),
                            Column('signatures',
-                                  JSON),
+                                  JSONB),
                            ForeignKeyConstraint(columns=['block_num'],
                                                 refcolumns=[blocks_table.c.block_num],
                                                 use_alter=True,
@@ -144,20 +145,22 @@ class Transaction(object):
 mapper(Transaction, transactions_table, properties={
     'block' : relationship(Block, backref='transactions')})
 
+
 operations_table = Table('sbds_operations', meta,
-                         Column('op_id',
-                                INTEGER(),
-                                primary_key=True,
-                                autoincrement=True
-                                ),
-                        Column('tx_id',INTEGER()),
-                         Column('operation_num',
-                                SMALLINT(),
-                                nullable=False),
-                         Column('op_meta', JSONB),
-                        ForeignKeyConstraint(columns=['tx_id'],
-                                                refcolumns=[transactions_table.c.tx_id],
-                                                use_alter=True,
-                                                ondelete="CASCADE",
-                                                onupdate="CASCADE"),
+                        Column('op_id',INTEGER(),
+                               primary_key=True,
+                                nullable=False,
+                                autoincrement=True),
+                        Column('block_num',INTEGER(),nullable=False),
+                        Column('transaction_num', SMALLINT(), nullable=False),
+                        Column('operation_num', SMALLINT(), nullable=False),
+                        Column('timestamp', TIMESTAMP(timezone=False), index=True),
+                        Column('op_type', transaction_types_enum, nullable=False, index=True),
+                        Column('op_meta', JSONB()),
 )
+
+class Operation(object):
+
+    def __repr__(self):
+        return "<Operation(op_type='%s' block_num='%s', transaction_num='%s' op_id='%s')>" % (
+            self.type, self.block_num, self.transaction_num, self.op_id)

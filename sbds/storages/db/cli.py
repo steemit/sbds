@@ -9,12 +9,16 @@ from sqlalchemy import MetaData
 import sbds.logging
 from sbds.storages.db import Blocks
 from sbds.storages.db import Transactions
+from sbds.storages.db import Operations
 from sbds.storages.db.tables import meta
 
-from sbds.storages.db.tables import transaction_types_enum
 
 from sbds.storages.db import extract_transactions_from_block
 from sbds.storages.db import extract_transactions_from_blocks
+
+from sbds.storages.db import extract_operations_from_block
+from sbds.storages.db import extract_operations_from_blocks
+
 from sbds.http_client import SimpleSteemAPIClient
 
 logger = sbds.logging.getLogger(__name__)
@@ -42,10 +46,7 @@ def db(ctx, database_url, echo):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    engine = create_engine(database_url,
-                           echo=echo,
-                           execution_options={'stream_results': True},
-                           encoding='utf8')
+    engine = create_engine(database_url, server_side_cursors=True, client_encoding='utf8')
     ctx.obj = dict(engine=engine)
 
 
@@ -67,7 +68,9 @@ def insert_blocks(ctx, blocks):
     _init_db(engine, meta)
 
     block_storage = Blocks(engine=engine)
-    map(block_storage.add, blocks)
+    for block in blocks:
+        block_storage.add(block)
+        click.echo(block)
 
 
 
@@ -83,23 +86,6 @@ def insert_transactions(ctx, blocks):
     transactions_by_block = chain(map(extract_transactions_from_block, blocks))
     transactions = chain.from_iterable(transactions_by_block)
     map(transaction_storage.add, transactions)
-
-
-
-
-@db.command(name='insert-blocks-and-transactions')
-@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
-@click.pass_context
-def insert_blocks_and_transactions(ctx, blocks):
-    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
-    engine = ctx.obj['engine']
-    _init_db(engine, meta)
-    block_storage = Blocks(engine=engine)
-    transaction_storage = Transactions(engine=engine)
-    for block in blocks:
-        block_storage.add(block)
-        transaction_storage.add_many(extract_transactions_from_block(block))
-
 
 
 
@@ -214,3 +200,21 @@ def add_transactions_fast(ctx, blocks, chunksize, url, raise_on_error):
     extra = dict(skipped_count=len(skipped_transactions), added=total_added)
     logger.debug('Finished initial pass', extra=extra)
 
+@db.command(name='add-operations-fast')
+@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=False,
+              help="Raise errors")
+@click.pass_context
+def add_operations_fast(ctx, blocks, chunksize, raise_on_error):
+    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    _init_db(engine, meta)
+    operation_storage = Operations(engine=engine)
+    operations = extract_operations_from_blocks(blocks)
+    total_added, skipped_operations  = operation_storage.add_many(operations,
+                                                         chunksize=chunksize,
+                                                         retry_skipped=True,
+                                                         raise_on_error=raise_on_error)
+    extra = dict(skipped_count=len(skipped_operations), added=total_added)
+    logger.debug('Finished initial pass', extra=extra)

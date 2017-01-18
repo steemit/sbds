@@ -31,6 +31,7 @@ setup(
         's3=sbds.storages.s3.cli:s3',
         'db=sbds.storages.db.cli:db',
         'es=sbds.storages.elasticsearch.cli:es',
+        'load-checkpoint-blocks=sbds.cli:load_blocks_from_checkpoints',
         'dev-server=sbds.http_server:dev_server'
     ]}
 )

@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import ujson as json
 import concurrent.futures
+import fnmatch
+import os
+import fileinput
+import operator
+from itertools import chain
 
 import click
 
@@ -139,3 +144,47 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None, rpc=
                 block_num = block_num_from_previous(b['previous'])
                 b.update(block_num=block_num)
                 yield b
+
+
+@click.command(name='load-checkpoint-blocks')
+@click.argument('checkpoints_dir', type=click.Path(exists=True, file_okay=False, resolve_path=True))
+@click.option('--start', type=click.INT, default=1)
+@click.option('--end', type=click.INT, default=0)
+def load_blocks_from_checkpoints(checkpoints_dir, start, end):
+    checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
+    with fileinput.FileInput(files=checkpoint_filenames,
+                   openhook=fileinput.hook_compressed) as blocks:
+        for block in blocks:
+            block = json.loads(block)
+            block_num = block_num_from_previous(block['previous'])
+            if block_num < start:
+                continue
+            if end and end > 0 and block_num > end:
+                break
+            block['block_num'] = block_num
+            click.echo(json.dumps(block).encode('utf8'))
+
+
+def required_checkpoint_files(path, start, end=None, files=None):
+    checkpoint_file_pattern = 'blocks_*.json*'
+    all_files = os.listdir(path)
+    files = files or fnmatch.filter(all_files, checkpoint_file_pattern)
+    checkpoint_files = []
+    for file in files:
+        check_low = int(file.split('-')[0].split('_')[1])
+        check_high = int(file.split('-')[1].split('.')[0])
+        if start > check_high:
+            continue
+        if end and end > 0 and check_low > end:
+            break
+        checkpoint_files.append(file)
+
+    return [os.path.join(path, f) for f in checkpoint_files]
+
+
+def roundup(x, factor=1000000):
+    return x if x % factor == 0 else x + factor - x % factor
+
+
+def rounddown(x, factor=1000000):
+    return ((x // factor) * factor)
