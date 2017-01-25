@@ -7,6 +7,11 @@ services:
      - "8080:8080"
     entrypoint:
       - dev-server
+    env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - WEBSOCKET_URL=${WEBSOCKET_URL}
+      - STEEMD_HTTP_URL=${STEEMD_HTTP_URL}
   db_block_loader:
     build: .
     image: sbdsimg

@@ -38,11 +38,9 @@ formatter.converter = time.gmtime
 logHandler = logging.StreamHandler()
 logHandler.setFormatter(formatter)
 
-def getLogger(name):
+def getLogger(name, level=logging.DEBUG):
     logger = logging.getLogger(name)
-    #print('name:%s, logger:%s, handlers:%s' % (name, logger, logger.handlers), file=sys.stderr)
     if not logger.hasHandlers():
-        #print('adding handler to %s' % name, file=sys.stderr)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(level)
         logger.addHandler(logHandler)
     return logger

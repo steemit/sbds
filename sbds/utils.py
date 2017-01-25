@@ -2,6 +2,8 @@
 import math
 from itertools import chain
 from collections import defaultdict
+import json
+
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
@@ -89,3 +91,43 @@ def write_json_items(filename, items):
            f.writelines(lineitems)
     except Exception as e:
         logger.error(e)
+
+
+class Vividict(dict):
+    def __missing__(self, key):
+        value = self[key] = type(self)()
+        return value
+
+
+def json_metadata_keys(operations):
+    jm_keys = defaultdict(set)
+    for op in operations:
+        if 'json_metadata' in op and op['json_metadata']:
+            jm = jm2 = None
+            try:
+                jm = json.loads(op['json_metadata'])
+                if isinstance(jm, dict):
+                    jm_keys[op['type']].update(jm.keys())
+                elif isinstance(jm, str):
+                    jm2 = json.loads(jm)
+                    jm_keys[op['type']].update(jm2.keys())
+                else:
+                    print('op_type:%s type:%s jm:%s jm2:%s orig:%s' % (
+                        op['type'], type(jm), jm, jm2, op['json_metadata']))
+            except Exception as e:
+                print('op_type:%s orig:%s jm:%s jm2:%s error:%s' % (
+                    op['type'], op['json_metadata'], jm, jm2, e))
+    return jm_keys
+
+def block_info(block_dict):
+    info = dict(block_num=block_dict['block_num'],
+                transaction_count=len(block_dict['transactions']),
+                operation_count=sum(len(t['operations']) for t in block_dict['transactions']),
+                transactions=[],
+                )
+    info['brief'] = 'block:{block_num} transaction_type:{transactions} total_operations:{operations_count}'
+
+    for t in block_dict['transactions']:
+        info['transactions'].append(t['operations'][0][0])
+    return block_data
+

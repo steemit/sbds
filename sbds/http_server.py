@@ -5,7 +5,9 @@ import os
 import click
 from sqlalchemy import create_engine
 
+import bottle
 from bottle import route, run, request, response
+
 
 from sbds.http_client import SimpleSteemAPIClient
 import maya
@@ -56,9 +58,7 @@ SELECT COUNT(type) FROM sbds_transactions WHERE type='account_create'
 
 '''
 
-def account_queries():
-    acounts=dict()
-    accounts['total'] =
+
 
 @route('/health')
 def health():
@@ -70,12 +70,13 @@ def health():
                 diff=diff,
                 timestamp=datetime.utcnow().isoformat())
 
-@route('/query')
-def query():
 
 
 # Development server
-
 @click.command()
 def dev_server():
-    run(host='localhost', port=8080, debug=True)
+    run(host='0.0.0.0', port=8080, debug=True)
+
+
+# WSGI application
+app = application = bottle.default_app()

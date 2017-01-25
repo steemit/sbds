@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+
 from itertools import chain
 from copy import deepcopy
+from copy import copy
+
 from collections import defaultdict
 
 import ujson as json
@@ -8,46 +11,17 @@ import ujson as json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import exists
 from sqlalchemy.sql import select
-from sqlalchemy.sql import func
 
 import sbds.logging
 from sbds.storages import AbstractStorageContainer
-from sbds.storages.db.tables import blocks_table
-from sbds.storages.db.tables import transactions_table
-from sbds.storages.db.tables import operations_table
+
+#from sbds.storages.db.tables import blocks_table
+#from sbds.storages.db.tables import transactions_table
+#from sbds.storages.db.tables import transactions_table as operations_table
+
 from sbds.utils import block_num_from_previous, chunkify
 
 logger = sbds.logging.getLogger(__name__)
-
-tx_types = {
-    'account_create': 'TxAccountCreates',
-    'account_update': 'TxAccountUpdates',
-    'account_witness_proxy': 'TxAccountWitnessProxies',
-    'account_witness_vote': 'TxAccountWitnessVotes',
-    'cancel_transfer_from_savings': None,
-    'change_recovery_account': 'TxAccountUpdates',
-    'comment': 'TxComments',
-    'comment_options': 'TxCommentOptions',
-    'convert': 'TxConverts',
-    'custom': 'TxCustoms',
-    'custom_json': None,
-    'delete_comment': 'TxDeleteComments',
-    'feed_publish': 'TxFeeds',
-    'limit_order_cancel': 'TxLimitOrders',
-    'limit_order_create': 'TxLimitOrders',
-    'pow': 'TxPows',
-    'pow2': 'TxPows',
-    'recover_account': 'TxAccountRecovers',
-    'request_account_recovery': 'TxAccountRecovers',
-    'set_withdraw_vesting_route': 'TxWithdrawVestingRoutes',
-    'transfer': 'TxTransfers',
-    'transfer_from_savings': 'TxTransfers',
-    'transfer_to_savings': 'TxTransfers',
-    'transfer_to_vesting': 'TxTransfers',
-    'vote': 'TxVotes',
-    'withdraw_vesting': None,
-    'witness_update': 'TxWitnessUpdates'
-}
 
 
 class BaseSQLClass(AbstractStorageContainer):
@@ -159,23 +133,30 @@ class BaseSQLClass(AbstractStorageContainer):
             except IntegrityError as e:
                 self.handle_integrity_error(e)
 
-    def add_many(self, items, chunksize=1000, retry_skipped=False, raise_on_error=True):
+    def add_many(self, items, chunksize=1000, raise_on_error=True):
         skipped = []
-        added_count = 0
+        added = []
+
         with self.engine.connect() as conn:
             for i, chunk in enumerate(chunkify(items, chunksize), 1):
+
                 kv_pairs = [self._prepare_for_storage(None, item) for item in chunk]
+
                 values = [v[1] for v in kv_pairs]
                 extra = dict(chunk_count=i, values_count=len(values),
-                             skipped_item_count=len(skipped), added_item_count=added_count)
+                             skipped_item_count=len(skipped), added_item_count=added)
+
                 logger.debug('adding chunk of %ss', self.name, extra=extra)
+
                 try:
                     conn.execute(self.table.insert(), values)
-                    added_count += len(values)
+                    added.extend(values)
+
                 except IntegrityError as e:
                     extra = dict(skipped_item_count=len(skipped), chunksize=chunksize)
                     logger.debug('add_many IntegrityError, adding chunk to skipped %s', self.name, extra=extra)
                     skipped.extend(values)
+
                 except Exception as e:
                     skipped.extend(values)
                     logger.exception(e)
@@ -183,24 +164,7 @@ class BaseSQLClass(AbstractStorageContainer):
                         raise(e)
 
         logger.info('add_many results: added %s, skipped %s %ss',
-                    added_count, len(skipped), self.name)
-        if not retry_skipped or len(skipped) == 0:
-            return added_count, skipped
-
-        with self.engine.connect() as conn:
-            logger.info('retrying to add %s skipped %ss', len(skipped), self.name)
-            for i, item in enumerate(skipped):
-                try:
-                    self.add(item, prepared=True)
-                    added_count += 1
-                    del skipped[i]
-                except Exception as e:
-                    extra=dict(item_type=self.name,
-                               block_num=item['block_num'],
-                               error=e)
-                    logger.error('Error while retrying skipped %s', self.name, extra=extra)
-
-        return added_count, skipped
+                    len(added), len(skipped), self.name)
 
     @staticmethod
     def handle_integrity_error(e):
@@ -218,7 +182,7 @@ class BaseSQLClass(AbstractStorageContainer):
 
 class Blocks(BaseSQLClass):
     def __init__(self, *args, **kwargs):
-        kwargs['table'] = blocks_table
+        #kwargs['table'] = blocks_table
         kwargs['name'] = 'block'
         super(Blocks, self).__init__(*args, **kwargs)
 
@@ -227,6 +191,10 @@ class Blocks(BaseSQLClass):
         return self.table.c['block_num']
 
     def _prepare_for_storage(self, block_num, block):
+        block_dict = self.prepare(block)
+        return block_dict['block_num'], block_dict
+
+    def prepare(self, block):
         raw = None
         if not isinstance(block, dict):
             raw = block
@@ -240,7 +208,7 @@ class Blocks(BaseSQLClass):
             block_dict['raw'] = block_dict['raw'].decode('utf8')
         block_num = block_num_from_previous(block_dict['previous'])
         block_dict.update(block_num=block_num)
-        return block_dict['block_num'], block_dict
+        return block_dict
 
     @property
     def block_nums(self):
@@ -253,31 +221,11 @@ class Blocks(BaseSQLClass):
         existing_block_nums = frozenset(self.block_nums)
         return frozenset(range(1, block_height)) -  existing_block_nums
 
-    def get_blocks_with_transactions(self, block_num_only=False, transactions_only=False):
-        c = self.table.c
-        if block_num_only:
-            stmt = select([c.block_num]).where(func.LENGTH(c.transactions) > 10)
-            result = self._execute_iter(stmt)
-            return (b[0] for b in result)
-        elif transactions_only:
-            stmt = select([c.block_num, c.transactions]).where(func.LENGTH(c.transactions) > 10)
-            result = self._execute_iter(stmt)
-            for block_num, transaction_txt in result:
-                transactions = json.loads(transaction_txt)
-                for transaction in transactions:
-                    transaction['block_num'] = block_num
-                    yield transaction
-        else:
-            stmt = self.table.select().where(func.LENGTH(c.transactions) > 10)
-            return self._execute_iter(stmt)
-
     def __delitem__(self, key):
         pass
 
     def __eq__(self):
         pass
-
-
 
 
 class Transactions(BaseSQLClass):
@@ -297,83 +245,63 @@ class Transactions(BaseSQLClass):
         pass
 
 
-class Operations(BaseSQLClass):
-    def __init__(self, *args, **kwargs):
-        kwargs['table'] = operations_table
-        kwargs['name'] = 'operation'
-        super(Operations, self).__init__(*args, **kwargs)
 
-    @property
-    def pk(self):
-        return self.table.c['op_id']
+def prepare_raw_block(raw_block):
+    block_dict = dict()
+    if isinstance(raw_block, dict):
+        block = deepcopy(raw_block)
+        block_dict.update(**block)
+        block_dict['raw'] = json.dumps(block, ensure_ascii=True)
+    elif isinstance(raw_block, str):
+        block_dict.update(**json.loads(raw_block))
+        block_dict['raw'] = copy(raw_block)
+    elif isinstance(raw_block, bytes):
+        block = deepcopy(raw_block)
+        raw = block.decode('utf8')
+        block_dict.update(**json.loads(raw))
+        block_dict['raw'] = copy(raw)
+    else:
+        raise TypeError('Unsupported raw block type')
 
-    def __delitem__(self, key):
-        pass
+    block_num = block_num_from_previous(block_dict['previous'])
+    block_dict['block_num'] = block_num
+    return block_dict
 
-    def __eq__(self):
-        pass
-
-    def add_from_block(self, block):
-        operations = extract_operations_from_block(block)
-        self.add_many(operations)
 
 def extract_transactions_from_blocks(blocks):
     transactions = chain.from_iterable(map(extract_transactions_from_block, blocks))
     return transactions
 
-def extract_transactions_from_block(block):
-    if isinstance(block, (str, bytes)):
-        try:
-            block = json.loads(block)
-        except ValueError as e:
-            extra = dict(block=block, error=e)
-            logger.error('Unable load json block', extra=extra)
-            raise e
-    block_num = block.get('block_num', block_num_from_previous(block['previous']))
-    for transaction_num, t in enumerate(block['transactions']):
-        yield dict(block_num=block_num,
+
+def extract_transactions_from_block(_block):
+    block = prepare_raw_block(_block)
+    block_transactions = deepcopy(block['transactions'])
+    for transaction_num, t in enumerate(block_transactions, 1):
+        t = deepcopy(t)
+        yield dict(block_num=block['block_num'],
                    transaction_num=transaction_num,
                    ref_block_num=t['ref_block_num'],
                    ref_block_prefix=t['ref_block_prefix'],
                    expiration=t['expiration'],
                    type=t['operations'][0][0],
-                   operations=t['operations'],
-                   op_count=len(t['operations']))
+                   operations=t['operations'])
 
 
-def extract_operations_from_block(_block):
-    block = deepcopy(_block)
-    if isinstance(block, (str, bytes)):
-        try:
-            block = json.loads(block)
-        except ValueError as e:
-            extra = dict(block=block, error=e)
-            logger.error('Unable load json block', extra=extra)
-            raise e
-
-    timestamp = block['timestamp']
+def extract_operations_from_block(raw_block):
+    block = prepare_raw_block(raw_block)
 
     transactions = extract_transactions_from_block(block)
+
     for transaction in transactions:
-        for operation_num, operation in enumerate(transaction['operations']):
+        for op_num, _operation in enumerate(transaction['operations'],1):
+            operation = deepcopy(_operation)
             op_type, op = operation
-            try:
-                op = operation_handlers[op_type](op) or op
-            except Exception as e:
-                extra = dict(block_num=transaction['block_num'] ,
-                            transaction_num=transaction['transaction_num'],
-                             op_type=op_type,
-                             op=op,
-                             error=e)
-                logger.error('Error handling %s op_type', op_type, extra=extra)
-            yield dict(
+            op.update(
+               operation_num=op_num,
                block_num=transaction['block_num'],
                transaction_num=transaction['transaction_num'],
-               operation_num=operation_num,
-               timestamp=timestamp,
-               op_type=op_type,
-               op_meta=op
-           )
+               type=op_type)
+            yield op
 
 
 def extract_operations_from_blocks(blocks):
@@ -389,22 +317,5 @@ def is_duplicate_entry_error(error):
         logger.exception(e, extra=extra)
         return False
 
-
-def handle_comment(op, raise_on_error=True):
-    try:
-        json_metadata = op['json_metadata']
-        if not json_metadata:
-            return op
-        metadata = json.loads(json_metadata.encode())
-        op['json_metadata'] = metadata
-        return op
-    except KeyError:
-        return op
-    except Exception as e:
-        extra = dict(op=op, error=e)
-        logger.error('Unable load json_metadata from op', op, extra=extra)
-        if raise_on_error:
-            raise e
-
-operation_handlers= defaultdict(lambda : lambda x: x )
-operation_handlers['comment'] = handle_comment
+def add_block(_block):
+    pass

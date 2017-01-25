@@ -1,22 +1,46 @@
-FROM python:3.5-alpine
+FROM phusion/baseimage:0.9.19
 
-RUN apk add --no-cache --virtual .build-deps \
-    build-base \
-    python3-dev \
-    gcc \
-    make \
-    libffi-dev \
-    openssl-dev \
-    && apk add --no-cache bash mariadb-dev postgresql-libs postgresql-dev
+ENV DATABASE_URL sqlite:////tmp/sqlite.db
+ENV WEBSOCKET_URL wss://steemit.com/wspa
+ENV STEEMD_HTTP_URL http://this.piston.rocks
 
-RUN mkdir -p /usr/src/app
-COPY base_requirements.txt /user/src/app/base_requirements.txt
-RUN pip install -r /user/src/app/base_requirements.txt
+ADD . /app
 
-COPY . /usr/src/app
-WORKDIR /usr/src/app
-RUN pip install . && apk del .build-deps
+RUN \
+    mv /app/service/* /etc/service && \
+    chmod +x /etc/service/*/run
+
+WORKDIR /app
+
+RUN \
+    apt-get update && \
+    apt-get install -y \
+        build-essential \
+        daemontools \
+        git \
+        libffi-dev \
+        libmysqlclient-dev \
+        libssl-dev \
+        make \
+        pv \
+        python3 \
+        python3-dev \
+        python3-pip \
+        runit && \
+    pip3 install --upgrade pip && \
+    pip3 install . && \
+    apt-get remove -y \
+        build-essential \
+        libffi-dev \
+        libssl-dev && \
+    apt-get autoremove -y && \
+    rm -rf \
+        /root/.cache \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /var/cache/* \
+        /usr/include \
+        /usr/local/include
 
 EXPOSE 8080
-
-CMD "/usr/local/bin/stream.sh"

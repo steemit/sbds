@@ -12,8 +12,11 @@ import sbds.logging
 from sbds.storages.db import Blocks
 
 from sbds.storages.db import Operations
-from sbds.storages.db.tables import meta
+from sbds.storages.db import Transactions
+from sbds.storages.db.tables import metadata
 
+from sbds.storages.db import extract_transactions_from_block
+from sbds.storages.db import extract_transactions_from_blocks
 from sbds.storages.db import extract_operations_from_blocks
 
 from sbds.http_client import SimpleSteemAPIClient
@@ -46,7 +49,7 @@ def db(ctx, database_url, echo):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    engine = create_engine(database_url, server_side_cursors=True, client_encoding='utf8')
+    engine = create_engine(database_url, server_side_cursors=True, encoding='utf8')
     ctx.obj = dict(engine=engine)
 
 
@@ -65,7 +68,7 @@ def test(ctx):
 def insert_all(ctx, blocks):
     """Insert block data into all database tables, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
-    _init_db(engine, meta)
+    _init_db(engine, metadata)
 
     block_storage = Blocks(engine=engine)
     operation_storage = Operations(engine=engine)
@@ -85,7 +88,7 @@ def insert_all(ctx, blocks):
 def insert_blocks(ctx, blocks):
     """Insert or update blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
-    _init_db(engine, meta)
+    _init_db(engine, metadata)
 
     block_storage = Blocks(engine=engine)
     for block in blocks:
@@ -99,7 +102,7 @@ def insert_blocks(ctx, blocks):
 def init_db_tables(ctx):
     """Create any missing tables on the database"""
     engine = ctx.obj['engine']
-    meta.create_all(bind=engine, checkfirst=True)
+    metadata.create_all(bind=engine, checkfirst=True)
 
 
 @db.command(name='reset')
@@ -115,7 +118,7 @@ def reset_db_tables(ctx):
     except Exception as e:
         logger.info(e)
     try:
-        meta.create_all(bind=engine, checkfirst=True)
+        metadata.create_all(bind=engine, checkfirst=True)
     except Exception as e:
         logger.info(e)
 
@@ -151,7 +154,7 @@ def _init_db(engine, _meta):
 def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
     """Quickly Insert  blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
-    _init_db(engine, meta)
+    _init_db(engine, metadata)
     block_storage = Blocks(engine=engine)
 
     # attempt to add, retrying once
@@ -181,6 +184,31 @@ def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
                                                          retry_skipped=True)
 
 
+@db.command(name='add-transactions-fast')
+@click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--url',
+              metavar='STEEMD_HTTP_URL',
+              envvar='STEEMD_HTTP_URL',
+              help='Steemd HTTP server URL')
+@click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=False,
+              help="Raise errors")
+@click.pass_context
+def add_transactions_fast(ctx, blocks, chunksize, url, raise_on_error):
+    """Insert or update transactions in the database, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    _init_db(engine, metadata)
+    transaction_storage = Transactions(engine=engine)
+    transactions = extract_transactions_from_blocks(blocks)
+    total_added, skipped_transactions  = transaction_storage.add_many(transactions,
+                                                         chunksize=chunksize,
+                                                         retry_skipped=True,
+                                                         raise_on_error=raise_on_error)
+    extra = dict(skipped_count=len(skipped_transactions), added=total_added)
+    logger.debug('Finished initial pass', extra=extra)
+
+
+
 @db.command(name='add-operations-fast')
 @click.argument('blocks', type=click.File('r', encoding='utf8'),  default='-')
 @click.option('--chunksize', type=click.INT, default=1000)
@@ -194,7 +222,7 @@ def add_blocks_fast(ctx, blocks, chunksize, url, raise_on_error):
 def add_operations_fast(ctx, blocks, chunksize, raise_on_error, skipped_operations_file):
     """Quickly Insert operations in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
-    _init_db(engine, meta)
+    _init_db(engine, metadata)
     operation_storage = Operations(engine=engine)
     operations = extract_operations_from_blocks(blocks)
     total_added = 0

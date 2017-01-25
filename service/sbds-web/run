@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec setuidgid nobody dev-server
