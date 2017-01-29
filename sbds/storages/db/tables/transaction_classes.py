@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from copy import deepcopy
 
-from sqlalchemy import MetaData
+from toolz.dicttoolz import get_in
+
 from sqlalchemy import BigInteger
 from sqlalchemy import Column
 from sqlalchemy import DateTime
-from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Index
 from sqlalchemy import Integer
@@ -16,41 +16,26 @@ from sqlalchemy import Boolean
 from sqlalchemy import UnicodeText
 from sqlalchemy import Unicode
 
-
-
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declared_attr
 
-from sqlalchemy.orm.session import object_session
-
-
-
 import sbds.logging
 
-from sbds.utils import Vividict
+from sbds.storages.db.utils import UniqueMixin
 
-from sbds.storages.db import prepare_raw_block
 from sbds.storages.db import extract_operations_from_block
-from sbds.storages.db import extract_transactions_from_block
 
-from sbds.storages.db.tables.enums import transaction_types_enum
-
-from sbds.storages.db.tables.field_handlers import json_metadata
 from sbds.storages.db.tables.field_handlers import amount
 from sbds.storages.db.tables.field_handlers import amount_symbol
 from sbds.storages.db.tables.field_handlers import comment_body
 
-
 from sbds.storages.db.tables import Base
-from sbds.storages.db.tables import Session
-
-
 from sbds.storages.db.tables import Transaction
 
 logger = sbds.logging.getLogger(__name__)
 
 
-class TxBase(object):
+class TxBase(UniqueMixin):
 
     @declared_attr
     def __table_args__(cls):
@@ -81,7 +66,7 @@ class TxBase(object):
 
     @classmethod
     def _prepare_for_storage(cls, **kwargs):
-        data_dict = Vividict(kwargs['data_dict'])
+        data_dict = kwargs['data_dict']
         op_type = data_dict['type']
         tx_cls = cls.tx_class_for_type(op_type)
         _fields = tx_cls._fields.get(op_type)
@@ -89,9 +74,6 @@ class TxBase(object):
             prepared = {k: v(data_dict) for k, v in _fields.items()}
             prepared['transaction_num'] = data_dict['transaction_num']
             prepared['operation_num'] = data_dict['operation_num']
-
-            if data_dict['remove_empty']:
-                prepared = {k: v for k, v in prepared.items() if v}
 
             if 'transaction_obj' in kwargs:
                 prepared['transaction'] = kwargs['transaction_obj']
@@ -105,20 +87,39 @@ class TxBase(object):
             return None
 
     @classmethod
-    def from_raw_block(cls, raw_block):
+    def from_raw_block(cls, raw_block, transactions=None, session=None):
         operations = list(extract_operations_from_block(raw_block))
+        logger.debug('extracted %s operations from transaction', len(operations))
+        if transactions:
+            for op in operations:
+                op['transaction_obj'] = transactions[op['transaction_num'] - 1]
         prepared = [cls._prepare_for_storage(data_dict=d) for d in operations]
         objs = []
         for i,prepared_tx in enumerate(prepared):
             op_type = operations[i]['type']
             tx_cls = cls.tx_class_for_type(op_type)
+            logger.debug('operation type %s mapped to class %s',
+                         op_type, tx_cls.__name__)
             objs.append(tx_cls(**prepared_tx))
+        logger.debug('instantiated: %s', [o.__class__.__name__ for o in objs])
         return objs
 
 
     @classmethod
     def tx_class_for_type(cls, tx_type):
         return tx_class_map[tx_type]
+
+    @classmethod
+    def unique_hash(cls, *args, **kwargs):
+        return tuple([kwargs['tx_id'],
+                      kwargs['transaction_num'],
+                      kwargs['operation_num']])
+
+    @classmethod
+    def unique_filter(cls, query, *args, **kwargs):
+        return query.filter(cls.transaction_num == kwargs['transaction_num'],
+                         cls.operation_num == kwargs['operation_num'],
+                         cls.tx_id==kwargs['tx_id'])
 
 
     def __repr__(self):
@@ -130,7 +131,7 @@ class TxBase(object):
             )
 
     def dump(self):
-        data = self.__dict__
+        data = deepcopy(self.__dict__)
         if '_sa_instance_state' in data:
             del data['_sa_instance_state']
         return data
@@ -223,14 +224,14 @@ class TxAccountCreate(Base, TxBase):
 
     _fields = dict(account_create=
     dict(
-            creator=lambda x: x['creator'],
-            fee=lambda x: amount(x['fee'], num_func=float),
-            new_account_name=lambda x: x['new_account_name'],
-            memo_key=lambda x: x['memo_key'],
-            json_metadata=lambda x: x['json_metadata'],
-            owner_key=lambda x: x['owner']['key_auths'][0][0],
-            active_key=lambda x: x['owner']['key_auths'][0][0],
-            posting_key=lambda x: x['owner']['key_auths'][0][0]
+            creator=lambda x: x.get('creator'),
+            fee=lambda x: amount(x.get('fee'), num_func=float),
+            new_account_name=lambda x: x.get('new_account_name'),
+            memo_key=lambda x: x.get('memo_key'),
+            json_metadata=lambda x: x.get('json_metadata'),
+            owner_key=lambda x: get_in(['owner','key_auths',0,0], x),
+            active_key=lambda x: get_in(['active','key_auths',0,0],x),
+            posting_key=lambda x: get_in(['posting','key_auths',0,0], x)
     )
     )
     op_types = tuple(_fields.keys())
@@ -333,13 +334,13 @@ class TxAccountRecover(Base, TxBase):
 
     _fields = dict(
             recover_account=dict(
-                            recover_account=lambda x: x['recovery_account'],
-                            account_to_recover=lambda x: x['account_to_recover'],
+                            recover_account=lambda x: x.get('recovery_account'),
+                            account_to_recover=lambda x: x.get('account_to_recover'),
                             recovered=True),
             request_account_recovery=dict(
-                    operation_num=lambda x: x['operation_num'],
-                    recover_account=lambda x: x['recovery_account'],
-                    account_to_recover=lambda x: x['account_to_recover'],
+                    operation_num=lambda x: x.get('operation_num'),
+                    recover_account=lambda x: x.get('recovery_account'),
+                    account_to_recover=lambda x: x.get('account_to_recover'),
                     recovered=False)
     )
     op_types = tuple(_fields.keys())
@@ -394,11 +395,11 @@ class TxAccountUpdate(Base, TxBase):
 
     _fields = dict(account_update=
     dict(
-            account=lambda x: x['account'],
+            account=lambda x: x.get('account'),
             key_auth1=lambda x: None,  # TODO fix null
             key_auth2=lambda x: None,  # TODO fix null
-            memo_key=lambda x: x['memo_key'],
-            json_metadata=lambda x: x['json_metadata'],
+            memo_key=lambda x: x.get('memo_key'),
+            json_metadata=lambda x: x.get('json_metadata'),
     ))
     op_types = tuple(_fields.keys())
 
@@ -445,8 +446,8 @@ class TxAccountWitnessProxy(Base, TxBase):
 
     _fields = dict(account_witness_proxy=
     dict(
-            account=lambda x: x['account'],
-            Proxy=lambda x: x['proxy'],  # TODO fix capitalization
+            account=lambda x: x.get('account'),
+            Proxy=lambda x: x.get('proxy'),  # TODO fix capitalization
     )
     )
     op_types = tuple(_fields.keys())
@@ -497,9 +498,9 @@ class TxAccountWitnessVote(Base, TxBase):
 
     _fields = dict(account_witness_vote=
     dict(
-            account=lambda x: x['account'],
-            approve=lambda x: x['appove'],
-            witness=lambda x: x['witness']
+            account=lambda x: x.get('account'),
+            approve=lambda x: x.get('appove'),
+            witness=lambda x: x.get('witness')
     )
     )
     op_types = tuple(_fields.keys())
@@ -586,13 +587,13 @@ class TxComment(Base, TxBase):
 
     _fields = dict(comment=
     dict(
-            author=lambda x: x['author'],
-            permlink=lambda x: x['permlink'],
-            parent_author=lambda x: x['parent_author'],
-            parent_permlink=lambda x: x['parent_permlink'],
-            title=lambda x: x['title'],
+            author=lambda x: x.get('author'),
+            permlink=lambda x: x.get('permlink'),
+            parent_author=lambda x: x.get('parent_author'),
+            parent_permlink=lambda x: x.get('parent_permlink'),
+            title=lambda x: x.get('title'),
             body=lambda x: comment_body(x['body']),
-            json_metadata=lambda x: x['json_metadata'],
+            json_metadata=lambda x: x.get('json_metadata'),
     )
     )
     op_types = tuple(_fields.keys())
@@ -601,7 +602,21 @@ class TxComment(Base, TxBase):
     def find_parent_from_prepared(cls, session, prepared):
         return session.query(cls).filter(cls.parent_permlink == prepared['parent_permlink'],
                                          cls.parent_author == prepared['parent_author']).one_or_none()
+    @property
+    def type(self):
+        # include self.author to assure decision isn't made on a blank instance
+        if all([self.author, self.parent_author]):
+            return 'comment'
+        elif self.author and not self.parent_author:
+            return 'post'
 
+    @property
+    def is_post(self):
+        return self.type == 'post'
+
+    @property
+    def is_comment(self):
+        return self.type == 'comment'
 
 class TxCommentsOption(Base, TxBase):
     """
@@ -657,12 +672,12 @@ class TxCommentsOption(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(comment_options=dict(
-            author=lambda x: x['author'],
-            permlink=lambda x: x['permlink'],
-            max_accepted_payout=lambda x: amount(x['max_accepted_payout'], num_func=float),
-            percent_steem_dollars=lambda x: x['percent_steem_dollars'],
-            allow_votes=lambda x: x['allow_votes'],
-            allow_curation_rewards=lambda x: x['allow_curation_rewards']
+            author=lambda x: x.get('author'),
+            permlink=lambda x: x.get('permlink'),
+            max_accepted_payout=lambda x: amount(x.get('max_accepted_payout'), num_func=float),
+            percent_steem_dollars=lambda x: x.get('percent_steem_dollars'),
+            allow_votes=lambda x: x.get('allow_votes'),
+            allow_curation_rewards=lambda x: x.get('allow_curation_rewards')
     )
     )
     op_types = tuple(_fields.keys())
@@ -704,9 +719,9 @@ class TxConvert(Base, TxBase):
 
     _fields = dict(convert=
     dict(
-            owner=lambda x: x['owner'],
-            amount=lambda x: amount(x['amount'], num_func=float),
-            requestid=lambda x: x['requestid']
+            owner=lambda x: x.get('owner'),
+            amount=lambda x: amount(x.get('amount'), num_func=float),
+            requestid=lambda x: x.get('requestid')
     )
     )
     op_types = tuple(_fields.keys())
@@ -781,55 +796,12 @@ class TxCustom(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     common = dict(
-            tid=lambda x: x['id'],
-            json_metadata=lambda x: x['json']
+            tid=lambda x: x.get('id'),
+            json_metadata=lambda x: x.get('json')
     )
     _fields = dict(custom=common,
                    custom_json=common)
     op_types = tuple(_fields.keys())
-
-
-class TxCustomFollows(Base, TxBase):
-    """
-    Raw Format
-    ==========
-
-    Prepared Format
-    ===============
-    """
-
-    __tablename__ = 'TxCustomsFollows'
-
-    timestamp = Column(DateTime, nullable=False)
-    follower = Column(Unicode(4000))
-    following = Column(Unicode(4000))
-    what = Column(Unicode(250))
-
-    op_type = ''
-    _fields = dict()
-
-
-class TxCustomReblog(Base, TxBase):
-    """
-    Raw Format
-    ==========
-
-    Prepared Format
-    ===============
-    """
-
-    __tablename__ = 'TxCustomsReblogs'
-
-    timestamp = Column(DateTime, nullable=False)
-    account = Column(Unicode(4000))
-    author = Column(Unicode(4000))
-    permalink = Column(Unicode(4000))
-
-    transaction = relationship('Transaction', backref=__tablename__)
-
-    _fields = dict()
-    op_types = tuple(_fields.keys())
-
 
 class TxDeleteComment(Base, TxBase):
     """
@@ -873,8 +845,8 @@ class TxDeleteComment(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(delete_comment=dict(
-            author=lambda x: x['author'],
-            permlink=lambda x: x['permlink']
+            author=lambda x: x.get('author'),
+            permlink=lambda x: x.get('permlink')
     )
     )
     op_types = tuple(_fields.keys())
@@ -928,9 +900,9 @@ class TxFeed(Base, TxBase):
 
     _fields = dict(feed_publish=
     dict(
-            publisher=lambda x: x['publisher'],
-            exchange_rate_base=lambda x: amount(x['exchange_rate']['base'], num_func=float),
-            exchange_rate_quote=lambda x: amount(x['exchange_rate']['quote'], num_func=float)
+            publisher=lambda x: x.get('publisher'),
+            exchange_rate_base=lambda x: amount(get_in(['exchange_rate','base'],x), num_func=float),
+            exchange_rate_quote=lambda x: amount(get_in(['exchange_rate','quote'],x), num_func=float)
     )
     )
     op_types = tuple(_fields.keys())
@@ -993,20 +965,20 @@ class TxLimitOrder(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     common = dict(
-            owner=lambda x: x['owner'],
-            orderid=lambda x: x['orderid'],
-            cancel=lambda x: x['cancel'],
-            amount_to_sell=lambda x: float(x['amount_to_sell'].split()[0]),
+            owner=lambda x: x.get('owner'),
+            orderid=lambda x: x.get('orderid'),
+            cancel=lambda x: x.get('cancel'),
+            amount_to_sell=lambda x: amount(x.get('amount_to_sell'), num_func=float),
             # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
-            min_to_receive=lambda x: float(x['min_to_receive'].split()[0]),
+            min_to_receive=lambda x: amount(x.get('min_to_receive'), num_func=float),
             # receive_symbol=lambda x: x['min_to_receive'].split()[1],
-            fill_or_kill=lambda x: x['fill_or_kill'],
-            expiration=lambda x: x['expiration']
+            fill_or_kill=lambda x: x.get('fill_or_kill'),
+            expiration=lambda x: x.get('expiration')
     )
     _fields = dict(limit_order_create=common,
                    limit_order_cancel=dict(
-                           owner=lambda x: x['owner'],
-                           orderid=lambda x: x['orderid']))
+                           owner=lambda x: x.get('owner'),
+                           orderid=lambda x: x.get('orderid')))
     op_types = tuple(_fields.keys())
 
 
@@ -1182,10 +1154,10 @@ class TxPow(Base, TxBase):
 
     transaction = relationship('Transaction', backref=__tablename__)
 
-    _fields = dict(pow=dict(worker_account=lambda x: x['worker_account'],
-                            block_id=lambda x: x['block_id']),
-                   pow2=dict(worker_account=lambda x: x['work'][1]['input']['worker_account'],
-                             block_id=lambda x: x['work'][1]['input']['prev_block'])
+    _fields = dict(pow=dict(worker_account=lambda x: x.get('worker_account'),
+                            block_id=lambda x: x.get('block_id')),
+                   pow2=dict(worker_account=lambda x: get_in(['work',1,'input','worker_account'],x),
+                             block_id=lambda x: get_in(['work',1,'input','prev_block'], x))
                    )
     op_types = tuple(_fields.keys())
 
@@ -1338,13 +1310,13 @@ class TxTransfer(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _common = dict(
-            type=lambda x: x['type'],
-            _from=lambda x: x['from'],
-            to=lambda x: x['to'],
-            amount=lambda x: amount(x['amount'], num_func=float),
+            type=lambda x: x.get('type'),
+            _from=lambda x: x.get('from'),
+            to=lambda x: x.get('to'),
+            amount=lambda x: amount(x.get('amount'), num_func=float),
             amount_symbol=lambda x: amount_symbol(x['amount']),
-            memo=lambda x: x['memo'],
-            request_id=lambda x: x['request_id']
+            memo=lambda x: x.get('memo'),
+            request_id=lambda x: x.get('request_id')
     )
 
     _cancel_transfer_from_savings_fields = _common.copy()
@@ -1408,10 +1380,10 @@ class TxVote(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(vote=dict(
-            voter=lambda x: x['voter'],
-            author=lambda x: x['author'],
-            permlink=lambda x: x['permlink'],
-            weight=lambda x: x['weight']
+            voter=lambda x: x.get('voter'),
+            author=lambda x: x.get('author'),
+            permlink=lambda x: x.get('permlink'),
+            weight=lambda x: x.get('weight')
     )
     )
 
@@ -1465,10 +1437,10 @@ class TxWithdrawVestingRoute(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(set_withdraw_vesting_route=dict(
-            from_account=lambda x: x['from_account'],
-            to_account=lambda x: x['to_account'],
-            percent=lambda x: x['percent'],
-            auto_vest=lambda x: x['auto_vest']
+            from_account=lambda x: x.get('from_account'),
+            to_account=lambda x: x.get('to_account'),
+            percent=lambda x: x.get('percent'),
+            auto_vest=lambda x: x.get('auto_vest')
     )
     )
     op_types = tuple(_fields.keys())
@@ -1515,8 +1487,8 @@ class TxWithdraw(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(withdraw_vesting=dict(
-            account=lambda x: x['account'],
-            vesting_shares=lambda x: amount(x['vesting_shares'], num_func=float)
+            account=lambda x: x.get('account'),
+            vesting_shares=lambda x: amount(x.get('vesting_shares'), num_func=float)
     )
     )
     op_types = tuple(_fields.keys())
@@ -1580,13 +1552,13 @@ class TxWitnessUpdate(Base, TxBase):
     transaction = relationship('Transaction', backref=__tablename__)
 
     _fields = dict(witness_update=dict(
-            owner=lambda x: x['owner'],
-            url=lambda x: x['url'],
-            block_signing_key=lambda x: x['block_signing_key'],
-            props_account_creation_fee=lambda x: amount(x['account_creation_fee'], num_func=float, no_value=0),
-            props_maximum_block_size=lambda x: x['props']['maximum_block_size'],
-            props_sbd_interest_rate=lambda x: x['props']['sbd_interest_rate'],
-            fee=lambda x: amount(x['fee'], num_func=float)
+            owner=lambda x: x.get('owner'),
+            url=lambda x: x.get('url'),
+            block_signing_key=lambda x: x.get('block_signing_key'),
+            props_account_creation_fee=lambda x: amount(x.get('account_creation_fee'), num_func=float, no_value=0),
+            props_maximum_block_size=lambda x: get_in(['props','maximum_block_size'],x),
+            props_sbd_interest_rate=lambda x: get_in(['props','sbd_interest_rate'],x),
+            fee=lambda x: amount(x.get('fee'), num_func=float)
     )
     )
     op_types = tuple(_fields.keys())

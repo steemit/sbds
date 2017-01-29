@@ -3,6 +3,10 @@ import math
 from itertools import chain
 from collections import defaultdict
 import json
+from urllib.parse import urljoin
+from urllib.parse import urlparse
+
+import w3lib.url
 
 import sbds.logging
 
@@ -119,15 +123,40 @@ def json_metadata_keys(operations):
                     op['type'], op['json_metadata'], jm, jm2, e))
     return jm_keys
 
-def block_info(block_dict):
+def block_info(block):
+    from sbds.storages.db import prepare_raw_block
+    if isinstance(block, dict):
+        block_dict = block
+    else:
+        block_dict = prepare_raw_block(block)
     info = dict(block_num=block_dict['block_num'],
                 transaction_count=len(block_dict['transactions']),
                 operation_count=sum(len(t['operations']) for t in block_dict['transactions']),
                 transactions=[],
                 )
-    info['brief'] = 'block:{block_num} transaction_type:{transactions} total_operations:{operations_count}'
+    info['brief'] = 'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
 
     for t in block_dict['transactions']:
         info['transactions'].append(t['operations'][0][0])
-    return block_data
+    return info
 
+
+def build_comment_url(parent_permlink=None, author=None, permlink=None):
+    return '/'.join([parent_permlink, author, permlink])
+
+
+def canonicalize_url(url, **kwargs):
+    try:
+        canonical_url = w3lib.url.canonicalize_url(url, **kwargs)
+    except Exception as e:
+        logger.warn('url prepararation error', extra=dict(url=url, error=e))
+        raise e
+    if canonical_url != url:
+        _log = dict(url=url, canonical_url=canonical_url)
+        logger.info('canonical_url not equal to url', extra=_log)
+    parsed_url = urlparse(canonical_url)
+    if not parsed_url.scheme and not parsed_url.netloc:
+        _log = dict(url=url, canonical_url=canonical_url, parsed_url=parsed_url)
+        logger.warn('bad url encountered', extra=_log)
+        return None
+    return canonical_url

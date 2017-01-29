@@ -42,3 +42,15 @@ transaction_types_enum = Enum(
         'withdraw_vesting',
         'witness_update',
         name='sbds_transaction_types')
+
+comment_types_enum = Enum(
+    'post',
+    'comment',
+    name='sbds_comment_types'
+)
+
+extraction_source_enum = Enum(
+    'body',
+    'meta',
+    name='sbds_extraction_sources'
+)

@@ -6,23 +6,26 @@ import sys
 from pythonjsonlogger import jsonlogger
 
 supported_keys = [
-    'asctime',
-    'created',
-    'filename',
-    'funcName',
-    'levelname',
+'levelname',
+    #'asctime',
+    #'created',
+    #'filename',
+
+
     # 'levelno',
-    'lineno',
+
     'module',
-    'msecs',
+'funcName',
+'lineno',
+    #'msecs',
     'message',
-    'name',
-    'pathname',
-    'process',
-    'processName',
-    'relativeCreated',
-    'thread',
-    'threadName'
+    #'name',
+    #'pathname',
+    #'process',
+    #'processName',
+    #'relativeCreated',
+    #'thread',
+    #'threadName'
 ]
 
 log_format = lambda x: ['%({0:s})'.format(i) for i in x]

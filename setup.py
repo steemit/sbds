@@ -20,7 +20,8 @@ setup(
         'elasticsearch-dsl>=2.0.0,<3.0.0',
         'certifi',
         'maya',
-        'psycopg2'
+        'psycopg2',
+        'toolz'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh',
              'sbds/scripts/stream.sh'],

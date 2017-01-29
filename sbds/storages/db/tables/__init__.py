@@ -30,6 +30,8 @@ from sqlalchemy.ext.declarative import declarative_base
 import sbds.logging
 
 from sbds.utils import block_info
+from sbds.storages.db.utils import UniqueMixin
+
 
 from sbds.storages.db import prepare_raw_block
 from sbds.storages.db import extract_operations_from_block
@@ -45,35 +47,13 @@ from sbds.storages.db.tables.field_handlers import comment_body
 logger = sbds.logging.getLogger(__name__)
 
 metadata = MetaData()
-Base = declarative_base()
+Base = declarative_base(metadata=metadata)
 
 Session = sessionmaker()
 
-class CommonORM(object):
-    @classmethod
-    def get_or_create(cls, session, query_kwargs=None, **prepared_kwargs):
-        query_kwargs = query_kwargs or prepared_kwargs
-        try:
-            logger.debug('%s.get_or_create query kwargs', cls.__name__, extra=dict(query_kwargs=query_kwargs))
-            instance = session.query(cls).filter_by(**query_kwargs).first()
-            session.flush()
-            if instance:
-                logger.debug('%s.get_or_create found exising', cls.__name__, extra=dict(kwargs=prepared_kwargs,
-                                                                       instance=instance))
-                return instance
-            else:
-                instance = cls(**prepared_kwargs)
-                logger.debug('%s.get_or_create is creating new instance',cls.__name__, extra=dict(kwargs=prepared_kwargs,
-                                                                       instance=instance))
-                instance = cls(**prepared_kwargs)
-                return instance
-        except Exception as e:
-            logger.error('%s.get_or_create Error', cls.__name__, extra=dict(cls=cls,
-                                                           kwargs=prepared_kwargs,
-                                                           error=e))
-            return None
 
-class Block(Base, CommonORM):
+
+class Block(Base, UniqueMixin):
     """
     Raw Format
     ==========
@@ -249,10 +229,18 @@ class Block(Base, CommonORM):
     @classmethod
     def get_or_create_from_raw_block(cls, raw_block, session=None):
         prepared = cls._prepare_for_storage(raw_block)
-        query_kwargs = dict(block_num=prepared['block_num'])
-        return cls.get_or_create(session, query_kwargs=query_kwargs, **prepared)
+        return cls.as_unique(session, **prepared)
 
-class Transaction(Base, CommonORM):
+    @classmethod
+    def unique_hash(cls, *args, **kwargs):
+        return kwargs['block_num']
+
+    @classmethod
+    def unique_filter(cls, query, *args, **kwargs):
+        return query.filter(cls.block_num == kwargs['block_num'])
+
+
+class Transaction(Base, UniqueMixin):
     """
     Raw Format
     ==========
@@ -379,7 +367,7 @@ class Transaction(Base, CommonORM):
     @classmethod
     def get_or_create_from_raw_block(cls, raw_block, session=None):
         transactions = cls._prepare_from_raw_block(raw_block)
-        return [cls.get_or_create(session, **t) for t in transactions]
+        return [cls.as_unique(session, **t) for t in transactions]
 
 
     def add_matching_tx_objs(self, tx_objs):
@@ -388,13 +376,24 @@ class Transaction(Base, CommonORM):
             relation_name = tx.__tablename__
             setattr(self, relation_name, tx )
 
+    @classmethod
+    def unique_hash(cls, *args, **kwargs):
+        return tuple([kwargs['block_num'], kwargs['transaction_num']])
+
+
+    @classmethod
+    def unique_filter(cls, query, *args, **kwargs):
+        return query.filter(cls.block_num == kwargs['block_num'],
+                            cls.transaction_num==kwargs['transaction_num'])
+
+
 
 def from_raw_block(raw_block, session=None, new_block=True, new_transaction=True):
     from sbds.storages.db.tables.transaction_classes import TxBase
     block = Block.get_or_create_from_raw_block(raw_block, session=session)
     transactions = Transaction.get_or_create_from_raw_block(raw_block, session=session)
     block.transactions = transactions
-    tx_transactions = TxBase.from_raw_block(raw_block)
+    tx_transactions = TxBase.from_raw_block(raw_block, transactions=transactions, session=session)
     for tx in tx_transactions:
         tx.transaction = transactions[tx.transaction_num-1]
     return block
