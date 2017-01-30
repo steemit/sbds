@@ -1,7 +1,7 @@
 version: '2'
 services:
   web:
-    image: sbdsimg
+    build: steemit/sbds
     env_file: .env
     ports:
      - "8080:8080"
@@ -9,18 +9,18 @@ services:
       - dev-server
     env_file: .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - WEBSOCKET_URL=${WEBSOCKET_URL}
-      - STEEMD_HTTP_URL=${STEEMD_HTTP_URL}
+      - DATABASE_URL
+      - WEBSOCKET_URL
+      - STEEMD_HTTP_URL
   db_block_loader:
     build: .
-    image: sbdsimg
+    image: steemit/sbds
     env_file: .env
     entrypoint:
       - /usr/src/app/sbds/storages/db/scripts/populate.sh
   block_streamer:
-    image: sbdsimg
+    image: steemit/sbds
     env_file: .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - WEBSOCKET_URL=${WEBSOCKET_URL}
+      - DATABASE_URL
+      - WEBSOCKET_URL
