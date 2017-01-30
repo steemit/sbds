@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 
-
+from collections import Counter
 import click
 
 from sqlalchemy import create_engine
+
 
 import sbds.logging
 from sbds.http_client import SimpleSteemAPIClient
 
 from sbds.storages.db import Session
-from sbds.storages.db import add_blocks
+from sbds.storages.db import add_block
 from sbds.storages.db import metadata
 from sbds.storages.db.tables import Block
 from sbds.utils import write_json_items
+from .utils import new_session
+from sbds.utils import block_info
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -53,13 +56,68 @@ def test(ctx):
 
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
+@click.option('--report_interval', type=click.INT, default=100)
+@click.option('--reset_interval', type=click.INT, default=100000)
 @click.pass_context
-def insert_blocks(ctx, blocks):
+def insert_blocks(ctx, blocks, report_interval, reset_interval):
     """Insert blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     Session.configure(bind=engine)
     session=Session()
-    add_blocks(blocks, session)
+    counter = Counter()
+    failed_blocks = []
+    starting_block = None
+    try:
+        for i, raw_block in enumerate(blocks, 1):
+            info = block_info(raw_block)
+            block_num = info['block_num']
+            counter['attempted_blocks'] += 1
+            result = add_block(raw_block, session, info=info)
+            if not result:
+                logger.error('BLOCK %s WAS NOT ADDED', block_num)
+                failed_blocks.append(block_num)
+                logger.debug('failed to add block %s, wiping session', block_num)
+                session = new_session(session=session, Session=Session)
+                fails = ['%s_fails' % op_type for op_type in info['transactions']]
+                counter.update(fails)
+                counter['failed_blocks'] += 1
+            else:
+                counter.update(info['transactions'])
+                counter['added_blocks'] += 1
+            if i == 1:
+                starting_block = block_num
+            if i % report_interval == 0:
+                report = dict(counter)
+                report['report_interval'] = report_interval
+                report['reset_interval'] = reset_interval
+                report['failed_blocks'] = failed_blocks
+                report['report_interval_start_block_num'] = starting_block
+                report['report_interval_final_block_num'] = block_num
+                logger.info('interval report for the last %s blocks', report_interval, extra=report)
+            if i % reset_interval == 0:
+                report = dict(counter)
+                report['report_interval'] = report_interval
+                report['reset_interval'] = reset_interval
+                report['reset_interval_failed_blocks'] = failed_blocks
+                report['reset_interval_start_block_num'] = starting_block
+                report['reset_interval_final_block_num'] = block_num
+                logger.info('reset_interval report for the last %s blocks', reset_interval, extra=counter)
+                logger.info('resetting counters and stats after %s blocks', reset_interval)
+                counter = Counter()
+                starting_block = block_num
+                failed_blocks = []
+    except Exception as e:
+        logger.exception(e)
+        raise e
+    finally:
+        logger.info('failed_blocks: %s' % failed_blocks)
+        report = dict(counter)
+        report['report_interval'] = report_interval
+        report['reset_interval'] = reset_interval
+        report['failed_blocks'] = failed_blocks
+        report['report_interval_start_block_num'] = starting_block
+        report['report_interval_final_block_num'] = block_num
+        logger.info('final report before quit', extra=report)
 
 
 

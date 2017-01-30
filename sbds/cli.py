@@ -6,6 +6,7 @@ import json
 import os
 
 import click
+import toolz.itertoolz
 from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
@@ -150,6 +151,7 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
     with fileinput.FileInput(mode='r',
                              files=checkpoint_filenames,
                              openhook=hook_compressed_encoded('utf8')) as blocks:
+        blocks = toolz.itertoolz.drop(start, blocks)
         if total_blocks_to_load > 0:
             for i, block in enumerate(blocks,1):
                 click.echo(block)
@@ -157,7 +159,7 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
                     break
         else:
             for block in blocks:
-                click.echo(block)
+                click.echo(json.dumps(json.loads(block)).encode('utf8'))
 
 
 
