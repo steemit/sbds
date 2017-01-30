@@ -52,20 +52,10 @@ EOF
 
 }
 
-block_load() {
-  local LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
-  if [[ ${LATEST_DB_BLOCK} -lt 1 ]]; then
-    local LATEST_DB_BLOCK=1
-  fi
-
-  local LATEST_DB_BLOCK=$(db --database_url "${DATABASE_URL}" last-block)
-  sbds --start ${LATEST_DB_BLOCK}  \
-    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
-}
 
 stream_blocks() {
-  sbds --start ${LATEST_DB_BLOCK}  \
-    | db --database_url "${DATABASE_URL}" insert-blocks-and-transactions
+  sbds --start ${LATEST_DB_BLOCK} --server "${WEBSOCKET_URL}"  \
+    | db --database_url "${DATABASE_URL}" insert-blocks
 }
 
 main () {
@@ -73,14 +63,11 @@ main () {
   local test_var_is_test="${DATABASE_URL:?Need to set DATABASE_URL non-empty}"
   local test_var_is_test="${WEBSOCKET_URL:?Need to set WEBSOCKET_URL non-empty}"
 
-  if command_exists pv && is_interactive; then
-    echo "Loading blocks interactively..."
-    set -e
-    interactive_block_load;
-  else
-    set -e
-    block_load;
+  local LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
+  if [[ ${LATEST_DB_BLOCK} -lt 1 ]]; then
+    local LATEST_DB_BLOCK=1
   fi
+  stream_blocks
 }
 
 main "$@"

@@ -44,13 +44,13 @@ transaction_types_enum = Enum(
         name='sbds_transaction_types')
 
 comment_types_enum = Enum(
-    'post',
-    'comment',
-    name='sbds_comment_types'
+        'post',
+        'comment',
+        name='sbds_comment_types'
 )
 
 extraction_source_enum = Enum(
-    'body',
-    'meta',
-    name='sbds_extraction_sources'
+        'body',
+        'meta',
+        name='sbds_extraction_sources'
 )

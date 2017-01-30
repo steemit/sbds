@@ -17,17 +17,17 @@ from sqlalchemy.orm.session import object_session
 
 import sbds.logging
 from sbds.storages.db.tables import Base
-from sbds.storages.db.tables.enums import comment_types_enum
-from sbds.storages.db.tables.enums import extraction_source_enum
-from sbds.storages.db.tables.field_handlers import author
-from sbds.storages.db.tables.field_handlers import build_url
-from sbds.storages.db.tables.field_handlers import comment_body
-from sbds.storages.db.tables.field_handlers import images
-from sbds.storages.db.tables.field_handlers import json_metadata
-from sbds.storages.db.tables.field_handlers import links
-from sbds.storages.db.tables.field_handlers import tags
-from sbds.storages.db.tables.field_handlers import post_comment_parent_id
-from sbds.storages.db.tables.transaction_classes import TxComment
+from sbds.storages.db.enums import comment_types_enum
+from sbds.storages.db.enums import extraction_source_enum
+from sbds.storages.db.field_handlers import author_field
+from sbds.storages.db.field_handlers import url_field
+from sbds.storages.db.field_handlers import comment_body_field
+from sbds.storages.db.field_handlers import images_field
+from sbds.storages.db.field_handlers import json_metadata_field
+from sbds.storages.db.field_handlers import links_field
+from sbds.storages.db.field_handlers import tags_field
+from sbds.storages.db.field_handlers import comment_parent_id_field
+from sbds.storages.db.tables.tx import TxComment
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import canonicalize_url
 
@@ -57,7 +57,7 @@ class SynthBase(UniqueMixin):
 
 
 class Account(Base, SynthBase):
-    __tablename__ = 'Accounts'
+    __tablename__ = 'sbds_syn_accounts'
 
     name = Column(Unicode(100), primary_key=True)
     json_metadata = Column(UnicodeText)
@@ -71,36 +71,34 @@ class Account(Base, SynthBase):
 
     _fields = dict(
             name=lambda x: x.get('name'),
-            json_metadata=lambda x: json_metadata(x.get('json_metadata')),
+            json_metadata=lambda x: json_metadata_field(x.get('json_metadata')),
             created=lambda x: x.get('created')
     )
 
     def __repr__(self):
         return "<%s (%s)>" % (self.__class__.__name__, self.name)
 
-
     tx_class_account_map = dict(
-            TxAccountCreate=('creator','new_account_name'),
-            TxAccountRecover=('recovery_account','account_to_recover'),
+            TxAccountCreate=('creator', 'new_account_name'),
+            TxAccountRecover=('recovery_account', 'account_to_recover'),
             TxAccountUpdate='account',
             TxAccountWitnessProxy='account',
-            TxAccountWitnessVote=('account','witness'),
+            TxAccountWitnessVote=('account', 'witness'),
             TxAuthorReward='account',
-            TxComment=('author','parent_author'),
+            TxComment=('author', 'parent_author'),
             TxCommentsOption='author',
             TxConvert='owner',
-            TxCurationReward=('curator','comment_author'),
+            TxCurationReward=('curator', 'comment_author'),
             TxDeleteComment='author',
             TxFeed='publisher',
             TxLimitOrder='owner',
             TxPow='worker_account',
-            TxTransfer=('_from','to'),
-            TxVote=('voter','author'),
-            TxWithdrawVestingRoute=('from_account','to_account'),
+            TxTransfer=('_from', 'to'),
+            TxVote=('voter', 'author'),
+            TxWithdrawVestingRoute=('from_account', 'to_account'),
             TxWithdraw='account',
             TxWitnessUpdate='owner'
     )
-
 
     @classmethod
     def unique_hash(cls, *args, **kwargs):
@@ -112,7 +110,7 @@ class Account(Base, SynthBase):
 
 
 class PostAndComment(Base, SynthBase):
-    __tablename__ = 'PostsAndComments'
+    __tablename__ = 'sbds_syn_posts_and_comments'
 
     id = Column(Integer, primary_key=True)
     tx_comment_id = Column(ForeignKey(TxComment.id,
@@ -120,7 +118,7 @@ class PostAndComment(Base, SynthBase):
                                       onupdate='CASCADE',
                                       ondelete='CASCADE'), nullable=False, index=True)
     author_name = Column(Unicode(100), ForeignKey(Account.name, use_alter=True), nullable=False, index=True)
-    parent_id = Column(Integer, ForeignKey('PostsAndComments.id', use_alter=True), index=True)
+    parent_id = Column(Integer, ForeignKey('sbds_syn_posts_and_comments.id', use_alter=True), index=True) # TODO remove tablename reference
 
     timestamp = Column(DateTime(timezone=False))
     type = Column(comment_types_enum, nullable=False)
@@ -140,28 +138,28 @@ class PostAndComment(Base, SynthBase):
 
     _fields = dict(
             tx_comment_id=lambda x: x.get('id'),
-            author_name=lambda x: author(context=x,
+            author_name=lambda x: author_field(context=x,
                                          author_name=x.get('author_name'),
                                          session=x.get('session')),
-            parent_id=lambda x: post_comment_parent_id(context=x, session=x.get('session')),
+            parent_id=lambda x: comment_parent_id_field(context=x, session=x.get('session')),
             timestamp=lambda x: x.get('timestamp'),
             type=lambda x: x.get('type'),
             permlink=lambda x: x.get('permlink'),
             title=lambda x: x.get('title'),
-            body=lambda x: comment_body(x.get('body')),
+            body=lambda x: comment_body_field(x.get('body')),
             json_metadata=lambda x: x.get('json_metadata'),
             category=lambda x: x.get('parent_permlink'),
-            url=lambda x: build_url(context=x),
+            url=lambda x: url_field(context=x),
             length=lambda x: len(x.get('body')),
-            images=lambda x: images(context=x,
+            images=lambda x: images_field(context=x,
                                     meta=x.get('json_metadata'),
                                     body=x.get('body'),
                                     session=x.get('session')),
-            links=lambda x: links(context=x,
+            links=lambda x: links_field(context=x,
                                   meta=x.get('json_metadata'),
                                   body=x.get('body'),
                                   session=x.get('session')),
-            tags=lambda x: tags(context=x,
+            tags=lambda x: tags_field(context=x,
                                 meta=x.get('json_metadata'),
                                 session=x.get('session')
                                 )
@@ -202,19 +200,18 @@ class PostAndComment(Base, SynthBase):
             self.title)
 
     @classmethod
-    def unique_hash(cls, tx_comment_id):
-        return tx_comment_id
+    def unique_hash(cls, *args, **kwargs):
+        return kwargs['tx_comment_id']
 
     @classmethod
-    def unique_filter(cls, query, tx_comment_id):
-        return query.filter(cls.tx_comment_id == tx_comment_id)
-
+    def unique_filter(cls, query,*args, **kwargs):
+        return query.filter(cls.tx_comment_id == kwargs['tx_comment_id'])
 
 
 class Post(PostAndComment):
     author = relationship('Account', backref='posts')
     txcomment = relationship('TxComment', backref='posts')
-    tags = relationship("Tag", secondary='sbds_tag_table', backref='posts')
+    tags = relationship("Tag", secondary='sbds_syn_tag_table', backref='posts')
 
     __mapper_args__ = {
         'polymorphic_identity': 'post'
@@ -224,7 +221,7 @@ class Post(PostAndComment):
 class Comment(PostAndComment):
     author = relationship('Account', backref='comments')
     txcomment = relationship('TxComment')
-    tags = relationship("Tag", secondary='sbds_tag_table', backref='comments')
+    tags = relationship("Tag", secondary='sbds_syn_tag_table', backref='comments')
 
     __mapper_args__ = {
         'polymorphic_identity': 'comment'
@@ -232,7 +229,7 @@ class Comment(PostAndComment):
 
 
 class Tag(Base, SynthBase):
-    __tablename__ = 'Tags'
+    __tablename__ = 'sbds_syn_tags'
 
     _id = Column(Unicode(50), primary_key=True)
 
@@ -255,17 +252,15 @@ class Tag(Base, SynthBase):
     @classmethod
     def unique_filter(cls, query, *args, **kwargs):
         id_string = cls.format_id_string(kwargs['id'])
-        return query.filter(cls.id==id_string)
-
-
+        return query.filter(cls.id == id_string)
 
 
 class Link(Base, SynthBase):
-    __tablename__ = 'Links'
+    __tablename__ = 'sbds_syn_links'
 
     id = Column(Integer, primary_key=True)
     _url = Column(Unicode(250), index=True)
-    pac_id = Column(Integer, ForeignKey('PostsAndComments.id'))
+    pac_id = Column(Integer, ForeignKey(PostAndComment.id))
     extraction_source = Column(extraction_source_enum, nullable=False)
     body_offset = Column(Integer)
 
@@ -297,7 +292,7 @@ class Link(Base, SynthBase):
 
 
 class Image(Base, SynthBase):
-    __tablename__ = 'Images'
+    __tablename__ = 'sbds_syn_images'
 
     id = Column(Integer, primary_key=True)
     _url = Column(Unicode(250), index=True)
@@ -333,7 +328,7 @@ class Image(Base, SynthBase):
         return query.filter(cls.pac_id == pac_id, cls._url == url)
 
 
-tag_table = Table('sbds_tag_table', Base.metadata,
+tag_table = Table('sbds_syn_tag_table', Base.metadata,
                   Column('post_and_comment_id',
                          Integer,
                          ForeignKey(PostAndComment.id),

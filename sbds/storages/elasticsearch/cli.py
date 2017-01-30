@@ -82,7 +82,6 @@ def init_es(ctx):
     block_storage.init()
 
 
-
 @es.command(name='reset')
 @click.confirmation_option(prompt='Are you sure you want to drop and then create the index?')
 @click.pass_context
@@ -120,7 +119,8 @@ def insert_bulk_blocks(ctx, blocks, raise_on_error, raise_on_exception):
                                      )
 
     actions = chain.from_iterable(map(extract_bulk_operation_from_block, blocks))
-    results = streaming_bulk(es, chunk_size=2000, max_chunk_bytes=10485760, actions=actions, raise_on_error=raise_on_error,
+    results = streaming_bulk(es, chunk_size=2000, max_chunk_bytes=10485760, actions=actions,
+                             raise_on_error=raise_on_error,
                              raise_on_exception=raise_on_exception)
 
     for status, details in results:

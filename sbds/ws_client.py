@@ -4,6 +4,7 @@ import json
 import time
 from itertools import cycle
 import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -17,6 +18,7 @@ class NumRetriesReached(Exception):
 
 class NoAccessApi(Exception):
     pass
+
 
 class GrapheneWebsocketRPC(object):
     """ This class allows to call API methods synchronously, without
@@ -50,6 +52,7 @@ class GrapheneWebsocketRPC(object):
                   subsystem, please use ``GrapheneWebsocket`` instead.
 
     """
+
     def __init__(self, urls, user="", password="", **kwargs):
         self.api_id = {}
         self._request_id = 0
@@ -105,23 +108,22 @@ class GrapheneWebsocketRPC(object):
             except KeyboardInterrupt:
                 raise
             except:
-                if (self.num_retries >= 0 and cnt > self.num_retries):
+                if self.num_retries >= 0 and cnt > self.num_retries:
                     raise NumRetriesReached()
 
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:
                     log.warning(
-                        "Lost connection to node during wsconnect(): %s (%d/%d) "
-                        % (self.url, cnt, self.num_retries) +
-                        "Retrying in %d seconds" % sleeptime
+                            "Lost connection to node during wsconnect(): %s (%d/%d) "
+                            % (self.url, cnt, self.num_retries) +
+                            "Retrying in %d seconds" % sleeptime
                     )
                     time.sleep(sleeptime)
         self.exec('login', self.user, self.password, api_id=1)
 
-
-
     """ Block Streams
     """
+
     def block_stream(self, start=None, mode="irreversible", **kwargs):
         """ Yields blocks starting from ``start``.
 
@@ -131,11 +133,11 @@ class GrapheneWebsocketRPC(object):
                  * "irreversible": the block that is confirmed by 2/3 of all block producers and is thus irreversible!
         """
         # Let's find out how often blocks are generated!
-        config = self.exec('get_global_properties',**kwargs)
+        config = self.exec('get_global_properties', **kwargs)
         block_interval = config["parameters"]["block_interval"]
 
         if not start:
-            props = self.exec('get_dynamic_global_properties',**kwargs)
+            props = self.exec('get_dynamic_global_properties', **kwargs)
             # Get block number
             if mode == "head":
                 start = props['head_block_number']
@@ -143,7 +145,7 @@ class GrapheneWebsocketRPC(object):
                 start = props['last_irreversible_block_num']
             else:
                 raise ValueError(
-                    '"mode" has to be "head" or "irreversible"'
+                        '"mode" has to be "head" or "irreversible"'
                 )
 
         # We are going to loop indefinitely
@@ -151,7 +153,7 @@ class GrapheneWebsocketRPC(object):
 
             # Get chain properies to identify the
             # head/last reversible block
-            props = self.exec('get_dynamic_global_properties',**kwargs)
+            props = self.exec('get_dynamic_global_properties', **kwargs)
 
             # Get block number
             if mode == "head":
@@ -160,7 +162,7 @@ class GrapheneWebsocketRPC(object):
                 head_block = props['last_irreversible_block_num']
             else:
                 raise ValueError(
-                    '"mode" has to be "head" or "irreversible"'
+                        '"mode" has to be "head" or "irreversible"'
                 )
 
             # Blocks from start until head block
@@ -207,6 +209,7 @@ class GrapheneWebsocketRPC(object):
 
     """ RPC Calls
     """
+
     def rpcexec(self, payload):
         """ Execute a call by sending the payload
 
@@ -227,14 +230,14 @@ class GrapheneWebsocketRPC(object):
                 raise
             except:
                 if (self.num_retries > -1 and
-                        cnt > self.num_retries):
+                            cnt > self.num_retries):
                     raise NumRetriesReached()
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:
                     log.warning(
-                        "Lost connection to node during rpcexec(): %s (%d/%d) "
-                        % (self.url, cnt, self.num_retries) +
-                        "Retrying in %d seconds" % sleeptime
+                            "Lost connection to node during rpcexec(): %s (%d/%d) "
+                            % (self.url, cnt, self.num_retries) +
+                            "Retrying in %d seconds" % sleeptime
                     )
                     time.sleep(sleeptime)
 
@@ -263,12 +266,10 @@ class GrapheneWebsocketRPC(object):
         else:
             return ret["result"]
 
-
-
     def exec(self, name, *args, **kwargs):
         # Sepcify the api to talk to
         if "api_id" not in kwargs:
-            if ("api" in kwargs):
+            if "api" in kwargs:
                 if (kwargs["api"] in self.api_id and
                         self.api_id[kwargs["api"]]):
                     api_id = self.api_id[kwargs["api"]]
@@ -291,12 +292,9 @@ class GrapheneWebsocketRPC(object):
             "params": [api_id, name, list(args)],
             "jsonrpc": "2.0",
             "id": self.get_request_id()
-            }
+        }
         r = self.rpcexec(query)
         return r
-
-
-
 
 
 class SimpleSteemWSAPI(GrapheneWebsocketRPC):
@@ -343,7 +341,7 @@ class SimpleSteemWSAPI(GrapheneWebsocketRPC):
     def register_apis(self):
         for api in self.apis:
             api = api.replace("_api", "")
-            self.api_id[api] = self.exec('get_api_by_name',"%s_api" % api, api_id=1)
+            self.api_id[api] = self.exec('get_api_by_name', "%s_api" % api, api_id=1)
             if not self.api_id[api] and not isinstance(self.api_id[api], int):
                 raise NoAccessApi("No permission to access %s API. " % api)
 
@@ -353,6 +351,5 @@ class SimpleSteemWSAPI(GrapheneWebsocketRPC):
             "params": ['database', 'get_block', [block_num]],
             "jsonrpc": "2.0",
             "id": 0
-            }
+        }
         return self.rpcexec(query)
-

@@ -3,18 +3,17 @@
 import json
 from copy import deepcopy
 
-from elasticsearch_dsl import DocType, Date, Float, Long, Mapping
-from elasticsearch_dsl import Integer, String, Object, Nested
+from elasticsearch_dsl import DocType, Date, Long
+from elasticsearch_dsl import Integer, String, Object
 
 import sbds.logging
 from sbds.storages import operation_types
 from sbds.utils import block_num_from_previous
-from sbds.utils import flatten_obj
-from sbds.utils import safe_flatten_obj
 
 logger = sbds.logging.getLogger(__name__)
 
-op_type_objects = {op_type:Object() for op_type in operation_types}
+op_type_objects = {op_type: Object() for op_type in operation_types}
+
 
 class Operation(DocType):
     # block
@@ -45,7 +44,6 @@ class Operation(DocType):
             op_type=String(index='not_analyzed')
     ))
 
-
     class Meta:
         index = 'blocks'
         doc_type = 'block_operation'
@@ -55,13 +53,13 @@ class Operation(DocType):
             "key_auths_long_as_strings": {
                 "match_mapping_type": "long",
                 "path_match": "operation.*.*.*_auths",
-                #"match": "key_auths",
+                # "match": "key_auths",
                 "mapping": {
                     "type": "string"
                 }
             }
         },
-        
+
         {
             "pow": {
                 "path_match": "operation.pow.nonce",
@@ -82,7 +80,7 @@ class Operation(DocType):
     ]
 
     def save(self, *args, **kwargs):
-        self.meta.id=self.id
+        self.meta.id = self.id
         super(Operation, self).save(*args, **kwargs)
 
     @classmethod
@@ -91,6 +89,7 @@ class Operation(DocType):
         m = cls._doc_type.mapping
         m.meta('dynamic_templates', cls.dynamic_templates)
         m.save('blocks')
+
 
 def extract_operations_from_block(orig_block):
     base_doc_dict = dict()
@@ -125,9 +124,9 @@ def extract_operations_from_block(orig_block):
             operation_dict = dict(op_type=op_type, operation_num=operation_num)
             if op_type in op_transforms:
                 transformed = op_transforms[op_type](raw_operation_dict)
-                operation_dict[op_type]=transformed
+                operation_dict[op_type] = transformed
             else:
-                operation_dict[op_type]=raw_operation_dict
+                operation_dict[op_type] = raw_operation_dict
 
             # final document dict
             doc_dict = deepcopy(base_doc_dict)
@@ -161,6 +160,7 @@ def extract_from_block_and_save(raw_block):
         except Exception as e:
             return e
 
+
 def extract_bulk_operation_from_block(block, _index='blocks', _op_type='index'):
     operations = extract_operations_from_block(block)
     for operation_dict in operations:
@@ -178,8 +178,9 @@ def transform_pow2(op_dict):
         op_dict['work'] = op_dict['work'][1]
     return op_dict
 
+
 def transform_key_auths(op_dict):
-    for key in ('active','owner','posting'):
+    for key in ('active', 'owner', 'posting'):
         for key2 in ('key_auths', 'account_auths'):
             try:
                 op_dict[key][key2] = [str(i[0]) for i in op_dict[key][key2]]
@@ -188,9 +189,7 @@ def transform_key_auths(op_dict):
     return op_dict
 
 
-
 op_transforms = dict()
 op_transforms['pow2'] = transform_pow2
-#op_transforms['account_create'] = transform_key_auths
-#op_transforms['account_update'] = transform_key_auths
-
+# op_transforms['account_create'] = transform_key_auths
+# op_transforms['account_update'] = transform_key_auths

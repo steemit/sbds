@@ -1,22 +1,17 @@
 # -*- coding: utf-8 -*-
-import json
 import concurrent.futures
-import fnmatch
-import os
 import fileinput
-import operator
-from itertools import chain
+import fnmatch
+import json
+import os
 
 import click
-
 from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
+from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import block_num_from_previous
 from sbds.utils import chunkify
-from sbds.http_client import SimpleSteemAPIClient
-from sbds.ws_client import SimpleSteemWSAPI
-from sbds.ws_client import GrapheneWebsocketRPC
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -91,7 +86,8 @@ def cli(server, block_nums, start, end):
         json_blocks = map(json.dumps, blocks)
 
         for block in json_blocks:
-            click.echo(block.encode('utf8'), file=f)
+            click.echo(block, file=f)
+
 
 @click.command()
 @click.option('--url',
@@ -105,16 +101,13 @@ def block_height(url):
 
 def stream_blocks(rpc, start):
     for block in rpc.block_stream(start=start):
-        block_num = block_num_from_previous(block['previous'])
-        block.update(block_num=block_num)
         yield block
 
 
 def get_blocks(rpc, block_nums):
     for block in map(rpc.get_block, block_nums):
-        block_num = block_num_from_previous(block['previous'])
-        block.update(block_num=block_num)
         yield block
+
 
 @click.command()
 @click.option('--start', type=click.INT, default=1)
@@ -126,7 +119,7 @@ def get_blocks(rpc, block_nums):
               envvar='STEEMD_HTTP_URL',
               help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
-    '''Quickly request blocks from steemd'''
+    """Quickly request blocks from steemd"""
     with click.open_file('-', 'w', encoding='utf8') as f:
         blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
         json_blocks = map(json.dumps, blocks)
@@ -142,8 +135,6 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None, rpc=
         for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
             for b in executor.map(rpc.get_block, chunk):
-                block_num = block_num_from_previous(b['previous'])
-                b.update(block_num=block_num)
                 yield b
 
 
@@ -152,38 +143,23 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None, rpc=
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 def load_blocks_from_checkpoints(checkpoints_dir, start, end):
-    '''Load blocks from locally stored "checkpoint" files'''
+    """Load blocks from locally stored "checkpoint" files"""
     checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
     checkpoint_filenames = sorted(checkpoint_filenames)
-    display_load_blocks_info(checkpoints_dir, start, end, checkpoint_filenames)
+    total_blocks_to_load = end - start
     with fileinput.FileInput(mode='r',
-                    files=checkpoint_filenames,
-                   openhook=hook_compressed_encoded('utf8')) as blocks:
-        for block in blocks:
-            block = json.loads(block)
-            block_num = block_num_from_previous(block['previous'])
-            if block_num < start:
-                continue
-            if end and end > 0 and block_num > end:
-                break
-            block['block_num'] = block_num
-            click.echo(json.dumps(block,ensure_ascii=True).encode('utf8'))
+                             files=checkpoint_filenames,
+                             openhook=hook_compressed_encoded('utf8')) as blocks:
+        if total_blocks_to_load > 0:
+            for i, block in enumerate(blocks,1):
+                click.echo(block)
+                if i == total_blocks_to_load:
+                    break
+        else:
+            for block in blocks:
+                click.echo(block)
 
-def display_load_blocks_info(checkpoints_dir, start, end, checkpoint_filenames):
-    import os
-    checkpoints=os.linesep.join([click.format_filename(fn) for fn in checkpoint_filenames])
-    output='''
-Loading blocks from checkpoints
-===============================
-start:         {start}
-end:           {end}
-total blocks:  {total_blocks}
-checkpoints:
-{checkpoints}
 
-'''.format(start=start, end=end, total_blocks=end-start,
-               checkpoints=checkpoints)
-    click.echo(output, err=True)
 
 
 def required_checkpoint_files(path, start, end=None, files=None):
@@ -208,7 +184,7 @@ def roundup(x, factor=1000000):
 
 
 def rounddown(x, factor=1000000):
-    return ((x // factor) * factor)
+    return (x // factor) * factor
 
 
 def hook_compressed_encoded(encoding, real_mode='rt'):
@@ -219,7 +195,8 @@ def hook_compressed_encoded(encoding, real_mode='rt'):
             return gzip.open(filename, mode=real_mode, encoding=encoding)
         elif ext == '.bz2':
             import bz2
-            return bz2.BZ2File(filename, mode=real_mode,encoding=encoding)
+            return bz2.BZ2File(filename, mode=real_mode, encoding=encoding)
         else:
             return open(filename, mode=real_mode, encoding=encoding)
+
     return openhook_compressed

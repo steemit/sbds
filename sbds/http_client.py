@@ -1,15 +1,16 @@
 # coding=utf-8
 import os
-
+import ujson as json
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
+
 import urllib3
-import ujson as json
-import sbds.logging
+
 import sbds.utils
 
 logger = sbds.logging.getLogger(__name__)
+
 
 class RPCError(Exception):
     pass
@@ -41,13 +42,14 @@ class SimpleSteemAPIClient(object):
             rpc.exec('info')
 
     """
+
     def __init__(self, url=None, http=None, log_level='INFO', **kwargs):
         url = url or os.environ.get('STEEMD_HTTP_URL')
         self.url = url
         self.hostname = urlparse(url).hostname
         maxsize = kwargs.get('maxsize', 20)
         timeout = kwargs.get('timeout', 10)
-        pool_block = kwargs.get('pool_block',True)
+        pool_block = kwargs.get('pool_block', True)
         self.http = http or urllib3.HTTPConnectionPool(
                 self.hostname,
                 maxsize=maxsize,
@@ -77,7 +79,7 @@ class SimpleSteemAPIClient(object):
             "jsonrpc": "2.0",
             "id": 0
         }, ensure_ascii=False).encode('utf8')
-        #logger.debug('rpcrequest to {}'.format, extra=dict(appinfo=dict(body=body)))
+        # logger.debug('rpcrequest to {}'.format, extra=dict(appinfo=dict(body=body)))
         response = self.request(body=body)
         if response.status != 200 and raise_for_status:
             raise RPCConnectionError(response)
@@ -91,7 +93,8 @@ class SimpleSteemAPIClient(object):
             return json.dumps(result)
 
     def exec_multi(self, name, params):
-        body_gen = (json.dumps({"method": name,"params": [i],"jsonrpc": "2.0", "id": 0
+        body_gen = (json.dumps({
+            "method": name, "params": [i], "jsonrpc": "2.0", "id": 0
         }, ensure_ascii=False).encode('utf8') for i in params)
         for body in body_gen:
             yield json.loads(self.request(body=body).data.decode('utf-8'))['result']

@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-
 from sqlalchemy.exc import IntegrityError
-
 
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
+
 
 def _unique(session, cls, hashfunc, queryfunc, constructor, arg, kw):
     cache = getattr(session, '_unique_cache', None)
@@ -68,24 +67,24 @@ class UniqueMixin(object):
     @classmethod
     def as_unique(cls, session, *arg, **kw):
         return _unique(
-                    session,
-                    cls,
-                    cls.unique_hash,
-                    cls.unique_filter,
-                    cls,
-                    arg, kw
-               )
-
+                session,
+                cls,
+                cls.unique_hash,
+                cls.unique_filter,
+                cls,
+                arg, kw
+        )
 
 
 def dump_tags(tree, tag):
     return tree.findall('.//%s' % tag)
 
+
 def dump_images(text):
     try:
         tree = html.fromstring(text)
         imgs = dump_tags(tree, 'img') or []
-        #print('lxmlimgs: %s' % imgs)
+        # print('lxmlimgs: %s' % imgs)
     except Exception as e:
         imgs = []
         print(e)
@@ -93,7 +92,7 @@ def dump_images(text):
     try:
         tree = soupparser.fromstring(text)
         imgs2 = dump_tags(tree, 'img') or []
-        #print('soupimgs: %s' % imgs2)
+        # print('soupimgs: %s' % imgs2)
     except Exception as e:
         imgs2 = []
         print(e)
@@ -101,23 +100,24 @@ def dump_images(text):
     imgs.extend(imgs2)
     return [img.attrib.get('src') for img in imgs if img.attrib.get('src')]
 
+
 def dump_links(text):
     from lxml import html
     from lxml.html import soupparser
     from markdown import markdown
 
-    links = dict(md={'lxml':[],'soup':[]},txt={'lxml':[],'soup':[]})
-    images = dict(md={'lxml':[],'soup':[]},txt={'lxml':[],'soup':[]})
-    for i,t in enumerate((text, markdown(text),1)):
-        label='md'
+    links = dict(md={'lxml': [], 'soup': []}, txt={'lxml': [], 'soup': []})
+    images = dict(md={'lxml': [], 'soup': []}, txt={'lxml': [], 'soup': []})
+    for i, t in enumerate((text, markdown(text), 1)):
+        label = 'md'
         if i is 1:
-            label='text'
+            label = 'text'
         try:
             tree = html.fromstring(t)
             images[label]['lxml'].extend(img.attrib.get('src') for img in dump_tags(tree, 'img'))
             links[label]['lxml'].extend(link.attrib.get('href') for link in dump_tags(tree, 'a'))
         except Exception as e:
-            #logger.info('lmxl %s error' % label)
+            # logger.info('lmxl %s error' % label)
             pass
         try:
             tree = soupparser.fromstring(t)
@@ -128,6 +128,7 @@ def dump_links(text):
 
     return images, links
 
+
 # Testing / Dev helper funtions
 def gzblocks_gen(filename):
     import gzip
@@ -135,19 +136,24 @@ def gzblocks_gen(filename):
         for block in f.readlines():
             yield block
 
+
 def gzblocks(filename):
     import gzip
     with gzip.open(filename, mode='rt', encoding='utf8') as f:
         return f.readlines()
 
+
 def random_blocks(blocks, size=1000):
     import random
     return random.sample(blocks, size)
+
 
 def create_tables(engine):
     import sbds.storages.db.tables
     sbds.storages.db.tables.Base.metadata.create_all(bind=engine)
 
+
+# noinspection PyPep8Naming
 def new_session(session=None, Session=None):
     session = session or Session()
     session.rollback()
@@ -160,6 +166,7 @@ def filter_tables(metadata, table_names):
     filtered = [t for t in metadata.sorted_tables if t.name not in table_names]
     return filtered
 
+
 def reset_tables(engine, metadata, exclude_tables=None):
     exclude_tables = exclude_tables or tuple()
     for t in exclude_tables:
@@ -171,3 +178,12 @@ def reset_tables(engine, metadata, exclude_tables=None):
     except Exception as e:
         logger.error(e)
     metadata.create_all(bind=engine)
+
+
+def is_duplicate_entry_error(error):
+    try:
+        return "duplicate" in str(error.orig).lower()
+    except Exception as e:
+        extra = dict(exception_type=type(e), exception_dir=dir(e))
+        logger.exception(e, extra=extra)
+        return False

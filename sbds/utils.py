@@ -22,7 +22,7 @@ def block_num_from_previous(previous_block_hash: str) -> int:
     return block_num_from_hash(previous_block_hash) + 1
 
 
-def percentile(N, percent, key=lambda x:x):
+def percentile(n, percent, key=lambda x: x):
     """
     Find the percentile of a list of values.
 
@@ -34,14 +34,14 @@ def percentile(N, percent, key=lambda x:x):
     """
     if not N:
         return None
-    k = (len(N)-1) * percent
+    k = (len(N) - 1) * percent
     f = math.floor(k)
     c = math.ceil(k)
     if f == c:
         return key(N[int(k)])
-    d0 = key(N[int(f)]) * (c-k)
-    d1 = key(N[int(c)]) * (k-f)
-    return d0+d1
+    d0 = key(N[int(f)]) * (c - k)
+    d1 = key(N[int(c)]) * (k - f)
+    return d0 + d1
 
 
 def chunkify(iterable, chunksize=10000):
@@ -50,7 +50,7 @@ def chunkify(iterable, chunksize=10000):
     chunk = []
     for item in iterable:
         chunk.append(item)
-        i +=1
+        i += 1
         if i == chunksize:
             yield chunk
             i = 0
@@ -58,8 +58,10 @@ def chunkify(iterable, chunksize=10000):
     if len(chunk) > 0:
         yield chunk
 
+
 def flatten_obj(y):
     out = {}
+
     def flatten(x, name=''):
         if type(x) is dict:
             for a in x:
@@ -71,20 +73,19 @@ def flatten_obj(y):
                 i += 1
         else:
 
-            out[name.rstrip('.')] =x
+            out[name.rstrip('.')] = x
 
     flatten(y)
     return out
 
 
-
 def build_op_type_maps(blocks):
     transactions = chain.from_iterable(b['transactions'] for b in blocks)
     operations = chain.from_iterable(t['operations'] for t in transactions)
-    ops_dict=defaultdict(dict)
+    ops_dict = defaultdict(dict)
     for op_type, op in operations:
-        keyval = {k:type(v) for k,v in op.items()}
-        ops_dict[op_type][frozenset(keyval)]=flatten_obj(op)
+        keyval = {k: type(v) for k, v in op.items()}
+        ops_dict[op_type][frozenset(keyval)] = flatten_obj(op)
     return ops_dict
 
 
@@ -92,7 +93,7 @@ def write_json_items(filename, items):
     try:
         lineitems = os.linesep.join(json.dumps(item, ensure_ascii=True) for item in items)
         with open(filename, mode='a', encoding='utf8') as f:
-           f.writelines(lineitems)
+            f.writelines(lineitems)
     except Exception as e:
         logger.error(e)
 
@@ -123,12 +124,10 @@ def json_metadata_keys(operations):
                     op['type'], op['json_metadata'], jm, jm2, e))
     return jm_keys
 
+
 def block_info(block):
-    from sbds.storages.db import prepare_raw_block
-    if isinstance(block, dict):
-        block_dict = block
-    else:
-        block_dict = prepare_raw_block(block)
+    from sbds.storages.db.tables.core import prepare_raw_block
+    block_dict = prepare_raw_block(block)
     info = dict(block_num=block_dict['block_num'],
                 transaction_count=len(block_dict['transactions']),
                 operation_count=sum(len(t['operations']) for t in block_dict['transactions']),

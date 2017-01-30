@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
-import click
-
-from pprint import pformat
-import sys
 import json
+import sys
+
+import click
 
 from .utils import block_num_from_previous
 

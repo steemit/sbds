@@ -1,31 +1,30 @@
 # coding=utf-8
 import logging
 import time
-import sys
 
 from pythonjsonlogger import jsonlogger
 
 supported_keys = [
-'levelname',
-    #'asctime',
-    #'created',
-    #'filename',
+    'levelname',
+    # 'asctime',
+    # 'created',
+    # 'filename',
 
 
     # 'levelno',
 
     'module',
-'funcName',
-'lineno',
-    #'msecs',
+    'funcName',
+    'lineno',
+    # 'msecs',
     'message',
-    #'name',
-    #'pathname',
-    #'process',
-    #'processName',
-    #'relativeCreated',
-    #'thread',
-    #'threadName'
+    # 'name',
+    # 'pathname',
+    # 'process',
+    # 'processName',
+    # 'relativeCreated',
+    # 'thread',
+    # 'threadName'
 ]
 
 log_format = lambda x: ['%({0:s})'.format(i) for i in x]
@@ -41,6 +40,8 @@ formatter.converter = time.gmtime
 logHandler = logging.StreamHandler()
 logHandler.setFormatter(formatter)
 
+
+# noinspection PyPep8Naming
 def getLogger(name, level=logging.DEBUG):
     logger = logging.getLogger(name)
     if not logger.hasHandlers():
