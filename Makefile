@@ -1,4 +1,4 @@
-IMAGE_NAME := sbdsimg
+IMAGE_NAME := steemit/sbds
 
 default: build
 
