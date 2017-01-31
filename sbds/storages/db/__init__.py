@@ -220,7 +220,7 @@ def bulk_add(raw_blocks, session, Session, retry=True):
             logger.error('FAILED TXs FOR BLOCKS total:%s from %s to %s',
                          block_count, first_block_num, last_block_num)
 
-
+    
     # loop error handlers
     except Exception as e:
         logger.exception(e)
@@ -232,8 +232,8 @@ def bulk_add(raw_blocks, session, Session, retry=True):
             write_json(failed_tx_blocks, topic='failed_tx_blocks')
         logger.info(
                 'chunk_begin: %s chunk_end:% block_count=%s failed__blocks: %s failed_tx_blocks:%s',
-                raw_blocks_chunk[0],
-                raw_blocks_chunk[-1],
+                first_block_num,
+                last_block_num,
                 len(raw_blocks_chunk),
                 len(failed_blocks),
                 len(failed_tx_blocks))
