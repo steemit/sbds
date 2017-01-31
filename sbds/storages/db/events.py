@@ -63,7 +63,7 @@ def receive_after_flush(session, flush_context):
     for t in touched:
         name = t.new_account_name
         created = t.transaction.block.timestamp
-        logger.debug('after_flush attmepting to create Account(name=%s, created=%s', name, created)
+        logger.debug('after_flush attempting to create Account(name=%s, created=%s', name, created)
         account = Account.as_unique(session, name=name, created=created)
 
 

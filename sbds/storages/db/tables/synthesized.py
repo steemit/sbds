@@ -5,7 +5,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import Integer
+from sqlalchemy import SmallInteger
 from sqlalchemy import Table
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
@@ -16,18 +18,16 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
 
 import sbds.logging
-from sbds.storages.db.tables import Base
 from sbds.storages.db.enums import comment_types_enum
 from sbds.storages.db.enums import extraction_source_enum
 from sbds.storages.db.field_handlers import author_field
-from sbds.storages.db.field_handlers import url_field
 from sbds.storages.db.field_handlers import comment_body_field
+from sbds.storages.db.field_handlers import comment_parent_id_field
 from sbds.storages.db.field_handlers import images_field
-from sbds.storages.db.field_handlers import json_metadata_field
 from sbds.storages.db.field_handlers import links_field
 from sbds.storages.db.field_handlers import tags_field
-from sbds.storages.db.field_handlers import comment_parent_id_field
-from sbds.storages.db.tables.tx import TxComment
+from sbds.storages.db.field_handlers import url_field
+from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import canonicalize_url
 
@@ -35,11 +35,19 @@ logger = sbds.logging.getLogger(__name__)
 
 
 class SynthBase(UniqueMixin):
+    @classmethod
+    def unique_hash(cls, *arg, **kw):
+        raise NotImplementedError
+
+    @classmethod
+    def unique_filter(cls, query, *arg, **kw):
+        raise NotImplementedError
+
     @declared_attr
     def __table_args__(cls):
         args = (
             {
-                'mysql_engine': 'InnoDB',
+                'mysql_engine' : 'InnoDB',
                 'mysql_charset': 'utf8mb4',
                 'mysql_collate': 'utf8mb4_general_ci'
             },
@@ -71,7 +79,7 @@ class Account(Base, SynthBase):
 
     _fields = dict(
             name=lambda x: x.get('name'),
-            json_metadata=lambda x: json_metadata_field(x.get('json_metadata')),
+            json_metadata=lambda x: x.get('json_metadata'),
             created=lambda x: x.get('created')
     )
 
@@ -111,14 +119,23 @@ class Account(Base, SynthBase):
 
 class PostAndComment(Base, SynthBase):
     __tablename__ = 'sbds_syn_posts_and_comments'
+    __extra_table_args__ = (
+        ForeignKeyConstraint(['block_num', 'transaction_num', 'operation_num'],
+                             ['sbds_tx_comments.block_num',
+                              'sbds_tx_comments.transaction_num',
+                              'sbds_tx_comments.operation_num']),
 
+    )
     id = Column(Integer, primary_key=True)
-    tx_comment_id = Column(ForeignKey(TxComment.id,
-                                      use_alter=True,
-                                      onupdate='CASCADE',
-                                      ondelete='CASCADE'), nullable=False, index=True)
-    author_name = Column(Unicode(100), ForeignKey(Account.name, use_alter=True), nullable=False, index=True)
-    parent_id = Column(Integer, ForeignKey('sbds_syn_posts_and_comments.id', use_alter=True), index=True) # TODO remove tablename reference
+    block_num = Column(Integer, nullable=False)
+    transaction_num = Column(SmallInteger, nullable=False)
+    operation_num = Column(SmallInteger, nullable=False)
+
+    author_name = Column(Unicode(100), ForeignKey(Account.name, use_alter=True),
+                         nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey('sbds_syn_posts_and_comments.id',
+                                           use_alter=True),
+                       index=True)  # TODO remove tablename reference
 
     timestamp = Column(DateTime(timezone=False))
     type = Column(comment_types_enum, nullable=False)
@@ -134,14 +151,19 @@ class PostAndComment(Base, SynthBase):
 
     language = Column(Unicode(40))
 
-    children = relationship('PostAndComment', backref=backref('parent', remote_side=[id]))
+    children = relationship('PostAndComment',
+                            backref=backref('parent', remote_side=[id]))
 
     _fields = dict(
-            tx_comment_id=lambda x: x.get('id'),
+            block_num=lambda x: x.get('block_num'),
+            transaction_num=lambda x: x.get('transaction_num'),
+            operation_num=lambda x: x.get('operation_num'),
             author_name=lambda x: author_field(context=x,
-                                         author_name=x.get('author_name'),
-                                         session=x.get('session')),
-            parent_id=lambda x: comment_parent_id_field(context=x, session=x.get('session')),
+                                               author_name=x.get('author_name'),
+                                               session=x.get('session')),
+            parent_id=lambda x: comment_parent_id_field(context=x,
+                                                        session=x.get(
+                                                                'session')),
             timestamp=lambda x: x.get('timestamp'),
             type=lambda x: x.get('type'),
             permlink=lambda x: x.get('permlink'),
@@ -152,23 +174,26 @@ class PostAndComment(Base, SynthBase):
             url=lambda x: url_field(context=x),
             length=lambda x: len(x.get('body')),
             images=lambda x: images_field(context=x,
-                                    meta=x.get('json_metadata'),
-                                    body=x.get('body'),
-                                    session=x.get('session')),
+                                          meta=x.get('json_metadata'),
+                                          body=x.get('body'),
+                                          session=x.get('session')),
             links=lambda x: links_field(context=x,
-                                  meta=x.get('json_metadata'),
-                                  body=x.get('body'),
-                                  session=x.get('session')),
+                                        meta=x.get('json_metadata'),
+                                        body=x.get('body'),
+                                        session=x.get('session')),
             tags=lambda x: tags_field(context=x,
-                                meta=x.get('json_metadata'),
-                                session=x.get('session')
-                                )
+                                      meta=x.get('json_metadata'),
+                                      session=x.get('session')
+                                      )
     )
 
     @classmethod
     def from_tx(cls, txcomment, **kwargs):
         data_dict = deepcopy(txcomment.__dict__)
         session = object_session(txcomment)
+        data_dict['block_num'] = txcomment.block_num
+        data_dict['transaction_num'] = txcomment.transaction_num
+        data_dict['operation_num'] = txcomment.operation_num
         data_dict['timestamp'] = txcomment.transaction.block.timestamp
         data_dict['tx_comment_id'] = txcomment.id
         data_dict['type'] = txcomment.type
@@ -201,11 +226,16 @@ class PostAndComment(Base, SynthBase):
 
     @classmethod
     def unique_hash(cls, *args, **kwargs):
-        return kwargs['tx_comment_id']
+        return tuple([kwargs['block_num'],
+                      kwargs['transaction_num'],
+                      kwargs['operation_num']])
 
     @classmethod
-    def unique_filter(cls, query,*args, **kwargs):
-        return query.filter(cls.tx_comment_id == kwargs['tx_comment_id'])
+    def unique_filter(cls, query, *args, **kwargs):
+        return query.filter(cls.block_num == kwargs['block_num'],
+                            cls.transaction_num == kwargs['transaction_num'],
+                            cls.operation_num == kwargs['operation_num'],
+                            )
 
 
 class Post(PostAndComment):
@@ -221,7 +251,8 @@ class Post(PostAndComment):
 class Comment(PostAndComment):
     author = relationship('Account', backref='comments')
     txcomment = relationship('TxComment')
-    tags = relationship("Tag", secondary='sbds_syn_tag_table', backref='comments')
+    tags = relationship("Tag", secondary='sbds_syn_tag_table',
+                        backref='comments')
 
     __mapper_args__ = {
         'polymorphic_identity': 'comment'

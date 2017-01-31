@@ -1,3 +1,4 @@
+# coding=utf-8
 from setuptools import setup
 from setuptools import find_packages
 setup(
@@ -16,15 +17,19 @@ setup(
         'sqlalchemy',
         'ujson',
         'bottle',
+        'bottle-sqlalchemy',
         'urllib3',
         'elasticsearch-dsl>=2.0.0,<3.0.0',
         'certifi',
         'maya',
-        'psycopg2',
-        'toolz'
+        'toolz',
+        'w3lib',
+        'lxml',
+        'markdown',
+        'beautifulsoup4', 'websocket'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh',
-             'sbds/scripts/stream.sh'],
+             'sbds/storages/db/scripts/stream.sh'],
     entry_points={'console_scripts': [
         'sbds=sbds.cli:cli',
         'bulk-blocks=sbds.cli:bulk_blocks',
@@ -32,6 +37,7 @@ setup(
         'notify=sbds.notify:notify',
         's3=sbds.storages.s3.cli:s3',
         'db=sbds.storages.db.cli:db',
+        'condense-error-files=sbds.cli:condense_error_files',
         'es=sbds.storages.elasticsearch.cli:es',
         'load-checkpoint-blocks=sbds.cli:load_blocks_from_checkpoints',
         'dev-server=sbds.http_server:dev_server'

@@ -20,23 +20,27 @@ def author_field(context=None, author_name=None, session=None):
     return author_name
 
 
+# noinspection PyArgumentList
 def images_field(context=None, meta=None, body=None, session=None):
     from sbds.storages.db.tables.synthesized import Image
     meta_json = json_metadata_field(meta)
     urls = meta_json.get('images', [])
     images = []
     for url in urls:
-        images.append(Image(url=url, extraction_source='meta'))  # TODO Do these need to be unique to post?
+        images.append(Image(url=url,
+                            extraction_source='meta'))  # TODO Do these need to be unique to post?
     return images
 
 
+# noinspection PyArgumentList
 def links_field(context=None, meta=None, body=None, session=None):
     from sbds.storages.db.tables.synthesized import Link
     meta_json = json_metadata_field(meta)
     urls = meta_json.get('links', [])
     links = []
     for url in urls:
-        links.append(Link(url=url, extraction_source='meta'))  # TODO Do these need to be unique to post?
+        links.append(Link(url=url,
+                          extraction_source='meta'))  # TODO Do these need to be unique to post?
     return links
 
 
@@ -65,7 +69,8 @@ def json_metadata_field(value):
                 metadata2 = json.loads(metadata)
                 return metadata
     except Exception as e:
-        extra = dict(original=value, metadata=metadata, metadata2=metadata2, error=e)
+        extra = dict(original=value, metadata=metadata, metadata2=metadata2,
+                     error=e)
         logger.error('json_metadata handler error', extra=extra)
         return None
 
@@ -76,7 +81,8 @@ def amount_field(value, num_func=int, no_value=0):
     try:
         return num_func(value.split()[0])
     except Exception as e:
-        extra = dict(original=value, num_func=num_func, no_value=no_value, error=e)
+        extra = dict(original=value, num_func=num_func, no_value=no_value,
+                     error=e)
         logger.error('amount handler error', extra=extra)
         return num_func(no_value)
 
@@ -107,30 +113,32 @@ def url_field(value=None, context=None, **kwargs):
     :param kwargs:
     :return:
     """
-    return build_comment_url(context.get('parent_permlink'), context.get('author'), context.get('permlink'))
+    return build_comment_url(context.get('parent_permlink'),
+                             context.get('author'), context.get('permlink'))
 
 
 def comment_parent_id_field(context=None, session=None):
     from sbds.storages.db.tables.tx import TxComment
-    from sbds.storages.db.tables.core import Transaction
     if context['type'] == 'post':
         logger.debug('Posts have no parents, returning None')
         return None
-    tx_id = context.get('tx_id')
+    block_num = context.get('block_num')
+    transaction_num = context.get('transaction_num')
+    operation_num = context.get('operation_num')
+    txcomment = session.query(TxComment).filter_by(block_num=block_num,
+                                                   transaction_num=transaction_num,
+                                                   operation_num=operation_num
+                                                   ).one_or_none()
 
-    if not tx_id:
-        logger.debug('no tx_id to query')
-        return None
-    txcomment = session.query(TxComment).filter_by(tx_id=tx_id).one_or_none()
-    logger.debug('query for TxComment with tx_id=%s yielded %s', tx_id, txcomment)
+    logger.debug('query for TxComment yielded %s', txcomment)
     if not txcomment:
         logger.debug('no txcomment, returning None')
         return None
     q = session.query(TxComment).filter_by(
             parent_author=txcomment.parent_author,
             parent_permlink=txcomment.parent_permlink)
-    q = q.join(Transaction)
-    q.order_by(Transaction.block_num)
+    q.order_by(TxComment.block_num, TxComment.transaction_num,
+               TxComment.operation_num)
     txcomment_parent = q.first()
     if txcomment_parent:
         if context['type'] == 'post':
@@ -140,9 +148,14 @@ def comment_parent_id_field(context=None, session=None):
             from sbds.storages.db.tables.synthesized import Comment
             cls = Comment
         logger.debug('txcomment class is %s', cls.__name__)
-        q2 = session.query(cls).filter_by(tx_comment_id=txcomment_parent.id)
-        parent_post_comment = q2.one_or_none()
-        logger.debug('parent %s query returned %s', cls.__name__, parent_post_comment)
+        parent_post_comment = session.query(cls).filter_by(
+                block_num=txcomment_parent.block_num,
+                transaction_num=txcomment_parent.transaction_num,
+                operation_num=txcomment_parent.operation_num
+        ).one_or_none()
+
+        logger.debug('parent %s query returned %s', cls.__name__,
+                     parent_post_comment)
         if parent_post_comment:
             return parent_post_comment.id
         else:

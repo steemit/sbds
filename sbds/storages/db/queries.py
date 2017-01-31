@@ -8,7 +8,6 @@ import sbds.logging
 from ..db import Session
 
 from .tables import Block
-from .tables import Transaction
 from .tables import Account
 from .tables import PostAndComment
 from .tables import Post
@@ -34,6 +33,11 @@ transactions
 transfers
 '''
 
+
+def hours_ago(hours):
+    return maya.when('%s hours ago' % hours).datetime(naive=True)
+
+
 def past_24_hours():
     return maya.when('yesterday').datetime(naive=True)
 
@@ -46,9 +50,9 @@ def past_72_hours():
     return maya.when('72 hours ago').datetime(naive=True)
 
 # Counts
-timespan = session.query(Transaction.tx_id,Transaction.timestamp)\
-    .filter(Transaction.timestamp >= past_24_hours()).subquery()
 
-vote_count = session.query(TxVote.id, timespan.c.timestamp)\
-    .join(timespan, TxVote.id == timespan.tx_id).count()
-
+# votes
+# account_creates
+# transfers
+# posts
+# comments

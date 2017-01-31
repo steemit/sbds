@@ -181,9 +181,6 @@ def reset_tables(engine, metadata, exclude_tables=None):
 
 
 def is_duplicate_entry_error(error):
-    try:
-        return "duplicate" in str(error.orig).lower()
-    except Exception as e:
-        extra = dict(exception_type=type(e), exception_dir=dir(e))
-        logger.exception(e, extra=extra)
-        return False
+    code, msg = error.orig.args
+    msg = msg.lower()
+    return all([code == 1062, "duplicate entry" in msg, "for key 'primary'" in msg])

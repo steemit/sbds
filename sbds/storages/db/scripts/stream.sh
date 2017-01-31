@@ -9,4 +9,4 @@ test_var_is_test="${WEBSOCKET_URL:?Need to set WEBSOCKET_URL non-empty}"
 LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
 
 sbds --start "${STARTING_BLOCK_NUM:-$LATEST_DB_BLOCK}"  \
-  | db --database_url "${DATABASE_URL}" insert-all
+  | db --database_url "${DATABASE_URL}" insert-blocks

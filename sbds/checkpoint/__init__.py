@@ -1,85 +1,192 @@
 # -*- coding: utf-8 -*-
-import fileinput
 import fnmatch
-import json
 import os
 import re
-
-import toolz.itertoolz
+from collections import namedtuple
 
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
 
-CHECKPOINT_FILENAME_PATTERN =  'blocks_*.json*'
-COMPRESSED_CHECKPOINT_FILENAME_PATTERN = 'blocks_*.json.gz'
+# shell/glob patterns
+CHECKPOINT_FILENAME_PATTERN = 'blocks_*-*.json*'
+COMPRESSED_CHECKPOINT_FILENAME_PATTERN = 'blocks_*-*.json.gz'
 
+# regex patterns
 CHECKPOINT_FILENAME_REGEX_PATTERN = r'blocks_(?P<start>[0-9]+)-(?P<end>[0-9]+)\.json(?P<is_gzipped>\.gz$)?'
 CHECKPOINT_FILENAME_REGEX = re.compile(CHECKPOINT_FILENAME_REGEX_PATTERN)
 
-MIN_LEFTPAD_AMOUNT = 6
+# format string
+CHECKPOINT_FILENAME_FORMAT_STRING = 'blocks-{start}-{end}.json{gzip}'
+
+BLOCKS_PER_CHECKPOINT = 1000000
+MIN_LEFTPAD_AMOUNT = str(BLOCKS_PER_CHECKPOINT).count('0')
+
+CheckpointFile = namedtuple('CheckpointFile',
+                            ['path',
+                             'filename',
+                             'dirname',
+                             'start',
+                             'end',
+                             'total',
+                             'is_gzipped',
+                             'filename_shell_pattern',
+                             'filename_regex_pattern',
+                             'blocks_per_checkpoint',
+                             'min_left_pad'])
+default_checkpoint_file = CheckpointFile(
+        path='',
+        filename='',
+        dirname='',
+        start='',
+        end='',
+        total='',
+        is_gzipped='',
+        filename_shell_pattern=CHECKPOINT_FILENAME_PATTERN,
+        filename_regex_pattern=CHECKPOINT_FILENAME_REGEX_PATTERN,
+        blocks_per_checkpoint=BLOCKS_PER_CHECKPOINT,
+        min_left_pad=MIN_LEFTPAD_AMOUNT)
+
+CheckpointSet = namedtuple('CheckpointSet',
+                           ['checkpoints',
+                            'checkpoint_paths',
+                            'start',
+                            'end',
+                            'total',
+                            'checkpoint_count',
+                            'dirname',
+                            'missing',
+                            'is_consequtive',
+                            'initial_checkpoint_offset'
+                            ]
+                           )
 
 
-def load_blocks_from_checkpoints(checkpoints_dir, start, end):
-    """Load blocks from locally stored "checkpoint" files"""
-
-    checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
-
-    checkpoint_filenames = sorted(checkpoint_filenames)
-    first_checkpoint_file_offset = calculate_offset(start, checkpoint_filenames[0])
-    with fileinput.FileInput(mode='r',
-                             files=checkpoint_filenames,
-                             openhook=hook_compressed_encoded('utf8')) as blocks:
-        offset_blocks = toolz.itertoolz.drop(first_checkpoint_file_offset, blocks)
-        for block in offset_blocks:
-            yield block
-
-
-def required_checkpoint_files(path, start, end=None, files=None):
-    checkpoint_file_pattern = 'blocks_*.json*'
-    all_files = os.listdir(path)
-    files = files or fnmatch.filter(all_files, checkpoint_file_pattern)
-    checkpoint_files = []
-    for file in files:
-        check_low = int(file.split('-')[0].split('_')[1])
-        check_high = int(file.split('-')[1].split('.')[0])
+def required_checkpoints(path, start, end=None):
+    checkpointset = checkpointset_from_path(path)
+    checkpoints = []
+    for cp in checkpointset.checkpoints:
+        check_low = cp.start
+        check_high = cp.end
         if start > check_high:
             continue
-        if end and end > 0 and check_low > end:
+        if end and 0 < end < check_low:
             break
-        checkpoint_files.append(file)
+        checkpoints.append(cp)
+    offset = calculate_initial_checkpoint_offset(start, checkpoints[0])
+    required_checkpointset = checkpointset_from_checkpoints(checkpoints,
+                                                            initial_checkpoint_offset=offset)
+    return required_checkpointset
 
-    return [os.path.join(path, f) for f in checkpoint_files]
+
+def get_checkpoints_from_path(path):
+    all_files = os.listdir(path)
+    files = fnmatch.filter(all_files, CHECKPOINT_FILENAME_PATTERN)
+    checkpoints = []
+    for f in files:
+        try:
+            file_path = os.path.join(path, f)
+            checkpoints.append(parse_checkpoint_filename(file_path))
+        except ValueError:
+            continue
+    return sorted(checkpoints, key=lambda cp: cp.start)
 
 
-def roundup(x, factor=1000000):
+def checkpointset_from_checkpoints(checkpoints, initial_checkpoint_offset=None):
+    initial_checkpoint_offset = initial_checkpoint_offset or 0
+    start = checkpoints[0].start
+    end = checkpoints[-1].end
+    total = sum(cp.total for cp in checkpoints)
+    checkpoint_paths = [cp.path for cp in checkpoints]
+    dirname = checkpoints[0].dirname
+    consequtive, missing = is_consequtive(checkpoints)
+    return CheckpointSet(
+            checkpoints=checkpoints,
+            checkpoint_paths=checkpoint_paths,
+            start=start,
+            end=end,
+            total=total,
+            checkpoint_count=len(checkpoints),
+            dirname=dirname,
+            missing=missing,
+            is_consequtive=consequtive,
+            initial_checkpoint_offset=initial_checkpoint_offset
+    )
+
+
+def checkpointset_from_path(path):
+    return checkpointset_from_checkpoints(get_checkpoints_from_path(path))
+
+
+def roundup(x, factor=BLOCKS_PER_CHECKPOINT):
     return x if x % factor == 0 else x + factor - x % factor
 
 
-def rounddown(x, factor=1000000):
+def rounddown(x, factor=BLOCKS_PER_CHECKPOINT):
     return (x // factor) * factor
 
 
-def calculate_offset(starting_block_num, first_required_checkpoint_filename):
-    file_starting_blocknum, end_starting_blocknum = start_and_end_from_checkpoint_filename(first_required_checkpoint_filename)
-    return starting_block_num - file_starting_blocknum
+def is_consequtive(checkpoints):
+    missing = []
+    for i, cp in enumerate(checkpoints):
+        if i == 0:
+            if cp.start != 1:
+                missing.append(0)
+            continue
+        if cp.start != (checkpoints[i - 1].end + 1):
+            missing.append(
+                    missing_checkpoint_filename_from_index(i, cp.is_gzipped))
+    return len(missing) == 0, missing
+
+
+def calculate_initial_checkpoint_offset(starting_block_num, initial_checkpoint):
+    return starting_block_num - initial_checkpoint.start
+
 
 def start_and_end_from_checkpoint_filename(checkpoint_filename):
-    start, end, is_gzipped = parse_checkpoint_filename(checkpoint_filename)
-    return int(start), int(end)
+    cp = parse_checkpoint_filename(checkpoint_filename)
+    return cp.start, cp.end
 
-def parse_checkpoint_filename(filename):
+
+def parse_checkpoint_filename(filename_or_path):
+    filename = os.path.basename(filename_or_path)
     matches = CHECKPOINT_FILENAME_REGEX.match(filename)
     start, end, is_gzipped = matches.groups()
     if is_gzipped is None:
         is_gzipped = False
-    return start, end, is_gzipped
+    else:
+        is_gzipped = True
+
+    cp = default_checkpoint_file._replace(
+            start=int(start),
+            end=int(end),
+            total=int(end) - int(start),
+            path=os.path.abspath(filename_or_path),
+            filename=filename,
+            dirname=os.path.dirname(os.path.abspath(filename_or_path)),
+            is_gzipped=is_gzipped)
+    if not any([cp.start, cp.end, cp.path]):
+        raise ValueError('Bad values for CheckpointFile: %s' % cp)
+    return cp
+
 
 def block_num_to_str(block_num, left_pad_amount=MIN_LEFTPAD_AMOUNT):
     s = str(block_num)
     while len(s) < left_pad_amount + 1:
         s = '0' + s
     return s
+
+
+def missing_checkpoint_filename_from_index(index, is_gzipped=True):
+    start = block_num_to_str((index * BLOCKS_PER_CHECKPOINT) + 1)
+    end = block_num_to_str(((index + 1) * BLOCKS_PER_CHECKPOINT))
+    if is_gzipped:
+        gzip = '.gz'
+    else:
+        gzip = ''
+    return CHECKPOINT_FILENAME_FORMAT_STRING.format(start=start, end=end,
+                                                    gzip=gzip)
+
 
 def hook_compressed_encoded(encoding, real_mode='rt'):
     def openhook_compressed(filename, mode):

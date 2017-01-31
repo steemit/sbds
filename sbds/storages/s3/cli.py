@@ -52,35 +52,35 @@ def put_json_blocks(blocks, bucket):
     start_str = start.isoformat()
     elapsed = None
     logdata = {
-        'blocks': {
+        'blocks' : {
             'attempt': {
                 'count': 0,
-                'last': {
+                'last' : {
                     'blocknum': None,
-                    'time': None
+                    'time'    : None
                 }
             },
             'success': {
                 'count': 0,
-                'last': {
+                'last' : {
                     'blocknum': None,
-                    'time': None
+                    'time'    : None
                 }
             },
-            'fail': {
+            'fail'   : {
                 'count': 0,
-                'last': {
+                'last' : {
                     'blocknum': None,
-                    'time': None
+                    'time'    : None
                 }
             }
 
         },
-        'last': {
+        'last'   : {
             'blocknum': None,
-            'result': None
+            'result'  : None
         },
-        'start': start_str,
+        'start'  : start_str,
         'elapsed': 0
     }
     for block in blocks:
@@ -92,7 +92,8 @@ def put_json_blocks(blocks, bucket):
         logdata['elapsed'] = str(elapsed)
         try:
             block = json.loads(block)
-            res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(block, bucket)
+            res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(
+                    block, bucket)
             res_blocknum = int(res_blocknum)
             logdata['blocks']['attempt']['last']['blocknum'] = res_blocknum
             logdata['blocks']['attempt']['last']['key'] = res_key

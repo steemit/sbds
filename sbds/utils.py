@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import math
-from itertools import chain
-from collections import defaultdict
+import datetime
 import json
-from urllib.parse import urljoin
+import math
+import os
+from collections import defaultdict
 from urllib.parse import urlparse
 
 import w3lib.url
@@ -32,15 +32,15 @@ def percentile(n, percent, key=lambda x: x):
 
     @return - the percentile of the values
     """
-    if not N:
+    if not n:
         return None
-    k = (len(N) - 1) * percent
+    k = (len(n) - 1) * percent
     f = math.floor(k)
     c = math.ceil(k)
     if f == c:
-        return key(N[int(k)])
-    d0 = key(N[int(f)]) * (c - k)
-    d1 = key(N[int(c)]) * (k - f)
+        return key(n[int(k)])
+    d0 = key(n[int(f)]) * (c - k)
+    d1 = key(n[int(c)]) * (k - f)
     return d0 + d1
 
 
@@ -59,49 +59,43 @@ def chunkify(iterable, chunksize=10000):
         yield chunk
 
 
-def flatten_obj(y):
-    out = {}
-
-    def flatten(x, name=''):
-        if type(x) is dict:
-            for a in x:
-                flatten(x[a], name + a + '.')
-        elif type(x) is list:
-            i = 0
-            for a in x:
-                flatten(a, name + '[%s]' % i)
-                i += 1
-        else:
-
-            out[name.rstrip('.')] = x
-
-    flatten(y)
-    return out
-
-
-def build_op_type_maps(blocks):
-    transactions = chain.from_iterable(b['transactions'] for b in blocks)
-    operations = chain.from_iterable(t['operations'] for t in transactions)
-    ops_dict = defaultdict(dict)
-    for op_type, op in operations:
-        keyval = {k: type(v) for k, v in op.items()}
-        ops_dict[op_type][frozenset(keyval)] = flatten_obj(op)
-    return ops_dict
-
-
-def write_json_items(filename, items):
+def write_json_items(items, filename=None, topic='', ext='json'):
+    filename = filename or timestamp_filename(topic=topic, ext=ext)
     try:
-        lineitems = os.linesep.join(json.dumps(item, ensure_ascii=True) for item in items)
+        lineitems = os.linesep.join(
+                json.dumps(item, ensure_ascii=True) for item in items)
         with open(filename, mode='a', encoding='utf8') as f:
             f.writelines(lineitems)
     except Exception as e:
         logger.error(e)
 
 
-class Vividict(dict):
-    def __missing__(self, key):
-        value = self[key] = type(self)()
-        return value
+def write_json(items, dirname=None, prefix='sbds_error_', topic='', ext='json'):
+    filename = timestamp_filename(topic=topic, prefix=prefix, ext=ext)
+    dirname = dirname or 'failed_blocks'
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    path = os.path.join(dirname, filename)
+    try:
+        with open(path, mode='at', encoding='utf8', errors='replace') as f:
+            json.dump(items, f, ensure_ascii=True)
+        return True
+    except Exception as e:
+        logger.exception(e)
+        logger.error(items)
+        return False
+
+
+def timestamp_filename(topic='', prefix=None, ext='json'):
+    prefix = prefix or ''
+    while True:
+        now = datetime.datetime.now().isoformat().replace(':', '-').replace('.',
+                                                                            '-')
+        filename = '{prefix}{now}_{topic}.{ext}'.format(prefix=prefix, now=now,
+                                                        topic=topic, ext=ext)
+        if not os.path.exists(filename):
+            break
+    return filename
 
 
 def json_metadata_keys(operations):
@@ -130,10 +124,12 @@ def block_info(block):
     block_dict = prepare_raw_block(block)
     info = dict(block_num=block_dict['block_num'],
                 transaction_count=len(block_dict['transactions']),
-                operation_count=sum(len(t['operations']) for t in block_dict['transactions']),
+                operation_count=sum(len(t['operations']) for t in
+                                    block_dict['transactions']),
                 transactions=[],
                 )
-    info['brief'] = 'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
+    info[
+        'brief'] = 'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
 
     for t in block_dict['transactions']:
         info['transactions'].append(t['operations'][0][0])
@@ -148,7 +144,7 @@ def canonicalize_url(url, **kwargs):
     try:
         canonical_url = w3lib.url.canonicalize_url(url, **kwargs)
     except Exception as e:
-        logger.warn('url prepararation error', extra=dict(url=url, error=e))
+        logger.warn('url preparation error', extra=dict(url=url, error=e))
         raise e
     if canonical_url != url:
         _log = dict(url=url, canonical_url=canonical_url)

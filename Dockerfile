@@ -26,7 +26,12 @@ RUN \
         python3 \
         python3-dev \
         python3-pip \
-        runit && \
+        uwsgi \
+        libxml2-dev \
+        libxslt-dev \
+        runit
+
+RUN \
     pip3 install --upgrade pip && \
     pip3 install . && \
     apt-get remove -y \

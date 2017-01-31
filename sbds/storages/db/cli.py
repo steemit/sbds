@@ -1,21 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from collections import Counter
 import click
-
 from sqlalchemy import create_engine
 
-
 import sbds.logging
-from sbds.http_client import SimpleSteemAPIClient
-
 from sbds.storages.db import Session
-from sbds.storages.db import add_block
+from sbds.storages.db import add_blocks
+from sbds.storages.db import bulk_add
 from sbds.storages.db import metadata
 from sbds.storages.db.tables import Block
-from sbds.utils import write_json_items
-from .utils import new_session
-from sbds.utils import block_info
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -40,8 +33,11 @@ def db(ctx, database_url):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
 
     """
-    engine = create_engine(database_url, server_side_cursors=True, encoding='utf8')
-
+    if 'sqlite' in database_url.split(':')[0]:
+        engine = create_engine(database_url)
+    else:
+        engine = create_engine(database_url, server_side_cursors=True,
+                               encoding='utf8')
     ctx.obj = dict(engine=engine, metadata=metadata, Session=Session)
 
 
@@ -51,7 +47,9 @@ def test(ctx):
     """Test connection to database"""
     engine = ctx.obj['engine']
     result = engine.execute('SHOW TABLES').fetchall()
-    click.echo('Success! Connected to database and found %s tables' % (len(result)))
+    click.echo(
+            'Success! Connected to database and found %s tables' % (
+                len(result)))
 
 
 @db.command(name='insert-blocks')
@@ -63,63 +61,33 @@ def insert_blocks(ctx, blocks, report_interval, reset_interval):
     """Insert blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     Session.configure(bind=engine)
-    session=Session()
-    counter = Counter()
-    failed_blocks = []
-    starting_block = None
-    try:
-        for i, raw_block in enumerate(blocks, 1):
-            info = block_info(raw_block)
-            block_num = info['block_num']
-            counter['attempted_blocks'] += 1
-            result = add_block(raw_block, session, info=info)
-            if not result:
-                logger.error('BLOCK %s WAS NOT ADDED', block_num)
-                failed_blocks.append(block_num)
-                logger.debug('failed to add block %s, wiping session', block_num)
-                session = new_session(session=session, Session=Session)
-                fails = ['%s_fails' % op_type for op_type in info['transactions']]
-                counter.update(fails)
-                counter['failed_blocks'] += 1
-            else:
-                counter.update(info['transactions'])
-                counter['added_blocks'] += 1
-            if i == 1:
-                starting_block = block_num
-            if i % report_interval == 0:
-                report = dict(counter)
-                report['report_interval'] = report_interval
-                report['reset_interval'] = reset_interval
-                report['failed_blocks'] = failed_blocks
-                report['report_interval_start_block_num'] = starting_block
-                report['report_interval_final_block_num'] = block_num
-                logger.info('interval report for the last %s blocks', report_interval, extra=report)
-            if i % reset_interval == 0:
-                report = dict(counter)
-                report['report_interval'] = report_interval
-                report['reset_interval'] = reset_interval
-                report['reset_interval_failed_blocks'] = failed_blocks
-                report['reset_interval_start_block_num'] = starting_block
-                report['reset_interval_final_block_num'] = block_num
-                logger.info('reset_interval report for the last %s blocks', reset_interval, extra=counter)
-                logger.info('resetting counters and stats after %s blocks', reset_interval)
-                counter = Counter()
-                starting_block = block_num
-                failed_blocks = []
-    except Exception as e:
-        logger.exception(e)
-        raise e
-    finally:
-        logger.info('failed_blocks: %s' % failed_blocks)
-        report = dict(counter)
-        report['report_interval'] = report_interval
-        report['reset_interval'] = reset_interval
-        report['failed_blocks'] = failed_blocks
-        report['report_interval_start_block_num'] = starting_block
-        report['report_interval_final_block_num'] = block_num
-        logger.info('final report before quit', extra=report)
+    session = Session()
+    add_blocks(blocks,
+               session,
+               offset=0,
+               report_interval=report_interval,
+               reset_interval=reset_interval)
 
 
+@db.command(name='bulk-add')
+@click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.pass_context
+def bulk_add_blocks(ctx, blocks, chunksize):
+    """Insert blocks in the database, accepts "-" for STDIN (default)"""
+    engine = ctx.obj['engine']
+    Session.configure(bind=engine)
+    session = Session()
+    block_chunk = []
+    click.echo('starting')
+    for block in blocks:
+        block_chunk.append(block)
+        if len(block_chunk) == chunksize:
+            click.echo('adding')
+            bulk_add(block_chunk,
+                     session,
+                     Session)
+            block_chunk = []
 
 
 @db.command(name='init')
@@ -133,7 +101,8 @@ def init_db_tables(ctx):
 
 
 @db.command(name='reset')
-@click.confirmation_option(prompt='Are you sure you want to drop and then create the db?')
+@click.confirmation_option(
+        prompt='Are you sure you want to drop and then create the db?')
 @click.pass_context
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""

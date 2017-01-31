@@ -1,3 +1,4 @@
+# coding=utf-8
 import websocket
 import ssl
 import json
@@ -108,7 +109,7 @@ class GrapheneWebsocketRPC(object):
             except KeyboardInterrupt:
                 raise
             except:
-                if self.num_retries >= 0 and cnt > self.num_retries:
+                if 0 <= self.num_retries < cnt:
                     raise NumRetriesReached()
 
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
@@ -168,7 +169,7 @@ class GrapheneWebsocketRPC(object):
             # Blocks from start until head block
             for blocknum in range(start, head_block + 1):
                 # Get full block
-                yield self.get_block(blocknum, **kwargs)
+                yield self.get_block(blocknum)
 
             # Set new start
             start = head_block + 1
@@ -196,7 +197,6 @@ class GrapheneWebsocketRPC(object):
                 worker_create, custom, assert, balance_claim,
                 override_transfer, transfer_to_blind, blind_transfer,
                 transfer_from_blind, asset_settle_cancel, asset_claim_fees
-            :param int start: Begin at this block
         """
         from graphenebase.operations import getOperationNameForId
         for block in self.block_stream(*args, **kwargs):
@@ -229,8 +229,7 @@ class GrapheneWebsocketRPC(object):
             except KeyboardInterrupt:
                 raise
             except:
-                if (self.num_retries > -1 and
-                            cnt > self.num_retries):
+                if (-1 < self.num_retries < cnt):
                     raise NumRetriesReached()
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:

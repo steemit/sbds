@@ -9,9 +9,9 @@ import click
 import toolz.itertoolz
 from steemapi.steemnoderpc import SteemNodeRPC
 
+import sbds.checkpoint
 import sbds.logging
 from sbds.http_client import SimpleSteemAPIClient
-from sbds.utils import block_num_from_previous
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
@@ -128,32 +128,43 @@ def bulk_blocks(start, end, chunksize, max_workers, url):
             click.echo(block.encode('utf8'), file=f)
 
 
-def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None, rpc=None, url=None):
-    extra = dict(start=start, end=end, chunksize=chunksize, max_workers=max_workers, rpc=rpc, url=url)
+def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
+                    rpc=None, url=None):
+    extra = dict(start=start, end=end, chunksize=chunksize,
+                 max_workers=max_workers, rpc=rpc, url=url)
     logger.debug('get_blocks_fast', extra=extra)
     rpc = rpc or SimpleSteemAPIClient(url)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers) as executor:
+        for i, chunk in enumerate(
+                chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
             for b in executor.map(rpc.get_block, chunk):
                 yield b
 
 
 @click.command(name='load-checkpoint-blocks')
-@click.argument('checkpoints_dir', type=click.Path(exists=True, file_okay=False, resolve_path=True))
+@click.argument('checkpoints_dir', type=click.Path(exists=True, file_okay=False,
+                                                   resolve_path=True))
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 def load_blocks_from_checkpoints(checkpoints_dir, start, end):
     """Load blocks from locally stored "checkpoint" files"""
-    checkpoint_filenames = required_checkpoint_files(path=checkpoints_dir, start=start, end=end)
-    checkpoint_filenames = sorted(checkpoint_filenames)
+
+    checkpoint_set = sbds.checkpoint.required_checkpoints(path=checkpoints_dir,
+                                                          start=start, end=end)
     total_blocks_to_load = end - start
+
     with fileinput.FileInput(mode='r',
-                             files=checkpoint_filenames,
-                             openhook=hook_compressed_encoded('utf8')) as blocks:
-        blocks = toolz.itertoolz.drop(start, blocks)
+                             files=checkpoint_set.checkpoint_paths,
+                             openhook=hook_compressed_encoded(
+                                     'utf8')) as blocks:
+
+        blocks = toolz.itertoolz.drop(checkpoint_set.initial_checkpoint_offset,
+                                      blocks)
+
         if total_blocks_to_load > 0:
-            for i, block in enumerate(blocks,1):
+            for i, block in enumerate(blocks, 1):
                 click.echo(block)
                 if i == total_blocks_to_load:
                     break
@@ -162,31 +173,25 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
                 click.echo(json.dumps(json.loads(block)).encode('utf8'))
 
 
-
-
-def required_checkpoint_files(path, start, end=None, files=None):
-    checkpoint_file_pattern = 'blocks_*.json*'
-    all_files = os.listdir(path)
-    files = files or fnmatch.filter(all_files, checkpoint_file_pattern)
-    checkpoint_files = []
-    for file in files:
-        check_low = int(file.split('-')[0].split('_')[1])
-        check_high = int(file.split('-')[1].split('.')[0])
-        if start > check_high:
-            continue
-        if end and end > 0 and check_low > end:
-            break
-        checkpoint_files.append(file)
-
-    return [os.path.join(path, f) for f in checkpoint_files]
-
-
-def roundup(x, factor=1000000):
-    return x if x % factor == 0 else x + factor - x % factor
-
-
-def rounddown(x, factor=1000000):
-    return (x // factor) * factor
+@click.command(name='condense-error-files')
+@click.argument('error_dir', type=click.Path(exists=True, file_okay=False,
+                                             resolve_path=True))
+def condense_error_files(error_dir):
+    """Load blocks from locally stored "checkpoint" files"""
+    all_files = os.listdir(error_dir)
+    files = fnmatch.filter(all_files, '*.json')
+    files = [os.path.join(error_dir, f) for f in files]
+    click.echo('condensing %s error files' % len(files), err=True)
+    block_nums = list()
+    for filename in files:
+        with open(filename, mode='rt', encoding='utf8') as f:
+            file_block_nums = json.load(f)
+            click.echo('adding %s block_nums from %s' % (
+                len(file_block_nums), filename), err=True)
+            block_nums.extend(file_block_nums)
+    block_nums = list(set(block_nums))
+    click.echo('found %s total block_nums' % len(block_nums), err=True)
+    click.echo(json.dumps(block_nums, indent=None).encode('utf8'))
 
 
 def hook_compressed_encoded(encoding, real_mode='rt'):

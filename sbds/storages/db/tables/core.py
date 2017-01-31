@@ -1,32 +1,24 @@
 # -*- coding: utf-8 -*-
 import ujson as json
-from copy import deepcopy
 from copy import copy
+from copy import deepcopy
 from itertools import chain
 
 from sqlalchemy import Column
-from sqlalchemy import UnicodeText
 from sqlalchemy import Integer
-from sqlalchemy import Unicode
 from sqlalchemy import TIMESTAMP
-from sqlalchemy import Index
-from sqlalchemy import ForeignKey
-from sqlalchemy import SmallInteger
-from sqlalchemy import BigInteger
-from sqlalchemy.orm import relationship
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 from sqlalchemy import func
+from sqlalchemy.orm import relationship
 
 import sbds.logging
-
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
-from sbds.utils import block_info
-from sbds.storages.db.enums import transaction_types_enum
-
-
 
 logger = sbds.logging.getLogger(__name__)
+
 
 class Block(Base, UniqueMixin):
     """
@@ -166,20 +158,20 @@ class Block(Base, UniqueMixin):
 
     __tablename__ = 'sbds_core_blocks'
     __table_args__ = {
-        'mysql_engine': 'InnoDB',
+        'mysql_engine' : 'InnoDB',
         'mysql_charset': 'utf8mb4',
         'mysql_collate': 'utf8mb4_general_ci'
     }
 
     raw = Column(UnicodeText)
-    block_num = Column(Integer, primary_key=True, nullable=False, autoincrement=False)
+    block_num = Column(Integer, primary_key=True, nullable=False,
+                       autoincrement=False)
     previous = Column(Unicode(50))
     timestamp = Column(TIMESTAMP(timezone=False), index=True)
     witness = Column(Unicode(50))
     witness_signature = Column(Unicode(150))
     transaction_merkle_root = Column(Unicode(50))
 
-    transactions = relationship('Transaction', back_populates='block')
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (
@@ -202,6 +194,11 @@ class Block(Base, UniqueMixin):
         return cls.as_unique(session, **prepared)
 
     @classmethod
+    def from_raw_block(cls, raw_block):
+        prepared = cls._prepare_for_storage(raw_block)
+        return cls(**prepared)
+
+    @classmethod
     def unique_hash(cls, *args, **kwargs):
         return kwargs['block_num']
 
@@ -214,145 +211,11 @@ class Block(Base, UniqueMixin):
         return session.query(func.max(cls.block_num)).scalar()
 
 
-class Transaction(Base, UniqueMixin):
-    """
-    Raw Format
-    ==========
-    {
-        "signatures": [
-                "1f7f99b4e98878ecd2b65bc9e6c8e2fc3a929fdb766411e89b6df2accddf326b901e8bc10c0d0f47738c26c6fdcf15f76a11eb69a12058e96820b2625061d6aa96"
-            ],
-            "extensions": [],
-            "expiration": "2016-08-11T22:00:18",
-            "ref_block_num": 2203,
-            "operations": [
-                [
-                    "comment",
-                    {
-                        "body": "@@ -154,16 +154,17 @@\n at coffe\n+e\n  deliver\n",
-                        "title": "",
-                        "author": "mindfreak",
-                        "parent_author": "einsteinpotsdam",
-                        "permlink": "re-einsteinpotsdam-tutorial-for-other-shop-owners-how-to-accept-steem-and-steem-usd-payments-setup-time-under-2-minutes-android-20160811t215904898z",
-                        "parent_permlink": "tutorial-for-other-shop-owners-how-to-accept-steem-and-steem-usd-payments-setup-time-under-2-minutes-android",
-                        "json_metadata": "{\"tags\":[\"steemit\"]}"
-                    }
-                ]
-            ],
-            "ref_block_prefix": 3949810370
-        }
-        {
-            "signatures": [],
-            "extensions": [],
-            "expiration": "2016-08-11T22:00:36",
-            "ref_block_num": 2304,
-            "operations": [
-                [
-                    "witness_update",
-                    {
-                        "url": "http://fxxk.com",
-                        "props": {
-                            "maximum_block_size": 65536,
-                            "account_creation_fee": "1.000 STEEM",
-                            "sbd_interest_rate": 1000
-                        },
-                        "block_signing_key": "STM5b3wkzd5cPuW8tYbHpsM6qo26R5eympAQsBaoEfeMDxxUCLvsY",
-                        "fee": "0.000 STEEM",
-                        "owner": "supercomputing06"
-                    }
-                ]
-            ],
-            "ref_block_prefix": 1721994435
-    }
-
-    Prepared Format
-    ===============
-    {
-        "tx_id": 3893898,
-        "block_num": 4000001,
-        "transaction_num": 1,
-        "ref_block_num": 2203,
-        "ref_block_prefix": 3949810370,
-        "expiration": "2016-08-11 22:00:18.000",
-        "type": "comment"
-    }
-    """
-
-    __tablename__ = 'sbds_core_transactions'
-    __table_args__ = (
-        Index('sbds_ix_transactions', 'block_num', 'transaction_num', unique=True),
-        {
-            'mysql_engine': 'InnoDB',
-            'mysql_charset': 'utf8mb4',
-            'mysql_collate': 'utf8mb4_general_ci'
-        }
-    )
-
-    tx_id = Column(Integer, primary_key=True, autoincrement=True)
-    block_num = Column(ForeignKey(Block.block_num,
-                                  use_alter=True,
-                                  ondelete='CASCADE',
-                                  onupdate='CASCADE'), nullable=False)
-    transaction_num = Column(SmallInteger, nullable=False)
-    ref_block_num = Column(Integer, nullable=False)
-    ref_block_prefix = Column(BigInteger, nullable=False)
-    expiration = Column(TIMESTAMP(timezone=False), nullable=False)
-    type = Column(transaction_types_enum, nullable=False, index=True)
-
-    block = relationship('Block', back_populates='transactions')
-
-    def __repr__(self):
-        return "<Transaction(tx_id=%s, block_num='%s', transaction_num='%s' op_type='%s')>" % (
-            self.tx_id, self.block_num, self.transaction_num, self.type)
-
-
-    @classmethod
-    def _prepare_for_storage(cls, extracted_transaction=None, raw_block=None):
-        if extracted_transaction:
-            return cls._prepare_from_extracted_transaction(extracted_transaction)
-        elif raw_block:
-            return cls._prepare_from_raw_block(raw_block)
-
-    @classmethod
-    def _prepare_from_raw_block(cls, raw_block):
-        transactions = extract_transactions_from_block(raw_block)
-        prepared_transactions = map(cls._prepare_from_extracted_transaction, transactions)
-        return list(prepared_transactions)
-
-    @classmethod
-    def _prepare_from_extracted_transaction(cls, extracted_transaction):
-        transaction = deepcopy(extracted_transaction)
-        if 'operations' in transaction:
-            del transaction['operations']
-        return transaction
-
-    @classmethod
-    def get_or_create_from_raw_block(cls, raw_block, session=None):
-        transactions = cls._prepare_for_storage(raw_block=raw_block)
-        return [cls.as_unique(session, **t) for t in transactions]
-
-
-    @classmethod
-    def unique_hash(cls, *args, **kwargs):
-        return tuple([kwargs['block_num'], kwargs['transaction_num']])
-
-    @classmethod
-    def unique_filter(cls, query, *args, **kwargs):
-        return query.filter(cls.block_num == kwargs['block_num'],
-                            cls.transaction_num == kwargs['transaction_num'])
-
-
 def from_raw_block(raw_block, session=None):
     from .tx import TxBase
     block = Block.get_or_create_from_raw_block(raw_block, session=session)
-    transactions = Transaction.get_or_create_from_raw_block(raw_block, session=session)
-    block.transactions = transactions
-    tx_transactions = TxBase.from_raw_block(raw_block, transactions=transactions, session=session)
-    for tx in tx_transactions:
-        tx.transaction = transactions[tx.transaction_num - 1]
-    return block
-
-
+    tx_transactions = TxBase.from_raw_block(raw_block, session=session)
+    return block, tx_transactions
 
 
 def prepare_raw_block(raw_block):
@@ -371,14 +234,15 @@ def prepare_raw_block(raw_block):
         block_dict['raw'] = copy(raw)
     else:
         raise TypeError('Unsupported raw block type')
-
-    block_num = block_num_from_previous(block_dict['previous'])
-    block_dict['block_num'] = block_num
+    if 'block_num' not in block_dict:
+        block_num = block_num_from_previous(block_dict['previous'])
+        block_dict['block_num'] = block_num
     return block_dict
 
 
 def extract_transactions_from_blocks(blocks):
-    transactions = chain.from_iterable(map(extract_transactions_from_block, blocks))
+    transactions = chain.from_iterable(
+            map(extract_transactions_from_block, blocks))
     return transactions
 
 
@@ -388,6 +252,7 @@ def extract_transactions_from_block(_block):
     for transaction_num, t in enumerate(block_transactions, 1):
         t = deepcopy(t)
         yield dict(block_num=block['block_num'],
+                   timestamp=block['timestamp'],
                    transaction_num=transaction_num,
                    ref_block_num=t['ref_block_num'],
                    ref_block_prefix=t['ref_block_prefix'],
@@ -405,9 +270,9 @@ def extract_operations_from_block(raw_block):
             op_type, op = operation
             op.update(
                     block_num=transaction['block_num'],
-                    timestamp=block['timestamp'],
-                    operation_num=op_num,
                     transaction_num=transaction['transaction_num'],
+                    operation_num=op_num,
+                    timestamp=block['timestamp'],
                     type=op_type)
             yield op
 
