@@ -26,7 +26,7 @@ setup(
         'w3lib',
         'lxml',
         'markdown',
-        'beautifulsoup4', 'websocket'
+        'beautifulsoup4'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh',
              'sbds/storages/db/scripts/stream.sh'],
