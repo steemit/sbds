@@ -220,7 +220,7 @@ def bulk_add(raw_blocks, session, Session, retry=True):
             logger.error('FAILED TXs FOR BLOCKS total:%s from %s to %s',
                          block_count, first_block_num, last_block_num)
 
-    
+
     # loop error handlers
     except Exception as e:
         logger.exception(e)

@@ -165,12 +165,12 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
 
         if total_blocks_to_load > 0:
             for i, block in enumerate(blocks, 1):
-                click.echo(block)
+                click.echo(json.dumps(json.loads(block)).encode('utf8'))
                 if i == total_blocks_to_load:
                     break
         else:
             for block in blocks:
-                click.echo(json.dumps(json.loads(block)))
+                click.echo(json.dumps(json.loads(block)).encode('utf8'))
 
 
 @click.command(name='condense-error-files')

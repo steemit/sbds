@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import json
 import click
 from sqlalchemy import create_engine
 
@@ -128,3 +129,12 @@ def last_block(ctx):
     Session.configure(bind=engine)
     session = Session()
     click.echo(Block.highest_block(session))
+
+@db.command(name='find-missing-blocks')
+@click.pass_context
+def last_block(ctx):
+    """JSON array of block_nums from missing blocks"""
+    engine = ctx.obj['engine']
+    Session.configure(bind=engine)
+    session = Session()
+    click.echo(json.dumps(Block.find_missing(session)))

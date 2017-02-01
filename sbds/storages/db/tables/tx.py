@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 from copy import deepcopy
 
 from sqlalchemy import BigInteger
@@ -16,6 +17,9 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
 from toolz.dicttoolz import get_in
 
+
+
+
 import sbds.logging
 from .core import Base
 from .core import extract_operations_from_block
@@ -23,11 +27,15 @@ from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
 from ..utils import UniqueMixin
-
+from ..query_helpers import past_24_hours, past_48_hours, past_72_hours
+from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
 # from .core import Transaction
 
 
 logger = sbds.logging.getLogger(__name__)
+
+
+
 
 
 class TxBase(UniqueMixin):
@@ -48,7 +56,6 @@ class TxBase(UniqueMixin):
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(TIMESTAMP(timezone=False), index=True)
-    # operation_type = Column(transaction_types_enum, nullable=False, index=True)
 
     _fields = dict()
 
@@ -114,6 +121,54 @@ class TxBase(UniqueMixin):
                             cls.operation_num == kwargs['operation_num'],
                             )
 
+    @classmethod
+    def time_window_filter(cls, query, _from=None, to=None):
+        q = query.filter(cls.timestamp >= _from)
+        if to:
+            q = q.filter(cls.timestamp <= to)
+        return q
+
+    @classmethod
+    def past_24(cls, session):
+        q = session.query(cls)
+        past_24 = past_24_hours()
+        q = cls.time_window_filter(q, _from=past_24)
+        return q
+
+    @classmethod
+    def past_48(cls, session):
+        q = session.query(cls)
+        past_48 = past_48_hours()
+        q = cls.time_window_filter(q, _from=past_48)
+        return q
+
+    @classmethod
+    def past_72(cls, session):
+        q = session.query(cls)
+        past_72 = past_72_hours()
+        q = cls.time_window_filter(q, _from=past_72)
+        return q
+
+    @classmethod
+    def past_24_to_48(cls, session):
+        q = session.query(cls)
+        past_24, past_48 = past_24_to_48_hours()
+        q = cls.time_window_filter(q, _from=past_24, to=past_48)
+        return q
+
+    @classmethod
+    def past_48_to_72(cls, session):
+        q = session.query(cls)
+        past_48, past_72 = past_48_to_72_hours()
+        q = cls.time_window_filter(q, _from=past_48, to=past_72)
+        return q
+
+    def dump(self):
+        data = deepcopy(self.__dict__)
+        if '_sa_instance_state' in data:
+            del data['_sa_instance_state']
+        return data
+
     def __repr__(self):
         return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
             self.__class__.__name__,
@@ -123,11 +178,9 @@ class TxBase(UniqueMixin):
             tuple(self.dump().keys())
         )
 
-    def dump(self):
-        data = deepcopy(self.__dict__)
-        if '_sa_instance_state' in data:
-            del data['_sa_instance_state']
-        return data
+    def __str__(self):
+        return json.dumps(self.dump())
+
 
 
 class TxAccountCreate(Base, TxBase):
@@ -226,6 +279,9 @@ class TxAccountCreate(Base, TxBase):
     )
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+
 
 
 class TxAccountRecover(Base, TxBase):
@@ -557,7 +613,7 @@ class TxComment(Base, TxBase):
     permlink = Column(Unicode(512), nullable=False, index=True)
     parent_author = Column(Unicode(50))
     parent_permlink = Column(Unicode(512))
-    title = Column(Unicode(250))
+    title = Column(Unicode(512))
     body = Column(UnicodeText)
     json_metadata = Column(UnicodeText)
 
@@ -1436,7 +1492,7 @@ class TxWithdraw(Base, TxBase):
     __tablename__ = 'sbds_tx_withdraws'
 
     account = Column(Unicode(50), nullable=False)
-    vesting_shares = Column(Numeric(15, 4), nullable=False, default=0.0)
+    vesting_shares = Column(Numeric(25, 4), nullable=False, default=0.0)
 
     _fields = dict(withdraw_vesting=dict(
             account=lambda x: x.get('account'),

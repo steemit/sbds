@@ -1,8 +1,8 @@
 FROM phusion/baseimage:0.9.19
 
 ENV DATABASE_URL sqlite:////tmp/sqlite.db
-ENV WEBSOCKET_URL wss://steemit.com/wspa
-ENV STEEMD_HTTP_URL http://this.piston.rocks
+ENV WEBSOCKET_URL wss://steemd.steemitdev.com:443
+ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
 
 ADD . /app
 

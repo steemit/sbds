@@ -9,7 +9,6 @@ setup(
         'Click',
         'pytest',
         'steem-piston==0.4.1',
-        'websocket-client==0.37.0',
         'boto3',
         'python-json-logger',
         'requests==2.10.0',
@@ -25,8 +24,7 @@ setup(
         'toolz',
         'w3lib',
         'lxml',
-        'markdown',
-        'beautifulsoup4'
+        'markdown'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh',
              'sbds/storages/db/scripts/stream.sh'],

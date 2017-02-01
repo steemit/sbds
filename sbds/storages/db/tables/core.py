@@ -210,6 +210,14 @@ class Block(Base, UniqueMixin):
     def highest_block(cls, session):
         return session.query(func.max(cls.block_num)).scalar()
 
+    @classmethod
+    def find_missing(cls, session):
+        highest_block = cls.highest_block(session)
+        q = session.query(cls.block_num)
+        db_block_nums = set(n[0] for n in q.all())
+        return set(range(1, highest_block)).difference(db_block_nums)
+
+
 
 def from_raw_block(raw_block, session=None):
     from .tx import TxBase
