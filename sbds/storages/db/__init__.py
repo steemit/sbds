@@ -32,7 +32,7 @@ def add_block(raw_block, session, info=None):
     block_num = info['block_num']
     logger.debug('processing %s', info['brief'].format(**info))
     try:
-        block_obj, txtransactions = from_raw_block(raw_block=raw_block)
+        block_obj, txtransactions = from_raw_block(raw_block, session)
         session.add(block_obj)
         session.commit()
         session.add_all(txtransactions)
@@ -77,7 +77,6 @@ def add_blocks(raw_blocks, session, offset=0, report_interval=1000,
     :param report_interval: int
     :param reset_interval: int
     """
-    session = new_session(session=session, Session=Session)
     if offset != 0:
         raw_blocks = toolz.itertoolz.drop(offset, raw_blocks)
     counter = Counter()

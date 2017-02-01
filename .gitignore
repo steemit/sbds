@@ -97,3 +97,10 @@ Session.vim
 
 # sqlite db for testing
 local.db
+/test/fast-test.sh
+/test/fastest-test.sh
+/test/sbds-install.sh
+/test/test.sh
+/test/sync.sh
+/test/failed_blocks/
+test/failed_blocks/

@@ -219,10 +219,10 @@ class Block(Base, UniqueMixin):
 
 
 
-def from_raw_block(raw_block, session=None):
+def from_raw_block(raw_block, session):
     from .tx import TxBase
     block = Block.get_or_create_from_raw_block(raw_block, session=session)
-    tx_transactions = TxBase.from_raw_block(raw_block, session=session)
+    tx_transactions = TxBase.from_raw_block(raw_block)
     return block, tx_transactions
 
 

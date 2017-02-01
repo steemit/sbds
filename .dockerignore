@@ -42,3 +42,9 @@ blocks.json
 
 # sqlite db for testing
 local.db
+/test/fastest-test.sh
+/test/sbds-install.sh
+/test/test.sh
+/test/fast-test.sh
+/test/sync.sh
+/test/failed_blocks/

@@ -37,7 +37,8 @@ def db(ctx, database_url):
     if 'sqlite' in database_url.split(':')[0]:
         engine = create_engine(database_url)
     else:
-        engine = create_engine(database_url, server_side_cursors=True,
+        engine = create_engine(database_url,
+                               server_side_cursors=True,
                                encoding='utf8')
     ctx.obj = dict(engine=engine, metadata=metadata, Session=Session)
 

@@ -11,8 +11,8 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, arg, kw):
     cache = getattr(session, '_unique_cache', None)
     cls_name = cls.__name__
     if cache is None:
-        logger.debug('_unique created session cache')
         session._unique_cache = cache = {}
+        logger.debug('_unique created session cache')
     key = (cls, hashfunc(*arg, **kw))
     if key in cache:
         logger.debug('_unique key %s found in session cache', key)
