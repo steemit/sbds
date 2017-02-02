@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from collections import Counter
 from itertools import chain
+from contextlib import contextmanager
+from collections import namedtuple
 
 import toolz.itertoolz
 from sqlalchemy.exc import IntegrityError
@@ -19,6 +21,104 @@ metadata = Base.metadata
 
 logger = sbds.logging.getLogger(__name__)
 
+LogTuple = namedtuple('LogTuple', ['cls','block_num', 'transaction_num','operation_num', 'error'])
+
+
+def merge_insert(objects, session, load=True):
+    for object in objects:
+        try:
+            session.merge(object, load=load)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise e
+        else:
+            return True
+
+def safe_insert(obj, session):
+    rollback = False
+    json_log = False
+    try:
+        logger.debug('attempting safe_insert %s', obj)
+        session.add(obj)
+        session.commit()
+    except IntegrityError as e:
+        rollback = True
+        if not is_duplicate_entry_error(e):
+            logger.exception(e)
+        else:
+            logger.info('Duplicate entry error caught')
+    except Exception as e:
+        rollback = True
+        json_log = True
+        logger.exception(e)
+    else:
+        logger.debug('safe_insert %s sucess', obj)
+    finally:
+        if rollback:
+            session.rollback()
+        if json_log:
+            name = obj.__class__.__name__
+            lt = LogTuple(cls=name,
+                          block_num=getattr(object, 'block_num', None),
+                          transaction_num=getattr(object, 'transaction_num', None),
+                          operation_num=getattr(object, 'operation_num', None),
+                          error=e)
+            write_json([lt._asdict()],topic='failed_%s' % name)
+
+        return not rollback
+
+
+def safe_insert_many(objects, session):
+    rollback = False
+    json_log = False
+    try:
+        session.add_all(objects)
+        session.commit()
+    except IntegrityError as e:
+        rollback = True
+        if not is_duplicate_entry_error(e):
+            logger.exception(e)
+        else:
+            logger.info('Duplicate entry error caught')
+    except Exception as e:
+        rollback = True
+        json_log = True
+        logger.exception(e)
+    finally:
+        if rollback:
+            session.rollback()
+        if json_log:
+            log_tuples = []
+            for object in objects:
+                name = object.__class__.__name__
+                lt = LogTuple(cls=name,
+                          block_num=getattr(object, 'block_num', None),
+                          transaction_num=getattr(object, 'transaction_num', None),
+                          operation_num=getattr(object, 'operation_num', None),
+                          error=e)
+                log_tuples.append(lt._asdict())
+            write_json(log_tuples, topic='failed_inserts')
+
+        return not rollback
+
+def adaptive_insert(objects, session):
+    if safe_insert_many(objects, session):
+        logger.debug('attepmting safe_insert_many')
+        return True
+
+    logger.debug('safe_insert_many failed')
+    try:
+        logger.debug('attempting merge_insert')
+        merge_insert(objects, session)
+        logger.debug('merge_insert success')
+        return True
+    except Exception as e:
+        logger.debug('merge_insert failed')
+        logger.error(e)
+        logger.debug('attempting individual safe_insert')
+        return [safe_insert(object, session) for object in objects]
+
 
 def add_block(raw_block, session, info=None):
     """
@@ -31,24 +131,15 @@ def add_block(raw_block, session, info=None):
     info = info or block_info(raw_block)
     block_num = info['block_num']
     logger.debug('processing %s', info['brief'].format(**info))
-    try:
-        block_obj, txtransactions = from_raw_block(raw_block, session)
-        session.add(block_obj)
-        session.commit()
-        session.add_all(txtransactions)
-        session.commit()
-    except Exception as e:
-        session.rollback()
-        logger.exception(e)
-        return False
+    block_obj, txtransactions = from_raw_block(raw_block, session)
+    result = adaptive_insert(list([block_obj, *txtransactions]), session)
+    if isinstance(result, bool):
+        return result
     else:
-        logger.debug('added block %s', block_num)
-        return True
-
+        return all(result)
 
 def filter_existing_blocks(block_objects, session):
     """
-
     :param block_objects: list
     :param session:
     :return:
@@ -67,7 +158,10 @@ def filter_existing_blocks(block_objects, session):
     return block_objects
 
 
-def add_blocks(raw_blocks, session, offset=0, report_interval=1000,
+def add_blocks(raw_blocks,
+               session,
+               offset=0,
+               report_interval=1000,
                reset_interval=100000):
     """
 
@@ -93,7 +187,7 @@ def add_blocks(raw_blocks, session, offset=0, report_interval=1000,
                 failed_blocks.append(block_num)
                 logger.debug('failed to add block %s, wiping session',
                              block_num)
-                session = new_session(session=session, Session=Session)
+                session = new_session(session=session, session_factory=Session)
                 fails = ['%s_fails' % op_type for op_type in
                          info['transactions']]
                 counter.update(fails)
@@ -131,9 +225,6 @@ def add_blocks(raw_blocks, session, offset=0, report_interval=1000,
     except Exception as e:
         raise e
     finally:
-        write_json(failed_blocks, topic='failed_blocks')
-        logger.info('failed_blocks: %s' % failed_blocks)
-
         report = dict(counter)
         report['offset'] = offset
         report['report_interval'] = report_interval
@@ -190,13 +281,13 @@ def bulk_add(raw_blocks, session, Session, retry=True):
                 logger.info('Duplicate entry error caught')
             logger.error('FAILED BLOCKS total:%s from %s to %s', block_count,
                          first_block_num, last_block_num)
-            session = new_session(session=session, Session=Session)
+            session = new_session(session=session, session_factory=Session)
         except Exception as e:
             failed_blocks += block_nums
             logger.exception(e)
             logger.error('FAILED BLOCKS total:%s from %s to %s', block_count,
                          first_block_num, last_block_num)
-            session = new_session(session=session, Session=Session)
+            session = new_session(session=session, session_factory=Session)
 
         # Add txs
         try:
@@ -204,7 +295,7 @@ def bulk_add(raw_blocks, session, Session, retry=True):
             session.commit()
         except IntegrityError as e:
             failed_tx_blocks += block_nums
-            session = new_session(session=session, Session=Session)
+            session = new_session(session=session, session_factory=Session)
             if not is_duplicate_entry_error(e):
                 logger.exception(e)
             else:
@@ -214,7 +305,7 @@ def bulk_add(raw_blocks, session, Session, retry=True):
 
         except Exception as e:
             failed_tx_blocks += block_nums
-            session = new_session(session=session, Session=Session)
+            session = new_session(session=session, session_factory=Session)
             logger.exception(e)
             logger.error('FAILED TXs FOR BLOCKS total:%s from %s to %s',
                          block_count, first_block_num, last_block_num)
@@ -236,87 +327,3 @@ def bulk_add(raw_blocks, session, Session, retry=True):
                 len(raw_blocks_chunk),
                 len(failed_blocks),
                 len(failed_tx_blocks))
-
-
-# noinspection PyPep8Naming
-def bulk_add_chunkify(raw_blocks, session, Session, chunksize=100):
-    """
-
-    :param raw_blocks: list
-    :param session:
-    :param Session:
-    :param chunksize: int
-    """
-    from .tables import Block
-    from .tables import TxBase
-    failed_blocks = []
-    failed_tx_blocks = []
-    try:
-        for i, chunk in enumerate(partition_all(chunksize, raw_blocks), 1):
-            raw_blocks_chunk = list(chunk)
-            logger.info(
-                    'chunk %s, block_count=%s failed__blocks: %s failed_tx_blocks:%s',
-                    i, len(raw_blocks_chunk), len(failed_blocks),
-                    len(failed_tx_blocks))
-            block_objs = list(map(Block.from_raw_block, raw_blocks_chunk))
-            tx_objs = list(chain.from_iterable(
-                    map(TxBase.from_raw_block, raw_blocks_chunk)))
-            logger.info('block_objs: %s tx_objs: %s', len(block_objs),
-                        len(tx_objs))
-            try:
-                # remove existing to avoid IntegrityError
-
-                results = session.query(Block.block_num) \
-                    .filter(Block.block_num.in_(
-                        [b.block_num for b in block_objs])).all()
-                if results:
-                    results = [r[0] for r in results]
-                    logger.info('found existing blocks: %s', results)
-                    new_block_objs = [b for b in block_objs if
-                                      b.block_num not in results]
-                    logger.info('removed %s existing objects from list',
-                                len(block_objs) - len(new_block_objs))
-                    block_objs = new_block_objs
-                session.bulk_save_objects(block_objs)
-                session.commit()
-            except Exception as e:
-                logger.exception(e)
-                block_nums = [b['block_num'] for b in
-                              map(block_info, raw_blocks_chunk)]
-                logger.error('FAILED BLOCKS: %s', block_nums)
-                failed_blocks += block_nums
-                session = new_session(session=session, Session=Session)
-            try:
-                session.bulk_save_objects(tx_objs)
-                session.commit()
-            except Exception as e:
-                logger.exception(e)
-                block_nums = [b['block_num'] for b in
-                              map(block_info, raw_blocks_chunk)]
-                logger.error('FAILED TXs FOR BLOCKS: %s',
-                             [b.block_num for b in block_objs])
-                failed_tx_blocks += block_nums
-                session = new_session(session=session, Session=Session)
-            if i % 100 == 0:
-                if len(failed_blocks) > 0:
-                    write_json(failed_blocks, topic='failed_blocks')
-                    failed_blocks = []
-                if len(failed_tx_blocks) > 0:
-                    write_json(failed_tx_blocks, topic='failed_tx_blocks')
-                    failed_tx_blocks = []
-    except Exception as e:
-        logger.exception(e)
-        if len(failed_blocks) > 0:
-            write_json(failed_blocks, topic='failed_blocks')
-            failed_blocks = []
-        if len(failed_tx_blocks) > 0:
-            write_json(failed_tx_blocks, topic='failed_tx_blocks')
-            failed_tx_blocks = []
-        raise e
-    finally:
-        if len(failed_blocks) > 0:
-            write_json(failed_blocks, topic='failed_blocks')
-            failed_blocks = []
-        if len(failed_tx_blocks) > 0:
-            write_json(failed_tx_blocks, topic='failed_tx_blocks')
-            failed_tx_blocks = []

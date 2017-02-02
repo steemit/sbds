@@ -153,13 +153,11 @@ def create_tables(engine):
     sbds.storages.db.tables.Base.metadata.create_all(bind=engine)
 
 
-# noinspection PyPep8Naming
-def new_session(session=None, Session=None):
-    session = session or Session()
+def new_session(session=None, session_factory=None):
+    session = session or session_factory()
     session.rollback()
-    session.expunge_all()
     session.close_all()
-    return Session()
+    return session_factory()
 
 
 def filter_tables(metadata, table_names):
