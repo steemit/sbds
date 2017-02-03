@@ -133,7 +133,7 @@ def last_block(ctx):
 
 @db.command(name='find-missing-blocks')
 @click.pass_context
-def last_block(ctx):
+def find_missing_blocks(ctx):
     """JSON array of block_nums from missing blocks"""
     engine = ctx.obj['engine']
     Session.configure(bind=engine)

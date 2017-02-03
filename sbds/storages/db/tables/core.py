@@ -16,6 +16,7 @@ import sbds.logging
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
+from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -211,13 +212,28 @@ class Block(Base, UniqueMixin):
         return session.query(func.max(cls.block_num)).scalar()
 
     @classmethod
-    def find_missing(cls, session):
-        highest_block = cls.highest_block(session)
-        q = session.query(cls.block_num)
-        db_block_nums = set(n[0] for n in q.all())
-        return set(range(1, highest_block)).difference(db_block_nums)
+    def find_missing_iter(cls, session, chunksize=1000):
+        query = session.query(cls.block_num).yield_per(chunksize)
+        for results in chunkify(query, chunksize):
+            block_nums = [r[0] for r in results]
+            low = block_nums[0]
+            high = block_nums[-1]
+            correct = set(range(low, high+1))
+            missing = correct.difference(block_nums)
+            yield (low, high, missing)
 
-
+    @classmethod
+    def find_missing(cls, session, chunksize=1000):
+        all_missing = []
+        for low, high, missing in cls.find_missing_iter(session, chunksize=chunksize):
+            logger.debug('%s-%s: %s', low, high, len(missing))
+            if not missing:
+                continue
+            old_len = len(all_missing)
+            all_missing.extend(missing)
+            new_len = len(all_missing)
+            logger.debug('extended missing from %s to %s', old_len, new_len)
+        return all_missing
 
 def from_raw_block(raw_block, session):
     from .tx import TxBase
