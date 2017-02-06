@@ -72,6 +72,7 @@ def safe_insert(obj, session):
 def safe_insert_many(objects, session):
     rollback = False
     json_log = False
+    e = None
     try:
         session.add_all(objects)
         session.commit()
@@ -92,6 +93,7 @@ def safe_insert_many(objects, session):
             log_tuples = []
             for object in objects:
                 name = object.__class__.__name__
+
                 lt = LogTuple(cls=name,
                           block_num=getattr(object, 'block_num', None),
                           transaction_num=getattr(object, 'transaction_num', None),

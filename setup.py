@@ -23,6 +23,7 @@ setup(
         'maya',
         'toolz',
         'w3lib',
+        'langdetect',
         'lxml',
         'markdown'
     ],

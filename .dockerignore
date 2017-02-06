@@ -48,3 +48,5 @@ local.db
 /test/fast-test.sh
 /test/sync.sh
 /test/failed_blocks/
+/envdir/
+!/sbds.egg-info/

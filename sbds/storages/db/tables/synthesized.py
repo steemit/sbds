@@ -6,6 +6,7 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import ForeignKeyConstraint
+from sqlalchemy import UniqueConstraint
 from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import Table
@@ -15,6 +16,8 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
+from sqlalchemy import Index
+from sqlalchemy import and_
 from sqlalchemy.orm.session import object_session
 
 import sbds.logging
@@ -27,6 +30,9 @@ from sbds.storages.db.field_handlers import images_field
 from sbds.storages.db.field_handlers import links_field
 from sbds.storages.db.field_handlers import tags_field
 from sbds.storages.db.field_handlers import url_field
+from sbds.storages.db.field_handlers import language_field
+from sbds.storages.db.field_handlers import has_patch_field
+
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import canonicalize_url
@@ -116,14 +122,40 @@ class Account(Base, SynthBase):
     def unique_filter(cls, query, *args, **kwargs):
         return query.filter(cls.name == kwargs['name'])
 
+    @classmethod
+    def from_tx(cls, tx_obj):
+        return dict(name=tx_obj.new_account_name,
+                        created=tx_obj.timestamp)
+
+
+    @classmethod
+    def add_missing(cls, sessionmaker):
+        from .tx import TxAccountCreate
+        session1 = sessionmaker()
+        session2 = sessionmaker()
+        q = session1.query(TxAccountCreate.new_account_name,
+                           TxAccountCreate.timestamp)\
+            .outerjoin(Account,TxAccountCreate.new_account_name == Account.name)\
+            .filter(Account.name.is_(None))
+
+        for tx in q.yield_per(1000):
+            prepared = cls.from_tx(tx)
+            logger.debug('%s.add_missing: tx: %s prepared:%s', cls.__name__, tx, prepared)
+            result = cls.as_unique(session2, **prepared)
+            logger.debug('%s.add_missing result: %s', cls.__name__, result)
 
 class PostAndComment(Base, SynthBase):
     __tablename__ = 'sbds_syn_posts_and_comments'
     __extra_table_args__ = (
+        UniqueConstraint('block_num','transaction_num', 'operation_num',
+                         name='ix_sbds_syn_posts_and_comments_unique_1'),
+        Index('ix_sbds_syn_posts_and_comments_body_fulltext',
+              'body', mysql_prefix='FULLTEXT'),
         ForeignKeyConstraint(['block_num', 'transaction_num', 'operation_num'],
                              ['sbds_tx_comments.block_num',
                               'sbds_tx_comments.transaction_num',
-                              'sbds_tx_comments.operation_num']),
+                              'sbds_tx_comments.operation_num'],
+                             name='ix_sbds_syn_posts_and_comments_ibfk_4'),
 
     )
     id = Column(Integer, primary_key=True)
@@ -150,6 +182,7 @@ class PostAndComment(Base, SynthBase):
     length = Column(Integer)
 
     language = Column(Unicode(40))
+    has_patch = Column(Boolean)
 
     children = relationship('PostAndComment',
                             backref=backref('parent', remote_side=[id]))
@@ -159,7 +192,7 @@ class PostAndComment(Base, SynthBase):
             transaction_num=lambda x: x.get('transaction_num'),
             operation_num=lambda x: x.get('operation_num'),
             author_name=lambda x: author_field(context=x,
-                                               author_name=x.get('author_name'),
+                                               author_name=x.get('author'),
                                                session=x.get('session')),
             parent_id=lambda x: comment_parent_id_field(context=x,
                                                         session=x.get(
@@ -183,23 +216,28 @@ class PostAndComment(Base, SynthBase):
                                         session=x.get('session')),
             tags=lambda x: tags_field(context=x,
                                       meta=x.get('json_metadata'),
-                                      session=x.get('session')
-                                      )
+                                      session=x.get('session')),
+            language=lambda x: language_field(x.get('body')),
+            has_patch=lambda x: has_patch_field(x.get('body'))
+
     )
 
     @classmethod
-    def from_tx(cls, txcomment, **kwargs):
+    def prepare_from_tx(cls, txcomment, **kwargs):
         data_dict = deepcopy(txcomment.__dict__)
-        session = object_session(txcomment)
         data_dict['block_num'] = txcomment.block_num
         data_dict['transaction_num'] = txcomment.transaction_num
         data_dict['operation_num'] = txcomment.operation_num
-        data_dict['timestamp'] = txcomment.transaction.block.timestamp
-        data_dict['tx_comment_id'] = txcomment.id
+        data_dict['timestamp'] = txcomment.timestamp
         data_dict['type'] = txcomment.type
         data_dict['txcomment'] = txcomment
-        data_dict['session'] = session
+        data_dict['session'] = kwargs.get('session')
         prepared = cls._prepare_for_storage(data_dict=data_dict)
+        return prepared
+
+    @classmethod
+    def from_tx(cls, txcomment, **kwargs):
+        prepared = cls.prepare_from_tx(txcomment, **kwargs)
         return cls(**prepared)
 
     @classmethod
@@ -210,7 +248,7 @@ class PostAndComment(Base, SynthBase):
             return prepared
         except Exception as e:
             extra = dict(_fields=cls._fields, error=e, **kwargs)
-            logger.error(e, extra=extra)
+            logger.exception(e, extra=extra)
             return None
 
     __mapper_args__ = {
@@ -238,9 +276,76 @@ class PostAndComment(Base, SynthBase):
                             )
 
 
+    @classmethod
+    def find_missing(cls, session):
+        from .tx import TxComment
+        return session.query(TxComment).outerjoin(
+                cls, and_(
+                        TxComment.block_num == cls.block_num,
+                        TxComment.transaction_num == cls.transaction_num,
+                        TxComment.operation_num == cls.operation_num)
+                ).filter(cls.block_num.is_(None)).order_by(TxComment.block_num)
+
+    @classmethod
+    def add_missing(cls, sessionmaker):
+        session = sessionmaker()
+        missing = cls.find_missing(session)
+        cls.add_txs(missing.yield_per(1000), sessionmaker)
+
+
+    @classmethod
+    def add_txs(cls, items, sessionmaker):
+        session = sessionmaker()
+        for tx in items:
+            if tx.is_comment:
+                obj_cls = Comment
+                cls_name = 'Comment'
+            elif tx.is_post:
+                obj_cls = Post
+                cls_name = 'Post'
+            prepared = cls.prepare_from_tx(tx, session=session)
+            logger.debug('%s.add: tx: %s prepared:%s',cls_name, tx,
+                         prepared)
+            new_obj = obj_cls(**prepared)
+            try:
+                session.add(new_obj)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                logger.error('%s.add fail: %s', cls_name, new_obj)
+                logger.exception(e)
+            else:
+                logger.debug('%s.add success: %s', cls_name, new_obj)
+
+    @classmethod
+    def merge_txs(cls, items, sessionmaker):
+        session = sessionmaker()
+        for tx in items:
+            if tx.is_comment:
+                obj_cls = Comment
+                cls_name = 'Comment'
+            elif tx.is_post:
+                obj_cls = Post
+                cls_name = 'Post'
+            prepared = cls.prepare_from_tx(tx, session=session)
+            logger.debug('%s.merge: tx: %s prepared:%s', cls_name, tx,
+                         prepared)
+            new_obj = obj_cls(**prepared)
+            try:
+                session.merge(new_obj)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                logger.error('%s.merge fail: %s', cls_name, new_obj)
+                logger.exception(e)
+            else:
+                logger.debug('%s.merge success: %s', cls_name, new_obj)
+
+
+
+
 class Post(PostAndComment):
     author = relationship('Account', backref='posts')
-    txcomment = relationship('TxComment', backref='posts')
     tags = relationship("Tag", secondary='sbds_syn_tag_table', backref='posts')
 
     __mapper_args__ = {
@@ -250,7 +355,6 @@ class Post(PostAndComment):
 
 class Comment(PostAndComment):
     author = relationship('Account', backref='comments')
-    txcomment = relationship('TxComment')
     tags = relationship("Tag", secondary='sbds_syn_tag_table',
                         backref='comments')
 
@@ -274,7 +378,10 @@ class Tag(Base, SynthBase):
 
     @classmethod
     def format_id_string(cls, id_string):
-        return id_string.strip().lower()
+        formatted_string = id_string.strip().lower()
+        if id_string != formatted_string:
+            logger.debug('tag string formatted to %s from %s', formatted_string,
+                         id_string)
 
     @classmethod
     def unique_hash(cls, *args, **kwargs):
@@ -304,7 +411,7 @@ class Link(Base, SynthBase):
     @url.setter
     def url(self, url):
         canonical_url = canonicalize_url(url)
-        if not canonical_url:
+        if url and not canonical_url:
             raise ValueError('bad url %s', url)
         else:
             self._url = canonical_url
@@ -317,9 +424,9 @@ class Link(Base, SynthBase):
 
     @classmethod
     def unique_filter(cls, query, *args, **kwargs):
-        url = canonicalize_url(kwargs['url'])
+        url = kwargs['url']
         pac_id = kwargs.get('pac_id')
-        return query.filter(cls.pac_id == pac_id, cls._url == url)
+        return query.filter_by(pac_id=pac_id, url=url)
 
 
 class Image(Base, SynthBase):
@@ -341,8 +448,8 @@ class Image(Base, SynthBase):
     @url.setter
     def url(self, url):
         canonical_url = canonicalize_url(url)
-        if not canonical_url:
-            raise ValueError('bad url', extra=dict(url=url))
+        if url and not canonical_url:
+            raise ValueError('bad url %s', url)
         else:
             self._url = canonical_url
 
@@ -354,9 +461,9 @@ class Image(Base, SynthBase):
 
     @classmethod
     def unique_filter(cls, query, *args, **kwargs):
-        url = canonicalize_url(kwargs['url'])
+        url = kwargs['url']
         pac_id = kwargs.get('pac_id')
-        return query.filter(cls.pac_id == pac_id, cls._url == url)
+        return query.filter_by(pac_id=pac_id, url=url)
 
 
 tag_table = Table('sbds_syn_tag_table', Base.metadata,

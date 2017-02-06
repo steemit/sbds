@@ -5,13 +5,25 @@ import math
 import os
 from collections import defaultdict
 from urllib.parse import urlparse
+import re
 
+import langdetect
+from langdetect import DetectorFactory
 import w3lib.url
 
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
 
+# https://github.com/matiasb/python-unidiff/blob/master/unidiff/constants.py#L37
+# @@ (source offset, length) (target offset, length) @@ (section header)
+RE_HUNK_HEADER = re.compile(
+            r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
+            flags=re.MULTILINE)
+
+# ensure deterministec language detection
+DetectorFactory.seed = 0
+MIN_TEXT_LENGTH_FOR_DETECTION = 20
 
 # first 4 bytes (8 hex digits) of the block ID represents the block number
 def block_num_from_hash(block_hash: str) -> int:
@@ -119,6 +131,48 @@ def json_metadata_keys(operations):
     return jm_keys
 
 
+def ensure_decoded(thing):
+    if not thing :
+        logger.debug('ensure_decoded thing is logically False')
+        return None
+    if isinstance(thing, (list, dict)):
+        logger.debug('ensure_decoded thing is already decoded')
+        return thing
+    single_encoded_dict = double_encoded_dict = None
+    try:
+        single_encoded_dict = json.loads(thing)
+        if isinstance(single_encoded_dict, dict):
+            logger.debug('ensure_decoded thing is single encoded dict')
+            return single_encoded_dict
+        elif isinstance(single_encoded_dict, str):
+            logger.debug('ensure_decoded thing is single encoded str')
+            if single_encoded_dict == "":
+                logger.debug('ensure_decoded thing is single encoded str == ""')
+                return None
+            else:
+                double_encoded_dict = json.loads(single_encoded_dict)
+                logger.debug('ensure_decoded thing is double encoded')
+                return double_encoded_dict
+    except Exception as e:
+        extra = dict(thing=thing, single_encoded_dict=single_encoded_dict,
+                     double_encoded_dict=double_encoded_dict,
+                     error=e)
+        logger.error('ensure_decoded error', extra=extra)
+        return None
+
+def findkeys(node, kv):
+    if isinstance(node, list):
+        for i in node:
+            for x in findkeys(i, kv):
+               yield x
+    elif isinstance(node, dict):
+        if kv in node:
+            yield node[kv]
+        for j in node.values():
+            for x in findkeys(j, kv):
+                yield x
+
+
 def block_info(block):
     from sbds.storages.db.tables.core import prepare_raw_block
     block_dict = prepare_raw_block(block)
@@ -144,14 +198,28 @@ def canonicalize_url(url, **kwargs):
     try:
         canonical_url = w3lib.url.canonicalize_url(url, **kwargs)
     except Exception as e:
-        logger.warn('url preparation error', extra=dict(url=url, error=e))
+        logger.warning('url preparation error', extra=dict(url=url, error=e))
         raise e
     if canonical_url != url:
         _log = dict(url=url, canonical_url=canonical_url)
-        logger.info('canonical_url not equal to url', extra=_log)
+        logger.info('canonical_url changed %s to %s', url, canonical_url)
     parsed_url = urlparse(canonical_url)
     if not parsed_url.scheme and not parsed_url.netloc:
         _log = dict(url=url, canonical_url=canonical_url, parsed_url=parsed_url)
-        logger.warn('bad url encountered', extra=_log)
+        logger.warning('bad url encountered', extra=_log)
         return None
     return canonical_url
+
+def findall_patch_hunks(body=None):
+    return RE_HUNK_HEADER.findall(body)
+
+
+def detect_language(text):
+    if not text or len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
+        logger.debug('not enough text to perform langdetect')
+        return None
+    try:
+        return langdetect.detect(text)
+    except langdetect.lang_detect_exception.LangDetectException as e:
+        logger.error(e)
+        return None

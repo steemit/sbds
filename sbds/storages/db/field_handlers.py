@@ -3,8 +3,15 @@ import json
 
 import sbds.logging
 from sbds.utils import build_comment_url
+from sbds.utils import findall_patch_hunks
+from sbds.utils import detect_language
+from sbds.utils import ensure_decoded
+from sbds.utils import findkeys
+
+import toolz
 
 logger = sbds.logging.getLogger(__name__)
+
 
 
 def example_field_handler(value=None, context=None, **kwargs):
@@ -17,16 +24,25 @@ def example_field_handler(value=None, context=None, **kwargs):
 
 
 def author_field(context=None, author_name=None, session=None):
-    return author_name
-
+    from .tables import Account
+    account = Account.as_unique(session,
+                                name=author_name,
+                                created=context.get('timestamp'))
+    return account.name
 
 # noinspection PyArgumentList
 def images_field(context=None, meta=None, body=None, session=None):
     from sbds.storages.db.tables.synthesized import Image
-    meta_json = json_metadata_field(meta)
-    urls = meta_json.get('images', [])
+    default = []
+    decoded = ensure_decoded(meta)
+    if not decoded:
+        return default
+    found_urls = findkeys(decoded, 'links') or []
+    logger.debug('links_field found %s links in tags', len(found_urls))
+    if len(decoded) > 0 and len(found_urls) == 0:
+        logger.info('possible missed images in %s', decoded)
     images = []
-    for url in urls:
+    for url in found_urls:
         images.append(Image(url=url,
                             extraction_source='meta'))  # TODO Do these need to be unique to post?
     return images
@@ -35,10 +51,16 @@ def images_field(context=None, meta=None, body=None, session=None):
 # noinspection PyArgumentList
 def links_field(context=None, meta=None, body=None, session=None):
     from sbds.storages.db.tables.synthesized import Link
-    meta_json = json_metadata_field(meta)
-    urls = meta_json.get('links', [])
+    default = []
+    decoded = ensure_decoded(meta)
+    if not decoded:
+        return default
+    found_urls = findkeys(decoded, 'links') or []
+    logger.debug('links_field found %s links in tags', len(found_urls))
+    if len(decoded) > 0 and len(found_urls) == 0:
+        logger.info('possible missed links in %s', decoded)
     links = []
-    for url in urls:
+    for url in found_urls:
         links.append(Link(url=url,
                           extraction_source='meta'))  # TODO Do these need to be unique to post?
     return links
@@ -46,33 +68,18 @@ def links_field(context=None, meta=None, body=None, session=None):
 
 def tags_field(context=None, meta=None, body=None, session=None):
     from sbds.storages.db.tables.synthesized import Tag
-    meta_json = json_metadata_field(meta)
-    found_tags = meta_json.get('tags', [])
+    default = []
+    decoded = ensure_decoded(meta)
+    if not decoded:
+        return default
+    found_tags = findkeys(decoded,'tags') or []
+    logger.debug('tags_field found %s tags in tags', len(found_tags))
+    if len(decoded) > 0 and len(found_tags) == 0:
+        logger.info('possible missed tags in %s', decoded)
     tags = []
     for tag in found_tags:
         tags.append(Tag.as_unique(session, id=tag))
     return tags
-
-
-def json_metadata_field(value):
-    if not value:
-        return None
-    metadata = metadata2 = None
-    try:
-        metadata = json.loads(value)
-        if isinstance(metadata, dict):
-            return metadata
-        elif isinstance(metadata, str):
-            if metadata == "":
-                return None
-            else:
-                metadata2 = json.loads(metadata)
-                return metadata
-    except Exception as e:
-        extra = dict(original=value, metadata=metadata, metadata2=metadata2,
-                     error=e)
-        logger.error('json_metadata handler error', extra=extra)
-        return None
 
 
 def amount_field(value, num_func=int, no_value=0):
@@ -119,48 +126,78 @@ def url_field(value=None, context=None, **kwargs):
 
 def comment_parent_id_field(context=None, session=None):
     from sbds.storages.db.tables.tx import TxComment
-    if context['type'] == 'post':
-        logger.debug('Posts have no parents, returning None')
-        return None
     block_num = context.get('block_num')
     transaction_num = context.get('transaction_num')
     operation_num = context.get('operation_num')
-    txcomment = session.query(TxComment).filter_by(block_num=block_num,
-                                                   transaction_num=transaction_num,
-                                                   operation_num=operation_num
-                                                   ).one_or_none()
 
-    logger.debug('query for TxComment yielded %s', txcomment)
-    if not txcomment:
-        logger.debug('no txcomment, returning None')
+    # Step 1) exclude all posts (posts have not parents)
+    if context['type'] == 'post':
+        logger.debug('Posts have no parents, returning None')
         return None
-    q = session.query(TxComment).filter_by(
-            parent_author=txcomment.parent_author,
-            parent_permlink=txcomment.parent_permlink)
-    q.order_by(TxComment.block_num, TxComment.transaction_num,
-               TxComment.operation_num)
-    txcomment_parent = q.first()
-    if txcomment_parent:
-        if context['type'] == 'post':
-            from sbds.storages.db.tables.synthesized import Post
-            cls = Post
-        else:
-            from sbds.storages.db.tables.synthesized import Comment
-            cls = Comment
-        logger.debug('txcomment class is %s', cls.__name__)
-        parent_post_comment = session.query(cls).filter_by(
-                block_num=txcomment_parent.block_num,
-                transaction_num=txcomment_parent.transaction_num,
-                operation_num=txcomment_parent.operation_num
-        ).one_or_none()
 
-        logger.debug('parent %s query returned %s', cls.__name__,
-                     parent_post_comment)
-        if parent_post_comment:
-            return parent_post_comment.id
-        else:
-            logger.debug('no %s parent, returning None', cls.__name__)
+    # Step 2) select TxComment source of this comment
+    txcomment = context.get('txcomment')
+    if not txcomment:
+        logger.debug('tcomment not found in context, querying')
+        txcomment = session.query(TxComment).filter_by(block_num=block_num,
+                                                       transaction_num=transaction_num,
+                                                       operation_num=operation_num
+                                                       ).one_or_none()
+        logger.debug('query for TxComment yielded %s', txcomment)
+        if not txcomment:
+            # this shouldnt happen
+            logger.error(
+                'no txcomment found, returning None: block_num:%s transaction_num:%s operation_num:%s',
+                block_num, transaction_num, operation_num)
             return None
     else:
-        logger.debug('no txcomment_parent, returning None')
+        logger.debug('txcomment retreived from context')
+
+    # Step 3) find this txcomment's parents, return if None
+    q = session.query(TxComment).filter_by(
+            author=txcomment.parent_author,
+            permlink=txcomment.parent_permlink)
+    q = q.filter(TxComment.block_num <= txcomment.block_num)
+    q.order_by(-TxComment.timestamp)
+    txcomment_parents = q.all()
+    logger.debug('located %s parents of txcomment: %s', len(txcomment_parents), txcomment_parents)
+    if not txcomment_parents:
         return None
+    else:
+        txcomment_parent = txcomment_parents[0]
+
+    if not txcomment_parent:
+        # this should not happen
+        logger.error(
+            'no txcomment_parent, returning None: block_num:%s transaction_num:%s operation_num:%s',
+            block_num, transaction_num, operation_num)
+        return None
+
+
+    # Step 4) find parent Comment from parent txcomment
+    from sbds.storages.db.tables.synthesized import PostAndComment
+    parent_post_and_comment = session.query(PostAndComment).filter_by(
+            block_num=txcomment_parent.block_num,
+            transaction_num=txcomment_parent.transaction_num,
+            operation_num=txcomment_parent.operation_num
+    ).one_or_none()
+
+    logger.debug('parent PostAndComment query returned %s',
+                 parent_post_and_comment)
+    if parent_post_and_comment:
+        logger.debug('parent PostAndComment found, returning parent Comment.id: %s',
+                     parent_post_and_comment.id)
+        return parent_post_and_comment.id
+    else:
+        logger.debug('no PostAndComment parent, returning None')
+        return None
+
+
+def has_patch_field(body=None):
+    if findall_patch_hunks(body):
+        return True
+    return False
+
+
+def language_field(body=None):
+    return detect_language(body)

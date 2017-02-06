@@ -10,6 +10,7 @@ from sqlalchemy import TIMESTAMP
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
+from sqlalchemy import Index
 from sqlalchemy.orm import relationship
 
 import sbds.logging
@@ -158,11 +159,14 @@ class Block(Base, UniqueMixin):
     """
 
     __tablename__ = 'sbds_core_blocks'
-    __table_args__ = {
+    __table_args__ = (
+        #Index('ix_sbds_core_blocks_raw_fulltext',
+        #      'raw', mysql_prefix='FULLTEXT'),
+        {
         'mysql_engine' : 'InnoDB',
         'mysql_charset': 'utf8mb4',
         'mysql_collate': 'utf8mb4_general_ci'
-    }
+        },)
 
     raw = Column(UnicodeText)
     block_num = Column(Integer, primary_key=True, nullable=False,

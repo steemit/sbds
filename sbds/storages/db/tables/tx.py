@@ -17,9 +17,6 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
 from toolz.dicttoolz import get_in
 
-
-
-
 import sbds.logging
 from .core import Base
 from .core import extract_operations_from_block
@@ -33,8 +30,6 @@ from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
 
 
 logger = sbds.logging.getLogger(__name__)
-
-
 
 
 
@@ -179,8 +174,7 @@ class TxBase(UniqueMixin):
         )
 
     def __str__(self):
-        return json.dumps(self.dump())
-
+        return str(self.dump())
 
 
 class TxAccountCreate(Base, TxBase):
@@ -279,9 +273,6 @@ class TxAccountCreate(Base, TxBase):
     )
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
-
-
-
 
 
 class TxAccountRecover(Base, TxBase):
@@ -1314,9 +1305,9 @@ class TxTransfer(Base, TxBase):
     __tablename__ = 'sbds_tx_transfers'
 
     type = Column(Unicode(50), nullable=False, index=True)
-    _from = Column('from', Unicode(50), nullable=False, index=True)
-    to = Column(Unicode(50), nullable=False, index=True)
-    amount = Column(Numeric(15, 4), nullable=False)
+    _from = Column('from', Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    amount = Column(Numeric(15, 4))
     amount_symbol = Column(Unicode(5))
     memo = Column(Unicode(250))
     request_id = Column(Integer)
