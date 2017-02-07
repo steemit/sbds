@@ -139,3 +139,23 @@ def find_missing_blocks(ctx):
     Session.configure(bind=engine)
     session = Session()
     click.echo(json.dumps(Block.find_missing(session)))
+
+@db.command(name='add-missing-posts-and-comments')
+@click.pass_context
+def add_missing_posts_and_comments(ctx):
+    """add missing posts and comments from txcomments"""
+    engine = ctx.obj['engine']
+    Session.configure(bind=engine)
+    from sbds.storages.db.tables import PostAndComment
+    PostAndComment.add_missing(Session)
+
+@db.command(name='find-missing-posts-and-comments')
+@click.pass_context
+def find_missing_posts_and_comments(ctx):
+    """JSON array of block_nums from missing post and comment blocks"""
+    engine = ctx.obj['engine']
+    Session.configure(bind=engine)
+    session = Session()
+    from sbds.storages.db.tables import PostAndComment
+    block_nums = PostAndComment.find_missing_block_nums(session)
+    click.echo(json.dumps(block_nums))

@@ -3,6 +3,7 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
@@ -10,6 +11,7 @@ logger = sbds.logging.getLogger(__name__)
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
+
 
 from .core import Block
 from .synthesized import Account
@@ -39,3 +41,5 @@ from .tx import TxVote
 from .tx import TxWithdrawVestingRoute
 from .tx import TxWithdraw
 from .tx import TxWitnessUpdate
+
+import sbds.storages.db.events

@@ -7,6 +7,7 @@ from sbds.storages.db.tables import Session
 from sbds.storages.db.tables.synthesized import Account
 from sbds.storages.db.tables.synthesized import Comment
 from sbds.storages.db.tables.synthesized import Post
+from sbds.storages.db.tables.synthesized import PostAndComment
 from sbds.storages.db.tables.tx import TxAccountCreate
 from sbds.storages.db.tables.tx import TxComment
 from sbds.storages.db.tables.tx import TxVote
@@ -27,7 +28,7 @@ def definitely_touched_instances(session, include_classes=None):
     return [i for i in possibly_touched if session.is_modified(i)]
 
 
-#@event.listens_for(Session, 'before_flush')
+@event.listens_for(Session, 'before_flush')
 def receive_before_flush(session, flush_context, instances):
     """listen for the 'before_flush' event"""
     '''
@@ -50,44 +51,32 @@ def receive_before_flush(session, flush_context, instances):
 
 
 
-#@event.listens_for(Session, 'after_flush')
+
+@event.listens_for(Session, 'after_flush')
 def receive_after_flush(session, flush_context):
     logger.debug('after_flush event fired')
-    touched = possibly_touched_instances(session, include_classes=TxAccountCreate)
-    logger.debug('after_flush found %s touched TxAccountCreate instances', len(touched))
+    include_classes = tuple([TxComment, TxAccountCreate])
+    possible_touched =  possibly_touched_instances(session,
+                                            include_classes=include_classes)
+    possible_touched = list(possible_touched)
+    logger.debug('possibly touched instances: %s', len(possible_touched))
+    account_creates = [i for i in possible_touched if isinstance(i, TxAccountCreate)]
+    logger.debug('possibly touched TxAccountCreate: %s', account_creates)
+    comments = [i for i in possible_touched if isinstance(i, TxComment)]
+    logger.debug('possibly touched TxComment: %s', comments)
 
-    for t in touched:
-        name = t.new_account_name
-        created = t.transaction.block.timestamp
+    for tx in account_creates:
+        name = tx.new_account_name
+        created = tx.timestamp
         logger.debug('after_flush attempting to create Account(name=%s, created=%s', name, created)
         account = Account.as_unique(session, name=name, created=created)
 
-
-
-@event.listens_for(TxComment, 'after_insert')
-def receive_after_insert(mapper, connection, target):
-    # create Post or Comment
-    logger.debug('TxComment after_insert event firing')
-    session = Session()
-    if target.is_comment:
-        new_obj = Comment.from_tx(target)
-        cls_name = 'Comment'
-
-    elif target.is_post:
-        new_obj = Post.from_tx(target)
-        cls_name = 'Post'
-    else:
-        extra = dict(target=target)
-        logger.warning('Did not create Post or Comment from TxComment', extra)
-        return
-    try:
-        session.begin(subtransactions=True)
-        session.add(new_obj)
-        session.commit()
-    except Exception as e:
-        extra = dict(target=target, error=e, new_obj=new_obj)
-        logger.error('Failed to add %s', cls_name, extra=extra)
-        session.rollback()
-        return
-    else:
-        logger.debug('Created %s', cls_name)
+    for tx in comments:
+        instance = PostAndComment.from_tx(tx,session=session)
+        try:
+            session.merge(instance)
+            session.commit()
+        except Exception as e:
+            logger.exception(e)
+            logger.error('Failed to add %s', comments)
+            session.rollback()

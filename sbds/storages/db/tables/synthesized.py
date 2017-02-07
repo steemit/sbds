@@ -223,7 +223,14 @@ class PostAndComment(Base, SynthBase):
     )
 
     @classmethod
-    def prepare_from_tx(cls, txcomment, **kwargs):
+    def prepare_from_tx(cls, txcomment, session=None, **kwargs):
+        """
+        returns fields key value dict
+        :param txcomment: TxComment instance
+        :param kwargs:
+        :return: dict
+        """
+
         data_dict = deepcopy(txcomment.__dict__)
         data_dict['block_num'] = txcomment.block_num
         data_dict['transaction_num'] = txcomment.transaction_num
@@ -231,14 +238,48 @@ class PostAndComment(Base, SynthBase):
         data_dict['timestamp'] = txcomment.timestamp
         data_dict['type'] = txcomment.type
         data_dict['txcomment'] = txcomment
-        data_dict['session'] = kwargs.get('session')
+        data_dict['session'] = session or object_session(txcomment)
         prepared = cls._prepare_for_storage(data_dict=data_dict)
         return prepared
 
     @classmethod
-    def from_tx(cls, txcomment, **kwargs):
-        prepared = cls.prepare_from_tx(txcomment, **kwargs)
-        return cls(**prepared)
+    def from_tx(cls, txcomment, session=None, **kwargs):
+        """
+        returns Post or Comment instance
+        :param txcomment:
+        :param session:
+        :param kwargs:
+        :return:  Post | Comment
+        """
+        if txcomment.is_comment:
+            obj_cls = Comment
+            cls_name = 'Comment'
+        elif txcomment.is_post:
+            obj_cls = Post
+            cls_name = 'Post'
+        prepared = cls.prepare_from_tx(txcomment, session=session, **kwargs)
+        logger.debug('%s.add: tx: %s prepared:%s', cls_name, txcomment,
+                     prepared)
+        return obj_cls(**prepared)
+
+    @classmethod
+    def as_unique_from_tx(cls, txcomment, session=None, **kwargs):
+        """
+        returns unique Post or Comment instance
+        :param txcomment:
+        :param session:
+        :param kwargs:
+        :return:
+        """
+        prepared = cls.prepare_from_tx(txcomment, session=session, **kwargs)
+        if txcomment.is_comment:
+            obj_cls = Comment
+            cls_name = 'Comment'
+        elif txcomment.is_post:
+            obj_cls = Post
+            cls_name = 'Post'
+        return obj_cls.as_unique(session, **prepared)
+
 
     @classmethod
     def _prepare_for_storage(cls, **kwargs):
@@ -255,10 +296,15 @@ class PostAndComment(Base, SynthBase):
         'polymorphic_on': type
     }
 
+    @property
+    def bto(self):
+        return (self.block_num, self.transaction_num, self.operation_num)
+
     def __repr__(self):
-        return "<%s (id=%s author=%s title=%s)>" % (
+        return "<%s (id=%s bto=%s author=%s title=%s)>" % (
             self.__class__.__name__,
             self.id,
+            self.bto,
             self.author_name,
             self.title)
 
@@ -287,10 +333,22 @@ class PostAndComment(Base, SynthBase):
                 ).filter(cls.block_num.is_(None)).order_by(TxComment.block_num)
 
     @classmethod
+    def find_missing_block_nums(cls, session):
+        from .tx import TxComment
+        q = session.query(TxComment.block_num).outerjoin(
+                cls, and_(
+                        TxComment.block_num == cls.block_num,
+                        TxComment.transaction_num == cls.transaction_num,
+                        TxComment.operation_num == cls.operation_num)
+        ).filter(cls.block_num.is_(None)).order_by(TxComment.block_num)
+        block_nums = [r[0] for r in q.all()]
+        return block_nums
+
+    @classmethod
     def add_missing(cls, sessionmaker):
         session = sessionmaker()
         missing = cls.find_missing(session)
-        cls.add_txs(missing.yield_per(1000), sessionmaker)
+        cls.add_txs(missing.yield_per(100), sessionmaker)
 
 
     @classmethod
@@ -306,16 +364,16 @@ class PostAndComment(Base, SynthBase):
             prepared = cls.prepare_from_tx(tx, session=session)
             logger.debug('%s.add: tx: %s prepared:%s',cls_name, tx,
                          prepared)
-            new_obj = obj_cls(**prepared)
             try:
+                new_obj = obj_cls(**prepared)
                 session.add(new_obj)
                 session.commit()
             except Exception as e:
                 session.rollback()
-                logger.error('%s.add fail: %s', cls_name, new_obj)
+                logger.warning('%s.add fail: %s', cls_name, new_obj)
                 logger.exception(e)
             else:
-                logger.debug('%s.add success: %s', cls_name, new_obj)
+                logger.info('%s.add success: %s', cls_name, new_obj)
 
     @classmethod
     def merge_txs(cls, items, sessionmaker):
