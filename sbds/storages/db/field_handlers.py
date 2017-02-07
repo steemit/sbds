@@ -37,7 +37,7 @@ def images_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_urls = findkeys(decoded, 'links') or []
+    found_urls = list(findkeys(decoded, 'links')) or []
     logger.debug('links_field found %s links in tags', len(found_urls))
     if len(decoded) > 0 and len(found_urls) == 0:
         logger.info('possible missed images in %s', decoded)
@@ -55,7 +55,7 @@ def links_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_urls = findkeys(decoded, 'links') or []
+    found_urls = list(findkeys(decoded, 'links')) or []
     logger.debug('links_field found %s links in tags', len(found_urls))
     if len(decoded) > 0 and len(found_urls) == 0:
         logger.info('possible missed links in %s', decoded)
@@ -72,7 +72,7 @@ def tags_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_tags = findkeys(decoded,'tags') or []
+    found_tags = list(findkeys(decoded,'tags')) or []
     logger.debug('tags_field found %s tags in tags', len(found_tags))
     if len(decoded) > 0 and len(found_tags) == 0:
         logger.info('possible missed tags in %s', decoded)
