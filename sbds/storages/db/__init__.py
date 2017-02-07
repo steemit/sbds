@@ -72,6 +72,7 @@ def safe_insert(obj, session):
 def safe_insert_many(objects, session):
     rollback = False
     json_log = False
+    outer_error = None
     e = None
     try:
         session.add_all(objects)
@@ -86,6 +87,7 @@ def safe_insert_many(objects, session):
         rollback = True
         json_log = True
         logger.exception(e)
+        outer_error = e
     finally:
         if rollback:
             session.rollback()
@@ -98,7 +100,7 @@ def safe_insert_many(objects, session):
                           block_num=getattr(object, 'block_num', None),
                           transaction_num=getattr(object, 'transaction_num', None),
                           operation_num=getattr(object, 'operation_num', None),
-                          error=e)
+                          error=outer_error)
                 log_tuples.append(lt._asdict())
             write_json(log_tuples, topic='failed_inserts')
 

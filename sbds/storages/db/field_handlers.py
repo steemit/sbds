@@ -176,12 +176,12 @@ def comment_parent_id_field(context=None, session=None):
 
     # Step 4) find parent Comment from parent txcomment
     from sbds.storages.db.tables.synthesized import PostAndComment
-    parent_posts_and_comments = session.query(PostAndComment).filter_by(
+    parent_post_and_comment = session.query(PostAndComment).filter_by(
             block_num=txcomment_parent.block_num,
             transaction_num=txcomment_parent.transaction_num,
             operation_num=txcomment_parent.operation_num
-    ).all()
-    parent_post_and_comment = parent_posts_and_comments[0]
+    ).first()
+
     logger.debug('parent PostAndComment query returned %s',
                  parent_post_and_comment)
     if parent_post_and_comment:
