@@ -361,9 +361,13 @@ class PostAndComment(Base, SynthBase):
             elif tx.is_post:
                 obj_cls = Post
                 cls_name = 'Post'
+
             prepared = cls.prepare_from_tx(tx, session=session)
             logger.debug('%s.add: tx: %s prepared:%s',cls_name, tx,
                          prepared)
+            if not prepared:
+                logger.warning('skipping prepared with no value from tx: %s', tx)
+                continue
             try:
                 new_obj = obj_cls(**prepared)
                 session.add(new_obj)
@@ -471,7 +475,7 @@ class Link(Base, SynthBase):
     def url(self, url):
         canonical_url = canonicalize_url(url)
         if url and not canonical_url:
-            raise ValueError('bad url %s', url)
+            logger.error('bad url: %s', url)
         else:
             self._url = canonical_url
 

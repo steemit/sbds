@@ -173,6 +173,21 @@ def findkeys(node, kv):
                 yield x
 
 
+def extract_keys_from_meta(meta, keys):
+    if isinstance(keys, str):
+        keys = list([keys])
+    extracted = []
+    for key in keys:
+        for item in findkeys(meta, key):
+            if isinstance(item, str):
+                extracted.append(item)
+            elif isinstance(item, (list, tuple)):
+                extracted.extend(item)
+            else:
+                logger.warning('unusual item in meta: %s', item)
+    return extracted
+
+
 def block_info(block):
     from sbds.storages.db.tables.core import prepare_raw_block
     block_dict = prepare_raw_block(block)
@@ -199,14 +214,18 @@ def canonicalize_url(url, **kwargs):
         canonical_url = w3lib.url.canonicalize_url(url, **kwargs)
     except Exception as e:
         logger.warning('url preparation error', extra=dict(url=url, error=e))
-        raise e
+        return None
     if canonical_url != url:
         _log = dict(url=url, canonical_url=canonical_url)
         logger.info('canonical_url changed %s to %s', url, canonical_url)
-    parsed_url = urlparse(canonical_url)
-    if not parsed_url.scheme and not parsed_url.netloc:
-        _log = dict(url=url, canonical_url=canonical_url, parsed_url=parsed_url)
-        logger.warning('bad url encountered', extra=_log)
+    try:
+        parsed_url = urlparse(canonical_url)
+        if not parsed_url.scheme and not parsed_url.netloc:
+            _log = dict(url=url, canonical_url=canonical_url, parsed_url=parsed_url)
+            logger.warning('bad url encountered', extra=_log)
+            return None
+    except Exception as e:
+        logger.warning('url parse error', extra=dict(url=url, error=e))
         return None
     return canonical_url
 
