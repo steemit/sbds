@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from itertools import chain
 
 import sbds.logging
 from sbds.utils import build_comment_url
@@ -37,12 +38,11 @@ def images_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_urls = list(findkeys(decoded, 'links')) or []
-    logger.debug('links_field found %s links in tags', len(found_urls))
-    if len(decoded) > 0 and len(found_urls) == 0:
-        logger.info('possible missed images in %s', decoded)
+    found_urls = []
+    found_urls.extend(findkeys(decoded, 'image'))
+    found_urls.extend(findkeys(decoded, 'images'))
     images = []
-    for url in found_urls:
+    for url in chain.from_iterable(found_urls):
         images.append(Image(url=url,
                             extraction_source='meta'))  # TODO Do these need to be unique to post?
     return images
@@ -55,12 +55,9 @@ def links_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_urls = list(findkeys(decoded, 'links')) or []
-    logger.debug('links_field found %s links in tags', len(found_urls))
-    if len(decoded) > 0 and len(found_urls) == 0:
-        logger.info('possible missed links in %s', decoded)
+    found_urls = findkeys(decoded, 'links') or []
     links = []
-    for url in found_urls:
+    for url in chain.from_iterable(found_urls):
         links.append(Link(url=url,
                           extraction_source='meta'))  # TODO Do these need to be unique to post?
     return links
@@ -72,12 +69,9 @@ def tags_field(context=None, meta=None, body=None, session=None):
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_tags = list(findkeys(decoded,'tags')) or []
-    logger.debug('tags_field found %s tags in tags', len(found_tags))
-    if len(decoded) > 0 and len(found_tags) == 0:
-        logger.info('possible missed tags in %s', decoded)
+    found_tags = findkeys(decoded,'tags') or []
     tags = []
-    for tag in found_tags:
+    for tag in chain.from_iterable(found_tags):
         tags.append(Tag.as_unique(session, id=tag))
     return tags
 

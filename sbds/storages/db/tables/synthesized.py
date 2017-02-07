@@ -440,6 +440,7 @@ class Tag(Base, SynthBase):
         if id_string != formatted_string:
             logger.debug('tag string formatted to %s from %s', formatted_string,
                          id_string)
+        return formatted_string
 
     @classmethod
     def unique_hash(cls, *args, **kwargs):
