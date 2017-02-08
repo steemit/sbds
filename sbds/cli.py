@@ -173,37 +173,72 @@ def load_blocks_from_checkpoints(checkpoints_dir, start, end):
                 click.echo(json.dumps(json.loads(block)).encode('utf8'))
 
 
-@click.command(name='condense-error-files')
-@click.argument('error_dir', type=click.Path(exists=True, file_okay=False,
-                                             resolve_path=True))
-def condense_error_files(error_dir):
+@click.command(name='load-checkpoint-blocks')
+@click.argument('checkpoints_dir', type=click.STRING)
+@click.option('--start', type=click.INT, default=1)
+@click.option('--end', type=click.INT, default=0)
+def load_blocks_from_checkpoints(checkpoints_dir, start, end):
     """Load blocks from locally stored "checkpoint" files"""
-    all_files = os.listdir(error_dir)
-    files = fnmatch.filter(all_files, '*.json')
-    files = [os.path.join(error_dir, f) for f in files]
-    click.echo('condensing %s error files' % len(files), err=True)
-    block_nums = list()
-    for filename in files:
-        with open(filename, mode='rt', encoding='utf8') as f:
-            file_block_nums = json.load(f)
-            click.echo('adding %s block_nums from %s' % (
-                len(file_block_nums), filename), err=True)
-            block_nums.extend(file_block_nums)
-    block_nums = list(set(block_nums))
-    click.echo('found %s total block_nums' % len(block_nums), err=True)
-    click.echo(json.dumps(block_nums, indent=None).encode('utf8'))
+
+    checkpoint_set = sbds.checkpoint.required_checkpoints(path=checkpoints_dir,
+                                                          start=start, end=end)
+    total_blocks_to_load = end - start
+
+    with fileinput.FileInput(mode='r',
+                             files=checkpoint_set.checkpoint_paths,
+                             openhook=hook_compressed_encoded(
+                                     'utf8')) as blocks:
+
+        blocks = toolz.itertoolz.drop(checkpoint_set.initial_checkpoint_offset,
+                                      blocks)
+
+        if total_blocks_to_load > 0:
+            for i, block in enumerate(blocks, 1):
+                click.echo(json.dumps(json.loads(block)).encode('utf8'))
+                if i == total_blocks_to_load:
+                    break
+        else:
+            for block in blocks:
+                click.echo(json.dumps(json.loads(block)).encode('utf8'))
 
 
 def hook_compressed_encoded(encoding, real_mode='rt'):
     def openhook_compressed(filename, mode):
         ext = os.path.splitext(filename)[1]
-        if ext == '.gz':
-            import gzip
-            return gzip.open(filename, mode=real_mode, encoding=encoding)
-        elif ext == '.bz2':
-            import bz2
-            return bz2.BZ2File(filename, mode=real_mode, encoding=encoding)
+        logger.debug('checkpoint ext: %s', ext)
+        # checkpoint stored in s3
+        if filename.startswith('s3://'):
+            logger.debug('loading s3 checkpoint: %s', filename)
+            import boto3
+            import io
+            s3_resource = boto3.resource('s3')
+            bucket, key = sbds.checkpoint.split_s3_bucket_key(filename)
+            logger.debug('s3 object bucket:%s key:%s', bucket, key)
+            object = s3_resource.Object(bucket, key)
+            data = object.get()
+
+            if ext == '.gz':
+                logger.debug('opening s3 gzipped checkpoint: %s', filename)
+                import gzip
+                buffer = gzip.GzipFile(fileobj=data['Body'])
+
+            else:
+                logger.debug('opening s3 checkpoint: %s', filename)
+                buffer = data['Body']
+            return io.TextIOWrapper(buffer=buffer,
+                                    encoding=encoding)
         else:
-            return open(filename, mode=real_mode, encoding=encoding)
+            # local checkpoint
+            logger.debug('loading local checkpoint')
+            if ext == '.gz':
+                logger.debug('opening local gzipped checkpoint: %s', filename)
+                import gzip
+                return gzip.open(filename, mode=real_mode, encoding=encoding)
+
+            else:
+                logger.debug('opening local checkpoint: %s', filename)
+                return open(filename, mode=real_mode, encoding=encoding)
 
     return openhook_compressed
+
+

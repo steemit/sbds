@@ -197,8 +197,8 @@ def block_info(block):
                                     block_dict['transactions']),
                 transactions=[],
                 )
-    info[
-        'brief'] = 'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
+    info['brief'] = \
+        'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
 
     for t in block_dict['transactions']:
         info['transactions'].append(t['operations'][0][0])

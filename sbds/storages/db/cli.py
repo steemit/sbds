@@ -56,19 +56,13 @@ def test(ctx):
 
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
-@click.option('--report_interval', type=click.INT, default=100)
-@click.option('--reset_interval', type=click.INT, default=100000)
 @click.pass_context
-def insert_blocks(ctx, blocks, report_interval, reset_interval):
+def insert_blocks(ctx, blocks):
     """Insert blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
     Session.configure(bind=engine)
     session = Session()
-    add_blocks(blocks,
-               session,
-               offset=0,
-               report_interval=report_interval,
-               reset_interval=reset_interval)
+    add_blocks(blocks, session)
 
 
 @db.command(name='bulk-add')
@@ -87,8 +81,7 @@ def bulk_add_blocks(ctx, blocks, chunksize):
         if len(block_chunk) == chunksize:
             click.echo('adding')
             bulk_add(block_chunk,
-                     session,
-                     Session)
+                     session)
             block_chunk = []
 
 

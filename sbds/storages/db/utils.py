@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from contextlib import contextmanager
 
 from sqlalchemy.exc import IntegrityError
 
@@ -182,3 +183,37 @@ def is_duplicate_entry_error(error):
     code, msg = error.orig.args
     msg = msg.lower()
     return all([code == 1062, "duplicate entry" in msg, "for key 'primary'" in msg])
+
+
+@contextmanager
+def session_scope(session=None, session_factory=None, bind=None, close=False):
+    """Provide a transactional scope around a series of operations."""
+
+    # configure and create new session if none exists
+    if not session:
+        if bind:
+            logger.debug('configuring session factory before creating new session')
+            session_factory.configure(bind)
+        logger.debug('creating new session')
+        session = session_factory()
+    # rollback passed session if required
+    elif not session.is_active:
+        logger.debug('rolling back passed session')
+        session.rollback()
+
+    try:
+        session.begin_nested()
+        yield session
+        session.commit()
+    except IntegrityError as e:
+        if is_duplicate_entry_error(e):
+            logger.info('duplicate entry error caught')
+        else:
+            logger.exception('non-duplicate IntegrityError, unable to commit')
+        session.rollback()
+    except Exception as e:
+        logger.exception('unable to commit')
+        session.rollback()
+    finally:
+        if close:
+            session.close()

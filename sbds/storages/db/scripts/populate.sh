@@ -19,55 +19,33 @@ is_interactive() {
   fi
 }
 
-interactive_block_load() {
-  local LATEST_CHAIN_BLOCK=$(block-height)
-  test_var_is_test="${LATEST_CHAIN_BLOCK:?Need to set LATEST_CHAIN_BLOCK non-empty}"
-
-  local LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
-  if [[ ${LATEST_DB_BLOCK} -lt 1 ]]; then
-    local LATEST_DB_BLOCK=1
-  fi
-  local DB_HOST=$(python -c 'import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' ${DATABASE_URL})
-  local STEEMD_HOST=$(python -c 'import sys, urllib.parse; print(urllib.parse.urlparse(sys.argv[1]).hostname)' ${WEBSOCKET_URL})
-  local BLOCKS_TO_ADD=$((${LATEST_CHAIN_BLOCK} - ${LATEST_DB_BLOCK}))
-  local PV_OPTS="--progress --rate --eta --timer --average-rate --line-mode --size ${BLOCKS_TO_ADD} --name blocks"
-  cat <<- EOF
-
-Populating SBDS Database
-
-Job Details
-========================
-steemd block source host:       ${STEEMD_HOST}
-database host:                  ${DB_HOST}
-latest database block_num:      ${LATEST_DB_BLOCK}
-latest blockchain block_num:    ${LATEST_CHAIN_BLOCK}
-approximate blocks to add:      ${BLOCKS_TO_ADD}
-
-Loading blocks...
-EOF
-
-  bulk-blocks --start $(( ${LATEST_DB_BLOCK} + 1 )) --end ${LATEST_CHAIN_BLOCK}  \
-    | pv ${PV_OPTS}  \
-    | db --database_url "${DATABASE_URL}" add-blocks-fast
-
-}
-
 
 stream_blocks() {
   sbds --start ${LATEST_DB_BLOCK} --server "${WEBSOCKET_URL}"  \
     | db --database_url "${DATABASE_URL}" insert-blocks
 }
 
+insert_checkpoint_blocks() {
+  load-checkpoint-blocks --start $1 --end $2 "${CHECKPOINTS_PATH}" \
+    | db --database_url "${DATABASE_URL}" bulk-add -
+}
+
 main () {
   # confirm required environment vars are set
   local test_var_is_test="${DATABASE_URL:?Need to set DATABASE_URL non-empty}"
-  local test_var_is_test="${WEBSOCKET_URL:?Need to set WEBSOCKET_URL non-empty}"
+  local test_var_is_test="${CHECKPOINTS_PATH:?Need to set CHECKPOINTS_PATH to local path or s3://bucket}"
+  insert_checkpoint_blocks 1 1000000 & \
+  insert_checkpoint_blocks 1000001 2000000 & \
+  insert_checkpoint_blocks 2000001 3000000 & \
+  insert_checkpoint_blocks 3000001 4000000 & \
+  insert_checkpoint_blocks 4000001 5000000 & \
+  insert_checkpoint_blocks 5000001 6000000 & \
+  insert_checkpoint_blocks 6000001 7000000 & \
+  insert_checkpoint_blocks 7000001 8000000 & \
+  insert_checkpoint_blocks 8000001 0
 
-  local LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
-  if [[ ${LATEST_DB_BLOCK} -lt 1 ]]; then
-    local LATEST_DB_BLOCK=1
-  fi
-  stream_blocks
+  stream_blocks()
+
 }
 
 main "$@"

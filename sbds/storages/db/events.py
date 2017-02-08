@@ -11,6 +11,7 @@ from sbds.storages.db.tables.synthesized import PostAndComment
 from sbds.storages.db.tables.tx import TxAccountCreate
 from sbds.storages.db.tables.tx import TxComment
 from sbds.storages.db.tables.tx import TxVote
+from .utils import session_scope
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -72,11 +73,6 @@ def receive_after_flush(session, flush_context):
         account = Account.as_unique(session, name=name, created=created)
 
     for tx in comments:
-        instance = PostAndComment.from_tx(tx,session=session)
-        try:
-            session.merge(instance)
-            session.commit()
-        except Exception as e:
-            logger.exception(e)
-            logger.error('Failed to add %s', comments)
-            session.rollback()
+        with session_scope(session) as s:
+            instance = PostAndComment.from_tx(tx, session=s)
+            session.add(instance)

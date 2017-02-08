@@ -16,20 +16,35 @@ client = boto3.client('s3')
 
 
 @click.group(name='s3')
-def s3():
+@click.option('--region',
+              help='AWS region',
+              envvar='AWS_DEFAULT_REGION',
+              default='us-east-1')
+@click.option('--access_key_id',
+              help='AWS access key ID',
+              envvar='AWS_ACCESS_KEY_ID')
+@click.option('--secret_access_key',
+              help='AWS secret access key',
+              envvar='AWS_SECRET_ACCESS_KEY')
+@click.option('--profile',
+              help='AWS profile',
+              envvar='AWS_PROFILE')
+@click.pass_context
+def s3(ctx, region, access_key_id, secret_access_key, profile):
     """This command provides AWS S3 steem block storage.
     It offers several subcommands.
 
-
     """
-
+    ctx.obj = dict(region=region,
+                   access_key_id=access_key_id,
+                   secret_access_key=secret_access_key,
+                   profile=profile)
 
 @s3.command('create-bucket')
 @click.argument('bucket', type=str)
-@click.option('--region',
-              help='AWS region',
-              default='us-east-1')
-def create_bucket(bucket, region):
+@click.pass_context
+def create_bucket(ctx, bucket):
+    region = ctx.obj['region']
     s3.create_bucket(Bucket=bucket,
                      CreateBucketConfiguration={'LocationConstraint': region})
 
@@ -122,6 +137,3 @@ def get_top_level_keys(bucket):
     nums = [int(p['Prefix'][8:].strip('/')) for p in results[0]['CommonPrefixes']]
     '''
 
-
-def get_missing_blockhashs():
-    pass
