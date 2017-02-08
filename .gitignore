@@ -107,3 +107,4 @@ test/failed_blocks/
 /envdir/
 /sbds.egg-info/
 /envd/
+/test/envdir-to-envfile.sh

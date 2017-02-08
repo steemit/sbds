@@ -35,16 +35,17 @@ main () {
   local test_var_is_test="${DATABASE_URL:?Need to set DATABASE_URL non-empty}"
   local test_var_is_test="${CHECKPOINTS_PATH:?Need to set CHECKPOINTS_PATH to local path or s3://bucket}"
   insert_checkpoint_blocks 1 1000000 & \
-  insert_checkpoint_blocks 1000001 2000000 & \
-  insert_checkpoint_blocks 2000001 3000000 & \
-  insert_checkpoint_blocks 3000001 4000000 & \
-  insert_checkpoint_blocks 4000001 5000000 & \
-  insert_checkpoint_blocks 5000001 6000000 & \
-  insert_checkpoint_blocks 6000001 7000000 & \
-  insert_checkpoint_blocks 7000001 8000000 & \
-  insert_checkpoint_blocks 8000001 0
+ insert_checkpoint_blocks 1000001 2000000 & \
+ insert_checkpoint_blocks 2000001 3000000 & \
+ insert_checkpoint_blocks 3000001 4000000 & \
+ insert_checkpoint_blocks 4000001 5000000 & \
+ insert_checkpoint_blocks 5000001 6000000 & \
+ insert_checkpoint_blocks 6000001 7000000 & \
+ insert_checkpoint_blocks 7000001 8000000 & \
+ insert_checkpoint_blocks 8000001 0
 
-  stream_blocks()
+  stream_blocks
+
 
 }
 

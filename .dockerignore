@@ -50,3 +50,4 @@ local.db
 /test/failed_blocks/
 /envdir/
 !/sbds.egg-info/
+/test/envdir-to-envfile.sh
