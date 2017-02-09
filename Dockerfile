@@ -5,7 +5,8 @@ ENV WEBSOCKET_URL wss://steemd.steemitdev.com:443
 ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
 ENV CHECKPOINTS_PATH s3://steemit-dev-sbds-checkpoints/gzipped
 ENV SBDS_LOG_LEVEL DEBUG
-
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
 
 ADD . /app
 
