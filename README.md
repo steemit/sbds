@@ -1,31 +1,51 @@
-# SBDS (Steem Block Data Service)
-## Overview
-SBDS refers generally to the collection of tool, utilities, and services designed to allow querying the Steemit blockchain. 
+# Steem Blockchain Data Service
 
-While providing direct interfaces to several pluggable storage architectures that may be used for querying the blockchain, SBDS may also be used as a lower level API upon which other application can be built.
+## Quickstart
+
+`sbds` is available on Docker Hub as `steemit/sbds`.
+
+e.g.
+
+`docker run -d steemit/sbds`
+
+## Overview
+
+`sbds` is a set of tool for querying the data of the Steem Blockchain. 
+
+While providing direct interfaces to several pluggable storage architectures that may be used for querying the blockchain, `sbds` may also be used as a lower level API upon which other application can be built.
 
 ## Architecture
-The system has three conceptual functions
 
-1. Interfacing with a `steemd` instance to provide access to blocks, ranges of blocks, or the continual stream of blocks as they are published on the blockchain
+The system has three conceptual functions:
 
-2. Ingest, prepare, store, and index blocks in one of 3 storage backends (S3, Postgres, Elasticsearch)
+1. Interfacing with a `steemd` instance to provide access to blocks, ranges of blocks, or the continual stream of
+blocks as they are published on the blockchain.
 
-3. Querying indexed blocks
+2. Ingest, prepare, store, and index blocks in one of 3 storage backends (S3, SQL Database, and/or Elasticsearch).
+
+3. Querying indexed blocks.
 
 ## Install
-SBDS is an installable python 3 package, though it is currently not published on pipy, and must be installed using git:
 
-```pip3 install -e git+git@github.com:steemit/sbds.git#egg=sbds```
+`sbds` is an installable python 3 package, though it is currently not published on pipy, and must be installed using git:
 
-Installation will (during early development) require mysql and postgres development sources in order to build correctly. As an alternative to installing those libraries, a `Dockerfile` is available.
+`pip3 install -e git+git@github.com:steemit/sbds.git#egg=sbds`
 
+Installation will (during early development) require mysql and postgres development sources in order to build
+correctly. As an alternative to installing those libraries, a `Dockerfile` is available.
 
 ## Usage
 
-During an initial install, blocks can be quickly loaded from "checkpoints" which are gzipped text files that are 1M blocks in length and currently hosted on S3 at `s3://steemit-dev-sbds-checkpoints`.
+During an initial install, blocks can be quickly loaded from "checkpoints" which are gzipped text files that are 1M
+blocks in length and currently hosted on S3 at `s3://steemit-dev-sbds-checkpoints`.
 
 Once the storage is synced with all previous blocks, blocks can be streamed to storage backends as they are confirmed.
+
+These blocks are not cryptographically assured in any way (and `sbds` does not provide any cryptographic guarantees
+or verify blockchain consensus state), so you may wish to regenerate these checkpoints.
+
+`sbds` is designed to always be used in conjunction with a trusted instance of `steemd` to validate all block data before
+`sbds` ever receives it.  This daemon **does not** implement any consensus rules.
 
 ### Streaming / Blockchain Commands
 
