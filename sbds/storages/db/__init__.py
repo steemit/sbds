@@ -26,30 +26,28 @@ logger = sbds.logging.getLogger(__name__)
 
 
 def generate_fail_log(**kwargs):
-    extra = kwargs
-    return 'FAILED TO ADD %s', kwargs.get('name', 'item'), extra
+    logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
 
-
-def generate_fail_log_from_block_info(block_info, error=None):
+def generate_fail_log_from_block_info(block_info):
     kwargs = dict(block_num=block_info['block_num'],
                   transactions=block_info['transactions'])
-    if error:
-        kwargs['error'] =  error
     return generate_fail_log(**kwargs)
 
-def generate_fail_log_from_raw_block(raw_block, error=None):
+def generate_fail_log_from_raw_block(raw_block):
     info = block_info(raw_block)
-    return generate_fail_log_from_block_info(info, error=error)
+    return generate_fail_log_from_block_info(info)
 
-def generate_fail_log_from_obj(object, error=None):
-    kwargs = dict(block_num=getattr(object, 'block_num', None),
-                 transaction_num=getattr(object, 'transaction_num', None),
-                 operation_num=getattr(object, 'operation_num', None),
-                 cls=object.__class__,
-                name=object.__class__.__name__
-                 )
-    if error:
-        kwargs['error'] =  error
+def generate_fail_log_from_obj(object):
+    try:
+        kwargs = dict(block_num=getattr(object, 'block_num', None),
+                     transaction_num=getattr(object, 'transaction_num', None),
+                     operation_num=getattr(object, 'operation_num', None),
+                     cls=object.__class__,
+                    object_name=object.__class__.__name__
+                     )
+    except Exception as e:
+        logger.error(e)
+        return generate_fail_log(object=object)
     return generate_fail_log(**kwargs)
 
 
@@ -64,8 +62,7 @@ def safe_insert(object, session):
         s.add(object)
     result =  object_state(object).persistent
     if not result:
-        message, extra = generate_fail_log_from_obj(object)
-        logger.error(message, extra=extra)
+        generate_fail_log_from_obj(object)
 
 def safe_insert_many(objects, session):
     with session_scope(session) as s:
@@ -76,6 +73,8 @@ def safe_insert_many(objects, session):
 
 def adaptive_insert(objects, session, bulk=False, insert_many=True,
                     merge_insert=True):
+    if not objects:
+        return True
     if bulk:
         # attempt bulk save if
         logger.debug('attepmting bulk_save')
@@ -110,8 +109,7 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
     for i,result in enumerate(results):
         if not result:
             object = objects[i]
-            message, extra = generate_fail_log_from_obj(object)
-            logger.error(message, extra=extra)
+            generate_fail_log_from_obj(object)
     return results
 
 def add_block(raw_block, session, info=None):
@@ -162,8 +160,8 @@ def add_blocks(raw_blocks,
     for raw_block in raw_blocks:
         result = add_block(raw_block, session)
         if not result:
-            message, extra = generate_fail_log_from_raw_block(raw_block)
-            logger.error(message, extra=extra)
+            generate_fail_log_from_raw_block(raw_block)
+
 
 
 

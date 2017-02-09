@@ -173,3 +173,32 @@ def load_blocks_from_checkpoints(checkpoints_path, start, end):
         else:
             for block in blocks:
                 click.echo(json.dumps(json.loads(block)).encode('utf8'))
+
+
+
+@click.command(name='test-checkpoint-access')
+@click.argument('checkpoints_path',
+                type=click.STRING,
+                envvar='CHECKPOINTS_PATH')
+@click.pass_context
+def test_checkpoint_access(ctx, checkpoints_path):
+    """Test checkpoint access"""
+    try:
+        checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(
+            path=checkpoints_path,
+            start=1, end=0)
+        with fileinput.FileInput(mode='r',
+                                 files=checkpoint_set.checkpoint_paths,
+                                 openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
+
+           for i, block in enumerate(blocks):
+                block_num = json.loads(block)['block_num']
+                if block_num:
+                    click.echo('Success: loaded block %s' % block_num, err=True)
+                    ctx.exit(code=0)
+                else:
+                    click.echo('Failed to load block', err=True)
+                    ctx.exit(code=127)
+    except Exception as e:
+        click.echo('Fail: %s' % e, err=True)
+        ctx.exit(code=127)

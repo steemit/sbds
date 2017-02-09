@@ -35,6 +35,7 @@ setup(
         'sbds=sbds.cli:cli',
         'bulk-blocks=sbds.cli:bulk_blocks',
         'block-height=sbds.cli:block_height',
+        'test-checkpoint-access=sbds.cli:test_checkpoint_access',
         'notify=sbds.notify:notify',
         's3=sbds.storages.s3.cli:s3',
         'db=sbds.storages.db.cli:db',

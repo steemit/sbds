@@ -182,7 +182,7 @@ def reset_tables(engine, metadata, exclude_tables=None):
 def is_duplicate_entry_error(error):
     code, msg = error.orig.args
     msg = msg.lower()
-    return all([code == 1062, "duplicate entry" in msg, "for key 'primary'" in msg])
+    return all([code == 1062, "duplicate entry" in msg])
 
 
 @contextmanager

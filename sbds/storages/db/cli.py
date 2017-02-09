@@ -86,7 +86,6 @@ def bulk_add_blocks(ctx, blocks, chunksize):
 
 
 @db.command(name='init')
-@click.confirmation_option(prompt='Are you sure you want to create the db?')
 @click.pass_context
 def init_db_tables(ctx):
     """Create any missing tables on the database"""
