@@ -10,6 +10,8 @@ e.g.
 
 ## Overview
 
+Stack: Python 3, SQLAlchemy, bottle.
+
 `sbds` is a set of tool for querying the data of the Steem Blockchain. 
 
 While providing direct interfaces to several pluggable storage architectures that may be used for querying the blockchain, `sbds` may also be used as a lower level API upon which other application can be built.
