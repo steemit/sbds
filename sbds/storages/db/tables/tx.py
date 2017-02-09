@@ -818,7 +818,7 @@ class TxDeleteComment(Base, TxBase):
                 "delete_comment",
                 {
                     "author": "jsc",
-                    "permlink": "test-delete"
+                    "permlink": "tests-delete"
                 }
             ]
         ],
@@ -836,7 +836,7 @@ class TxDeleteComment(Base, TxBase):
         "id": 1,
         "tx_id": 309111,
         "author": "jsc",
-        "permlink": "test-delete"
+        "permlink": "tests-delete"
     }
     """
 

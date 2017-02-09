@@ -31,7 +31,7 @@ def db(ctx, database_url):
         ENV var, though it may optionally be provided on the command line:
 
         \b
-        db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' test
+        db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' tests
 
     """
     if 'sqlite' in database_url.split(':')[0]:

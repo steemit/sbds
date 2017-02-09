@@ -42,12 +42,12 @@ blocks.json
 
 # sqlite db for testing
 local.db
-/test/fastest-test.sh
-/test/sbds-install.sh
-/test/test.sh
-/test/fast-test.sh
-/test/sync.sh
-/test/failed_blocks/
+/tests/fastest-test.sh
+/tests/sbds-install.sh
+/tests/test.sh
+/tests/fast-test.sh
+/tests/sync.sh
+/tests/failed_blocks/
 /envdir/
 !/sbds.egg-info/
-/test/envdir-to-envfile.sh
+/tests/envdir-to-envfile.sh

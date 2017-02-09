@@ -4,6 +4,8 @@ ENV DATABASE_URL sqlite:////tmp/sqlite.db
 ENV WEBSOCKET_URL wss://steemd.steemitdev.com:443
 ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
 ENV CHECKPOINTS_PATH s3://steemit-dev-sbds-checkpoints/gzipped
+ENV SBDS_LOG_LEVEL INFO
+
 
 ADD . /app
 

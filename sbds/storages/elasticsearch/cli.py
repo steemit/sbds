@@ -33,7 +33,7 @@ def es(ctx, elasticsearch_url, index):
         ENV var, though it may optionally be provided on the command line:
 
         \b
-        db --elasticsearch_url 'http[s]://user:password@host/index[?key=value..]' test
+        db --elasticsearch_url 'http[s]://user:password@host/index[?key=value..]' tests
 
     """
     esd = connections.create_connection(hosts=[elasticsearch_url],

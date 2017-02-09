@@ -1,9 +1,10 @@
-IMAGE_NAME := steemit/sbds
-
 default: build
 
 build:
-	docker build -t $(IMAGE_NAME) .
+	docker build -t steemit/sbds .
 
 run:
-	docker run $(IMAGE_NAME)
+	docker run steemit/sbds
+
+test:
+  python setup.py test

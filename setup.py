@@ -5,9 +5,10 @@ setup(
     name='sbds',
     version='0.1',
     packages=find_packages(),
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest'],
     install_requires=[
         'Click',
-        'pytest',
         'steem-piston==0.4.1',
         'boto3',
         'awscli',
