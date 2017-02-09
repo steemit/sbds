@@ -43,15 +43,16 @@ class SimpleSteemAPIClient(object):
 
     """
 
-    def __init__(self, url=None, http=None, log_level='INFO', **kwargs):
+    def __init__(self, url=None, log_level='INFO', **kwargs):
         url = url or os.environ.get('STEEMD_HTTP_URL')
         self.url = url
         self.hostname = urlparse(url).hostname
         maxsize = kwargs.get('maxsize', 20)
         timeout = kwargs.get('timeout', 10)
         pool_block = kwargs.get('pool_block', True)
-        self.http = http or urllib3.HTTPConnectionPool(
-                self.hostname,
+        self.http = urllib3.poolmanager.PoolManager(
+                num_pools=10,
+                headers={'Content-Type':'application/json'},
                 maxsize=maxsize,
                 timeout=timeout)
         '''
@@ -79,9 +80,13 @@ class SimpleSteemAPIClient(object):
             "jsonrpc": "2.0",
             "id": 0
         }, ensure_ascii=False).encode('utf8')
-        # logger.debug('rpcrequest to {}'.format, extra=dict(appinfo=dict(body=body)))
+        extra = dict(appinfo=dict(body=body))
+        logger.debug('rpc request to {}'.format, extra=extra )
         response = self.request(body=body)
-        if response.status != 200 and raise_for_status:
+        extra = dict(body=response.data)
+        logger.debug('rpc response: %s' % response.status, extra=extra)
+        if response.status not in tuple([*response.REDIRECT_STATUSES, 200]) and raise_for_status:
+            logger.info('non 200 response:')
             raise RPCConnectionError(response)
         ret = json.loads(response.data.decode('utf-8'))
         if 'error' in ret:

@@ -37,7 +37,7 @@ def parse_block_nums(ctx, param, value):
               metavar='WEBSOCKET_URL',
               envvar='WEBSOCKET_URL',
               help='Steemd server URL',
-              default='ws://steemd-dev5.us-east-1.elasticbeanstalk.com:80')
+              default='wss://steemd.steemitdev.com:443')
 @click.option('--block_nums',
               type=click.File('r'),
               required=False,
@@ -113,7 +113,7 @@ def get_blocks(rpc, block_nums):
 
 @click.command()
 @click.option('--start', type=click.INT, default=1)
-@click.option('--end', type=click.INT, default=9000000)
+@click.option('--end', type=click.INT, default=0)
 @click.option('--chunksize', type=click.INT, default=1000)
 @click.option('--max_workers', type=click.INT, default=None)
 @click.option('--url',
@@ -122,6 +122,8 @@ def get_blocks(rpc, block_nums):
               help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
     """Quickly request blocks from steemd"""
+    if end == 0:
+        rpc = SimpleSteemAPIClient(url)
     with click.open_file('-', 'w', encoding='utf8') as f:
         blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
         json_blocks = map(json.dumps, blocks)
