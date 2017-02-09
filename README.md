@@ -1,3 +1,7 @@
+# Notice
+
+This is prerelease software, not yet suitable for production use.  Proceed at your own risk.
+
 # Steem Blockchain Data Service
 
 ## Quickstart
