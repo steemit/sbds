@@ -40,7 +40,7 @@ bulk_add_checkpoint_blocks() {
 }
 
 bulk_add_steemd_blocks() {
-  bulk-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}" --max_workers 10 \
+  bulk-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}"  \
     | db --database_url "${DATABASE_URL}" bulk-add --chunksize $3  -
 }
 
@@ -65,7 +65,6 @@ load_checkpoints() {
     bulk_add_checkpoint_blocks 7000001 8000000 300 & \
     bulk_add_checkpoint_blocks 8000001 0 300
 
-
 }
 
 load_steemd_blocks() {
@@ -87,8 +86,7 @@ load_steemd_blocks() {
     bulk_add_steemd_blocks 6000001 7000000 300 & \
     bulk_add_steemd_blocks 7000001 8000000 300 & \
     bulk_add_steemd_blocks 8000001 9000000 300 & \
-    bulk_add_steemd_blocks 9000001 0 300 &
-
+    bulk_add_steemd_blocks 9000001 0 300
 
 }
 

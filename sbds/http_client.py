@@ -6,6 +6,7 @@ from functools import partialmethod
 from urllib.parse import urlparse
 
 import urllib3
+import certifi
 
 import sbds.utils
 
@@ -51,10 +52,14 @@ class SimpleSteemAPIClient(object):
         timeout = kwargs.get('timeout', 10)
         pool_block = kwargs.get('pool_block', True)
         self.http = urllib3.poolmanager.PoolManager(
-                num_pools=10,
+                num_pools=50,
                 headers={'Content-Type':'application/json'},
                 maxsize=maxsize,
-                timeout=timeout)
+                block=True,
+                timeout=timeout,
+                cert_reqs='CERT_REQUIRED',
+                ca_certs = certifi.where()
+        )
         '''
         urlopen(method, url, body=None, headers=None, retries=None,
         redirect=True, assert_same_host=True, timeout=<object object>,
