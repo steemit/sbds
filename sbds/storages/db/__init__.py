@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
-from collections import Counter
 from itertools import chain
-from collections import namedtuple
-from contextlib import contextmanager
 
 import toolz.itertoolz
-from sqlalchemy.exc import IntegrityError
-from toolz.itertoolz import partition_all
 from sqlalchemy.orm.util import object_state
 
 import sbds.logging
-from sbds.utils import block_info
-from sbds.utils import write_json
+from sbds.logging import generate_fail_log_from_raw_block
+from sbds.logging import generate_fail_log_from_obj
 from .tables import Base
 from .tables import Session
 from .tables.core import from_raw_block
@@ -22,33 +17,6 @@ from .utils import session_scope
 metadata = Base.metadata
 
 logger = sbds.logging.getLogger(__name__)
-
-
-
-def generate_fail_log(**kwargs):
-    logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
-
-def generate_fail_log_from_block_info(block_info):
-    kwargs = dict(block_num=block_info['block_num'],
-                  transactions=block_info['transactions'])
-    return generate_fail_log(**kwargs)
-
-def generate_fail_log_from_raw_block(raw_block):
-    info = block_info(raw_block)
-    return generate_fail_log_from_block_info(info)
-
-def generate_fail_log_from_obj(object):
-    try:
-        kwargs = dict(block_num=getattr(object, 'block_num', None),
-                     transaction_num=getattr(object, 'transaction_num', None),
-                     operation_num=getattr(object, 'operation_num', None),
-                     cls=object.__class__,
-                    object_name=object.__class__.__name__
-                     )
-    except Exception as e:
-        logger.error(e)
-        return generate_fail_log(object=object)
-    return generate_fail_log(**kwargs)
 
 
 def safe_merge_insert(objects, session, load=True):
@@ -62,11 +30,11 @@ def safe_merge_insert(objects, session, load=True):
         return True
 
 
-def safe_insert(object, session):
+def safe_insert(object, session, log_fail=False):
     with session_scope(session) as s:
         s.add(object)
     result =  object_state(object).persistent
-    if not result:
+    if not result and log_fail:
         generate_fail_log_from_obj(object)
 
 def safe_insert_many(objects, session):
@@ -91,8 +59,9 @@ def safe_bulk_save(objects, session):
         return True
 
 def adaptive_insert(objects, session, bulk=False, insert_many=True,
-                    merge_insert=True):
+                    merge_insert=True, insert=True):
     if not objects:
+        logger.debug('adaptive_insert called with empty objects list')
         return True
     if bulk:
         # attempt bulk save if
@@ -122,15 +91,19 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
 
     # fallback to safe_insert each object
     logger.debug('attempting individual safe_insert')
-    results = [safe_insert(object, session) for object in objects]
-    if all(r for r in results):
-        return True
-    else:
-        for i,result in enumerate(results):
-            if not result:
-                object = objects[i]
-                generate_fail_log_from_obj(object)
-        return False
+    if insert:
+        results = [safe_insert(object, session) for object in objects]
+        if all(r for r in results):
+            logger.debug('individual safe_insert success')
+            return True
+
+    # log failed objects
+    for obj, result in zip(objects, results):
+        if not result:
+            generate_fail_log_from_obj(obj)
+
+    logger.debug('adaptive_insert  success')
+    return False
 
 def add_block(raw_block, session, info=None):
     """
@@ -140,11 +113,8 @@ def add_block(raw_block, session, info=None):
     :return: boolean
     """
     block_obj, txtransactions = from_raw_block(raw_block, session)
-    result = adaptive_insert(list([block_obj, *txtransactions]), session)
-    if isinstance(result, bool):
-        return result
-    else:
-        return all(result)
+    result = adaptive_insert(list([block_obj, *txtransactions]), session,
+                             insert=False)
 
 def filter_existing_blocks(block_objects, session):
     """
@@ -181,7 +151,6 @@ def add_blocks(raw_blocks,
         result = add_block(raw_block, session)
         if not result:
             generate_fail_log_from_raw_block(raw_block)
-
 
 
 

@@ -5,6 +5,9 @@ import os
 
 from pythonjsonlogger import jsonlogger
 
+from sbds.storages.db import logger
+from sbds.utils import block_info
+
 LOG_LEVEL = os.environ.get('SBDS_LOG_LEVEL', 'info').lower()
 
 log_level_map = dict(   debug=logging.DEBUG,
@@ -61,3 +64,32 @@ def getLogger(name, level=_log_level):
         logger.setLevel(level)
         logger.addHandler(logHandler)
     return logger
+
+
+def generate_fail_log(**kwargs):
+    logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
+
+
+def generate_fail_log_from_block_info(block_info):
+    kwargs = dict(block_num=block_info['block_num'],
+                  transactions=block_info['transactions'])
+    return generate_fail_log(**kwargs)
+
+
+def generate_fail_log_from_raw_block(raw_block):
+    info = block_info(raw_block)
+    return generate_fail_log_from_block_info(info)
+
+
+def generate_fail_log_from_obj(object):
+    try:
+        kwargs = dict(block_num=getattr(object, 'block_num', None),
+                     transaction_num=getattr(object, 'transaction_num', None),
+                     operation_num=getattr(object, 'operation_num', None),
+                     cls=object.__class__,
+                    object_name=object.__class__.__name__
+                     )
+    except Exception as e:
+        logger.error(e)
+        return generate_fail_log(object=object)
+    return generate_fail_log(**kwargs)
