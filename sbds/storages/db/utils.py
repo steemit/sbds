@@ -186,34 +186,68 @@ def is_duplicate_entry_error(error):
 
 
 @contextmanager
-def session_scope(session=None, session_factory=None, bind=None, close=False):
-    """Provide a transactional scope around a series of operations."""
+def session_scope(session=None,
+                  session_factory=None,
+                  bind=None,
+                  close=False,
+                  expunge=False,
+                  _raise=False):
+    """Provide a transactional scope around a series of db operations."""
 
     # configure and create new session if none exists
+
     if not session:
         if bind:
             logger.debug('configuring session factory before creating new session')
             session_factory.configure(bind)
         logger.debug('creating new session')
         session = session_factory()
+
+    logger.debug('initial session.info: %s', session.info)
+    logger.debug('initial session.dirty count: %s', len(session.dirty))
+    logger.debug('initial session.new count: %s', len(session.new))
+    logger.debug('initial session.is_active: %s', session.is_active)
+    logger.debug('initial sesssion.transaction.parent: %s', session.transaction.parent)
     # rollback passed session if required
-    elif not session.is_active:
+    if not session.is_active:
         logger.debug('rolling back passed session')
         session.rollback()
-
+        logger.debug('after rollback session.dirty count: %s', len(session.dirty))
+        logger.debug('after rollback session.new count: %s', len(session.new))
     try:
-        session.begin_nested()
+        session.info['err'] = None
+        session.begin(subtransactions=True)
         yield session
+        logger.debug('after yield session.dirty count: %s', len(session.dirty))
+        logger.debug('after yield session.new count: %s', len(session.new))
         session.commit()
     except IntegrityError as e:
+        session.rollback()
+        session.info['err'] = e
         if is_duplicate_entry_error(e):
-            logger.info('duplicate entry error caught')
+            logger.debug('duplicate entry error caught')
         else:
             logger.exception('non-duplicate IntegrityError, unable to commit')
-        session.rollback()
+        if _raise:
+            raise e
     except Exception as e:
-        logger.exception('unable to commit')
         session.rollback()
+        session.info['err'] = e
+        logger.exception('unable to commit')
+        if _raise:
+            raise e
     finally:
+        logger.debug('final session.info: %s', session.info)
+        logger.debug('final session.dirty count: %s', len(session.dirty))
+        logger.debug('final session.new count: %s', len(session.new))
+        logger.debug('final session.is_active: %s', session.is_active)
         if close:
+            logger.debug('calling session.close')
             session.close()
+            return
+        elif expunge:
+            logger.debug('calling session.expunge_all')
+            session.expunge_all()
+        if not session.is_active:
+            logger.debug('second session.rollback required')
+            session.rollback()

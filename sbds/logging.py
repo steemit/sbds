@@ -7,8 +7,12 @@ from pythonjsonlogger import jsonlogger
 
 LOG_LEVEL = os.environ.get('SBDS_LOG_LEVEL', 'info').lower()
 
-log_level_map = dict(debug=logging.DEBUG,
-                 info=logging.INFO)
+log_level_map = dict(   debug=logging.DEBUG,
+                        info=logging.INFO,
+                        warning=logging.WARNING,
+                        error=logging.ERROR
+                     )
+
 _log_level = log_level_map.get(LOG_LEVEL, logging.INFO)
 
 supported_keys = [

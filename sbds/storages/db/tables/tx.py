@@ -10,7 +10,7 @@ from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import SmallInteger
-from sqlalchemy import TIMESTAMP
+from sqlalchemy import DateTime
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy.ext.declarative import declared_attr
@@ -50,7 +50,7 @@ class TxBase(UniqueMixin):
     block_num = Column(Integer, nullable=False)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
-    timestamp = Column(TIMESTAMP(timezone=False), index=True)
+    timestamp = Column(DateTime(timezone=False), index=True)
 
     _fields = dict()
 
@@ -86,17 +86,22 @@ class TxBase(UniqueMixin):
     @classmethod
     def from_raw_block(cls, raw_block):
         operations = list(extract_operations_from_block(raw_block))
-        logger.debug('extracted %s operations from transaction',
-                     len(operations))
+        if not operations:
+            #logger.debug('no transactions extracted from block')
+            return []
+
+        bn = operations[0].get('block_num', '')
+        logger.debug('extracted %s operations from block %s',
+                 len(operations), bn)
         prepared = [cls._prepare_for_storage(data_dict=d) for d in operations]
         objs = []
         for i, prepared_tx in enumerate(prepared):
             op_type = operations[i]['type']
             tx_cls = cls.tx_class_for_type(op_type)
             logger.debug('operation type %s mapped to class %s',
-                         op_type, tx_cls.__name__)
+                     op_type, tx_cls.__name__)
             objs.append(tx_cls(**prepared_tx))
-        logger.debug('instantiated: %s', [o.__class__.__name__ for o in objs])
+            logger.debug('instantiated: %s', [o.__class__.__name__ for o in objs])
         return objs
 
     @classmethod

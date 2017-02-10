@@ -86,7 +86,7 @@ class SimpleSteemAPIClient(object):
         extra = dict(body=response.data)
         logger.debug('rpc response: %s' % response.status, extra=extra)
         if response.status not in tuple([*response.REDIRECT_STATUSES, 200]) and raise_for_status:
-            logger.info('non 200 response:')
+            logger.info('non 200 response:%s', response.status)
             raise RPCConnectionError(response)
         ret = json.loads(response.data.decode('utf-8'))
         if 'error' in ret:

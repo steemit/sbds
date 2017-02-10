@@ -6,7 +6,7 @@ from itertools import chain
 
 from sqlalchemy import Column
 from sqlalchemy import Integer
-from sqlalchemy import TIMESTAMP
+from sqlalchemy import DateTime
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
@@ -172,7 +172,7 @@ class Block(Base, UniqueMixin):
     block_num = Column(Integer, primary_key=True, nullable=False,
                        autoincrement=False)
     previous = Column(Unicode(50))
-    timestamp = Column(TIMESTAMP(timezone=False), index=True)
+    timestamp = Column(DateTime(timezone=False), index=True)
     witness = Column(Unicode(50))
     witness_signature = Column(Unicode(150))
     transaction_merkle_root = Column(Unicode(50))

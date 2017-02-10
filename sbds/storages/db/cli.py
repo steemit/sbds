@@ -8,8 +8,10 @@ import sbds.logging
 from sbds.storages.db import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
-from sbds.storages.db import metadata
+# from sbds.storages.db import metadata
+from sbds.storages.db import Base
 from sbds.storages.db.tables import Block
+from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -40,7 +42,10 @@ def db(ctx, database_url):
         engine = create_engine(database_url,
                                server_side_cursors=True,
                                encoding='utf8')
-    ctx.obj = dict(engine=engine, metadata=metadata, Session=Session)
+    ctx.obj = dict(engine=engine,
+                   base=Base,
+                   metadata=Base.metadata,
+                   Session=Session)
 
 
 @db.command()
@@ -74,15 +79,15 @@ def bulk_add_blocks(ctx, blocks, chunksize):
     engine = ctx.obj['engine']
     Session.configure(bind=engine)
     session = Session()
-    block_chunk = []
-    click.echo('starting')
-    for block in blocks:
-        block_chunk.append(block)
-        if len(block_chunk) == chunksize:
-            click.echo('adding')
-            bulk_add(block_chunk,
-                     session)
-            block_chunk = []
+    click.echo("SQL: 'SET SESSION innodb_lock_wait_timeout=150'", err=True)
+    session.execute('SET SESSION innodb_lock_wait_timeout=150')
+    try:
+        for chunk in chunkify(blocks, chunksize):
+           bulk_add(chunk,session)
+    except Exception as e:
+        raise e
+    finally:
+        session.close_all()
 
 
 @db.command(name='init')
@@ -90,8 +95,8 @@ def bulk_add_blocks(ctx, blocks, chunksize):
 def init_db_tables(ctx):
     """Create any missing tables on the database"""
     engine = ctx.obj['engine']
-    _metadata = ctx.obj['metadata']
-    _metadata.create_all(bind=engine, checkfirst=True)
+    metadata = ctx.obj['metadata']
+    metadata.create_all(bind=engine, checkfirst=True)
 
 
 @db.command(name='reset')
@@ -101,17 +106,18 @@ def init_db_tables(ctx):
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
     engine = ctx.obj['engine']
+    metadata = ctx.obj['metadata']
+
+    # use unadulterated MetaData to avoid errors due to ORM classes
+    # being inconsistent with existing tables
     from sqlalchemy import MetaData
-    try:
-        _meta = MetaData()
-        _meta.reflect(bind=engine)
-        _meta.drop_all(bind=engine, checkfirst=True)
-    except Exception as e:
-        logger.info(e)
-    try:
-        metadata.create_all(bind=engine, checkfirst=True)
-    except Exception as e:
-        logger.info(e)
+    _metadata = MetaData()
+    _metadata.reflect(bind=engine)
+    _metadata.drop_all(bind=engine)
+
+    # use ORM clases to define tables to create
+    metadata.create_all(bind=engine, checkfirst=True)
+    ctx.exit(code=0)
 
 
 @db.command(name='last-block')
@@ -123,6 +129,7 @@ def last_block(ctx):
     session = Session()
     click.echo(Block.highest_block(session))
 
+
 @db.command(name='find-missing-blocks')
 @click.pass_context
 def find_missing_blocks(ctx):
@@ -132,6 +139,7 @@ def find_missing_blocks(ctx):
     session = Session()
     click.echo(json.dumps(Block.find_missing(session)))
 
+
 @db.command(name='add-missing-posts-and-comments')
 @click.pass_context
 def add_missing_posts_and_comments(ctx):
@@ -140,6 +148,7 @@ def add_missing_posts_and_comments(ctx):
     Session.configure(bind=engine)
     from sbds.storages.db.tables import PostAndComment
     PostAndComment.add_missing(Session)
+
 
 @db.command(name='find-missing-posts-and-comments')
 @click.pass_context

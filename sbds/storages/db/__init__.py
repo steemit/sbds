@@ -52,10 +52,15 @@ def generate_fail_log_from_obj(object):
 
 
 def safe_merge_insert(objects, session, load=True):
-    with session_scope(session) as s:
-        for object in objects:
-            session.merge(object, load=load)
-    return all([object_state(object).persistent for object in objects])
+    try:
+        with session_scope(session, _raise=True) as s:
+            for object in objects:
+                session.merge(object, load=load)
+    except:
+        return False
+    else:
+        return True
+
 
 def safe_insert(object, session):
     with session_scope(session) as s:
@@ -65,11 +70,25 @@ def safe_insert(object, session):
         generate_fail_log_from_obj(object)
 
 def safe_insert_many(objects, session):
-    with session_scope(session) as s:
-        s.add_all(objects)
+    try:
+        with session_scope(session, _raise=True) as s:
+            s.add_all(objects)
+    except:
+        return False
+    else:
+        return True
 
-    return object_state(objects[0]).persistent
 
+def safe_bulk_save(objects, session):
+    try:
+        with session_scope(session, _raise=True) as s:
+            s.bulk_save_objects(objects)
+            s.commit()
+    except:
+        logger.debug('session.info: %s', session.info)
+        return False
+    else:
+        return True
 
 def adaptive_insert(objects, session, bulk=False, insert_many=True,
                     merge_insert=True):
@@ -77,19 +96,17 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
         return True
     if bulk:
         # attempt bulk save if
-        logger.debug('attepmting bulk_save')
-        with session_scope(session) as s:
-            s.bulk_save_objects(objects)
-        if object_state(objects[0]).persistent:
+        logger.debug('attempting bulk_save')
+        if safe_bulk_save(objects, session):
             logger.debug('bulk_save success')
             return True
         else:
-            logger.debug('bulk_save failed')
+            logger.info('bulk_save failed')
 
     if insert_many:
         # attempt insert_many
         if safe_insert_many(objects, session):
-            logger.debug('attepmting safe_insert_many')
+            logger.debug('attempting safe_insert_many')
             return True
         else:
             logger.debug('safe_insert_many failed')
@@ -106,11 +123,14 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
     # fallback to safe_insert each object
     logger.debug('attempting individual safe_insert')
     results = [safe_insert(object, session) for object in objects]
-    for i,result in enumerate(results):
-        if not result:
-            object = objects[i]
-            generate_fail_log_from_obj(object)
-    return results
+    if all(r for r in results):
+        return True
+    else:
+        for i,result in enumerate(results):
+            if not result:
+                object = objects[i]
+                generate_fail_log_from_obj(object)
+        return False
 
 def add_block(raw_block, session, info=None):
     """
@@ -185,7 +205,7 @@ def bulk_add(raw_blocks, session):
 
     # add blocks (only if we havent removed them all)
     if block_objs:
-        adaptive_insert(block_objs, session, bulk=True)
-
-    # add txs
-    adaptive_insert(tx_objs, session, bulk=True)
+        result = adaptive_insert(block_objs, session, bulk=True)
+        logger.debug('adaptive_insert blocks result: %s', result)
+        result = adaptive_insert(tx_objs, session, bulk=True)
+        logger.debug('adaptive_insert txs result: %s', result)

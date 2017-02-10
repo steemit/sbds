@@ -111,7 +111,7 @@ def get_blocks(rpc, block_nums):
         yield block
 
 
-@click.command()
+@click.command(name='bulk-blocks')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 @click.option('--chunksize', type=click.INT, default=1000)
@@ -122,8 +122,11 @@ def get_blocks(rpc, block_nums):
               help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
     """Quickly request blocks from steemd"""
+
+    rpc = SimpleSteemAPIClient(url)
     if end == 0:
-        rpc = SimpleSteemAPIClient(url)
+        end = rpc.last_irreversible_block_num()
+
     with click.open_file('-', 'w', encoding='utf8') as f:
         blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
         json_blocks = map(json.dumps, blocks)
