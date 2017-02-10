@@ -114,7 +114,7 @@ def get_blocks(rpc, block_nums):
 @click.command(name='bulk-blocks')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
-@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--chunksize', type=click.INT, default=100)
 @click.option('--max_workers', type=click.INT, default=None)
 @click.option('--url',
               metavar='STEEMD_HTTP_URL',
@@ -131,7 +131,7 @@ def bulk_blocks(start, end, chunksize, max_workers, url):
         blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
         json_blocks = map(json.dumps, blocks)
         for block in json_blocks:
-            click.echo(json.dumps(json.loads(block)).encode('utf8'), file=f)
+            click.echo(block.encode('utf8'), file=f)
 
 
 def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
@@ -140,10 +140,8 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
                  max_workers=max_workers, rpc=rpc, url=url)
     logger.debug('get_blocks_fast', extra=extra)
     rpc = rpc or SimpleSteemAPIClient(url)
-    with concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_workers) as executor:
-        for i, chunk in enumerate(
-                chunkify(range(start, end), chunksize=chunksize), 1):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
             for b in executor.map(rpc.get_block, chunk):
                 yield b
@@ -169,15 +167,16 @@ def load_blocks_from_checkpoints(checkpoints_path, start, end):
 
         blocks = toolz.itertoolz.drop(checkpoint_set.initial_checkpoint_offset,
                                       blocks)
-
         if total_blocks_to_load > 0:
-            for i, block in enumerate(blocks, 1):
-                click.echo(json.dumps(json.loads(block)).encode('utf8'))
-                if i == total_blocks_to_load:
-                    break
+            with click.open_file('-', 'w', encoding='utf8') as f:
+                for i, block in enumerate(blocks, 1):
+                    click.echo(block.strip().encode('utf8'))
+                    if i == total_blocks_to_load:
+                        break
         else:
-            for block in blocks:
-                click.echo(json.dumps(json.loads(block)).encode('utf8'))
+            with click.open_file('-', 'w', encoding='utf8') as f:
+                for block in blocks:
+                    click.echo(block.strip().encode('utf8'), file=f)
 
 
 
