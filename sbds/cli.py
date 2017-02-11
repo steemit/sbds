@@ -145,7 +145,10 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
                 chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
             for b in executor.map(rpc.get_block, chunk):
-                yield b
+                # dont yield anything when we encounter a null output
+                # from an HTTP 503 error
+                if b:
+                    yield b
 
 
 @click.command(name='load-checkpoint-blocks')

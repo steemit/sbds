@@ -51,7 +51,7 @@ class SimpleSteemAPIClient(object):
         self.hostname = urlparse(url).hostname
         maxsize = kwargs.get('maxsize', 20)
         timeout = kwargs.get('timeout', 10)
-        pool_block = kwargs.get('pool_block', True)
+        pool_block = kwargs.get('pool_block', False)
         self.http = urllib3.poolmanager.PoolManager(
                 num_pools=50,
                 headers={'Content-Type': 'application/json'},
