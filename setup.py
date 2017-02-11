@@ -11,7 +11,6 @@ setup(
         'Click',
         'steem-piston==0.4.1',
         'boto3',
-        'awscli',
         'python-json-logger',
         'requests==2.10.0',
         'mysqlclient',
