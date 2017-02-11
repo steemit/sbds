@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
 import fileinput
-import fnmatch
 import json
-import os
 
 import click
 import toolz.itertoolz
 from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.checkpoint
-from sbds.checkpoint import checkpoint_opener_wrapper
 import sbds.logging
+from sbds.checkpoint import checkpoint_opener_wrapper
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
@@ -128,7 +126,8 @@ def bulk_blocks(start, end, chunksize, max_workers, url):
         end = rpc.last_irreversible_block_num()
 
     with click.open_file('-', 'w', encoding='utf8') as f:
-        blocks = get_blocks_fast(start, end, chunksize, max_workers, None, url)
+        blocks = get_blocks_fast(start=start, end=end, chunksize=chunksize,
+                                 max_workers=max_workers, rpc=rpc, url=url)
         json_blocks = map(json.dumps, blocks)
         for block in json_blocks:
             click.echo(block.encode('utf8'), file=f)
@@ -140,12 +139,13 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
                  max_workers=max_workers, rpc=rpc, url=url)
     logger.debug('get_blocks_fast', extra=extra)
     rpc = rpc or SimpleSteemAPIClient(url)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for i, chunk in enumerate(chunkify(range(start, end), chunksize=chunksize), 1):
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers) as executor:
+        for i, chunk in enumerate(
+                chunkify(range(start, end), chunksize=chunksize), 1):
             logger.debug('get_block_fast loop', extra=dict(chunk_count=i))
             for b in executor.map(rpc.get_block, chunk):
                 yield b
-
 
 
 @click.command(name='load-checkpoint-blocks')
@@ -157,27 +157,28 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
 def load_blocks_from_checkpoints(checkpoints_path, start, end):
     """Load blocks from checkpoints"""
 
-    checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(path=checkpoints_path,
-                                                                    start=start, end=end)
+    checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(
+            path=checkpoints_path,
+            start=start, end=end)
     total_blocks_to_load = end - start
 
     with fileinput.FileInput(mode='r',
                              files=checkpoint_set.checkpoint_paths,
-                             openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
+                             openhook=checkpoint_opener_wrapper(
+                                     encoding='utf8')) as blocks:
 
         blocks = toolz.itertoolz.drop(checkpoint_set.initial_checkpoint_offset,
                                       blocks)
         if total_blocks_to_load > 0:
             with click.open_file('-', 'w', encoding='utf8') as f:
                 for i, block in enumerate(blocks, 1):
-                    click.echo(block.strip().encode('utf8'))
+                    click.echo(block.strip().encode('utf8'), file=f)
                     if i == total_blocks_to_load:
                         break
         else:
             with click.open_file('-', 'w', encoding='utf8') as f:
                 for block in blocks:
                     click.echo(block.strip().encode('utf8'), file=f)
-
 
 
 @click.command(name='test-checkpoint-access')
@@ -189,13 +190,14 @@ def test_checkpoint_access(ctx, checkpoints_path):
     """Test checkpoint access"""
     try:
         checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(
-            path=checkpoints_path,
-            start=1, end=0)
+                path=checkpoints_path,
+                start=1, end=0)
         with fileinput.FileInput(mode='r',
                                  files=checkpoint_set.checkpoint_paths,
-                                 openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
+                                 openhook=checkpoint_opener_wrapper(
+                                         encoding='utf8')) as blocks:
 
-           for i, block in enumerate(blocks):
+            for i, block in enumerate(blocks):
                 block_num = json.loads(block)['block_num']
                 if block_num:
                     click.echo('Success: loaded block %s' % block_num, err=True)

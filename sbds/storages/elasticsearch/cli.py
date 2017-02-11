@@ -52,6 +52,7 @@ def test(ctx):
     click.echo(esd.info())
 
 
+# noinspection PyUnusedLocal
 @es.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context

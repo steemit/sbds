@@ -5,15 +5,12 @@ import os
 
 from pythonjsonlogger import jsonlogger
 
-from sbds.storages.db import logger
-from sbds.utils import block_info
-
 LOG_LEVEL = os.environ.get('SBDS_LOG_LEVEL', 'info').lower()
 
-log_level_map = dict(   debug=logging.DEBUG,
-                        info=logging.INFO,
-                        warning=logging.WARNING,
-                        error=logging.ERROR
+log_level_map = dict(debug=logging.DEBUG,
+                     info=logging.INFO,
+                     warning=logging.WARNING,
+                     error=logging.ERROR
                      )
 
 _log_level = log_level_map.get(LOG_LEVEL, logging.INFO)
@@ -23,10 +20,7 @@ supported_keys = [
     # 'asctime',
     # 'created',
     # 'filename',
-
-
     # 'levelno',
-
     'module',
     'funcName',
     'lineno',
@@ -42,54 +36,58 @@ supported_keys = [
 ]
 
 
+def make_log_format(x):
+    return ['%({0:s})'.format(i) for i in x]
 
-log_format = lambda x: ['%({0:s})'.format(i) for i in x]
-fmt = ' '.join(log_format(supported_keys))
+
+# noinspection PyPep8Naming
+def getLogger(name, level=_log_level):
+    _logger = logging.getLogger(name)
+    if not _logger.hasHandlers():
+        _logger.setLevel(level)
+        _logger.addHandler(logHandler)
+    return _logger
+
+
+def generate_fail_log(logger, **kwargs):
+    logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
+
+
+def generate_fail_log_from_block_info(logger, block_info):
+    kwargs = dict(
+            block_num=block_info['block_num'],
+            transactions=block_info['transactions'])
+    return generate_fail_log(logger, **kwargs)
+
+
+def generate_fail_log_from_raw_block(logger, raw_block):
+    from sbds.utils import block_info
+    info = block_info(raw_block)
+    return generate_fail_log_from_block_info(logger, info)
+
+
+def generate_fail_log_from_obj(logger, obj):
+    try:
+        kwargs = dict(block_num=getattr(obj, 'block_num', None),
+                      transaction_num=getattr(obj, 'transaction_num', None),
+                      operation_num=getattr(obj, 'operation_num', None),
+                      cls=obj.__class__,
+                      object_name=obj.__class__.__name__)
+    except Exception as e:
+        logger.error(e)
+        return generate_fail_log(logger, object=obj)
+    return generate_fail_log(logger, **kwargs)
+
+
+# configure logging
+fmt = ' '.join(make_log_format(supported_keys))
 datefmt = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 
-logger = logging.getLogger()
-for hdlr in logger.handlers:
-    logger.removeHandler(hdlr)
+root_logger = logging.getLogger()
+for hdlr in root_logger.handlers:
+    root_logger.removeHandler(hdlr)
 
 formatter = jsonlogger.JsonFormatter(fmt=fmt, datefmt=datefmt)
 formatter.converter = time.gmtime
 logHandler = logging.StreamHandler()
 logHandler.setFormatter(formatter)
-
-
-# noinspection PyPep8Naming
-def getLogger(name, level=_log_level):
-    logger = logging.getLogger(name)
-    if not logger.hasHandlers():
-        logger.setLevel(level)
-        logger.addHandler(logHandler)
-    return logger
-
-
-def generate_fail_log(**kwargs):
-    logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
-
-
-def generate_fail_log_from_block_info(block_info):
-    kwargs = dict(block_num=block_info['block_num'],
-                  transactions=block_info['transactions'])
-    return generate_fail_log(**kwargs)
-
-
-def generate_fail_log_from_raw_block(raw_block):
-    info = block_info(raw_block)
-    return generate_fail_log_from_block_info(info)
-
-
-def generate_fail_log_from_obj(object):
-    try:
-        kwargs = dict(block_num=getattr(object, 'block_num', None),
-                     transaction_num=getattr(object, 'transaction_num', None),
-                     operation_num=getattr(object, 'operation_num', None),
-                     cls=object.__class__,
-                    object_name=object.__class__.__name__
-                     )
-    except Exception as e:
-        logger.error(e)
-        return generate_fail_log(object=object)
-    return generate_fail_log(**kwargs)

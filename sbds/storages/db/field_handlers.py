@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
-import json
-from itertools import chain
 
 import sbds.logging
 from sbds.utils import build_comment_url
-from sbds.utils import findall_patch_hunks
+from sbds.utils import canonicalize_url
 from sbds.utils import detect_language
 from sbds.utils import ensure_decoded
 from sbds.utils import extract_keys_from_meta
-from sbds.utils import canonicalize_url
-import toolz
+from sbds.utils import findall_patch_hunks
 
 logger = sbds.logging.getLogger(__name__)
-
 
 
 def example_field_handler(value=None, context=None, **kwargs):
@@ -31,14 +27,15 @@ def author_field(context=None, author_name=None, session=None):
                                 created=context.get('timestamp'))
     return account.name
 
+
 # noinspection PyArgumentList
-def images_field(context=None, meta=None, body=None, session=None):
+def images_field(meta=None):
     from sbds.storages.db.tables.synthesized import Image
     default = []
     decoded = ensure_decoded(meta)
     if not decoded:
         return default
-    found_urls = extract_keys_from_meta(decoded, ('image','images'))
+    found_urls = extract_keys_from_meta(decoded, ('image', 'images'))
     images = []
     for url in found_urls:
         canon_url = canonicalize_url(url)
@@ -51,7 +48,7 @@ def images_field(context=None, meta=None, body=None, session=None):
 
 
 # noinspection PyArgumentList
-def links_field(context=None, meta=None, body=None, session=None):
+def links_field(meta=None):
     from sbds.storages.db.tables.synthesized import Link
     default = []
     decoded = ensure_decoded(meta)
@@ -69,7 +66,7 @@ def links_field(context=None, meta=None, body=None, session=None):
     return links
 
 
-def tags_field(context=None, meta=None, body=None, session=None):
+def tags_field(meta=None, session=None):
     from sbds.storages.db.tables.synthesized import Tag
     default = []
     decoded = ensure_decoded(meta)
@@ -112,12 +109,10 @@ def comment_body_field(value):
         return value
 
 
-def url_field(value=None, context=None, **kwargs):
+def url_field(context=None):
     """
 
-    :param value:
     :param context:
-    :param kwargs:
     :return:
     """
     return build_comment_url(context.get('parent_permlink'),
@@ -147,8 +142,8 @@ def comment_parent_id_field(context=None, session=None):
         if not txcomment:
             # this shouldnt happen
             logger.error(
-                'no txcomment found, returning None: block_num:%s transaction_num:%s operation_num:%s',
-                block_num, transaction_num, operation_num)
+                    'no txcomment found, returning None: block_num:%s transaction_num:%s operation_num:%s',
+                    block_num, transaction_num, operation_num)
             return None
     else:
         logger.debug('txcomment retreived from context')
@@ -160,7 +155,8 @@ def comment_parent_id_field(context=None, session=None):
     q = q.filter(TxComment.block_num <= txcomment.block_num)
     q.order_by(-TxComment.timestamp)
     txcomment_parents = q.all()
-    logger.debug('located %s parents of txcomment: %s', len(txcomment_parents), txcomment_parents)
+    logger.debug('located %s parents of txcomment: %s', len(txcomment_parents),
+                 txcomment_parents)
     if not txcomment_parents:
         return None
     else:
@@ -169,10 +165,9 @@ def comment_parent_id_field(context=None, session=None):
     if not txcomment_parent:
         # this should not happen
         logger.error(
-            'no txcomment_parent, returning None: block_num:%s transaction_num:%s operation_num:%s',
-            block_num, transaction_num, operation_num)
+                'no txcomment_parent, returning None: block_num:%s transaction_num:%s operation_num:%s',
+                block_num, transaction_num, operation_num)
         return None
-
 
     # Step 4) find parent Comment from parent txcomment
     from sbds.storages.db.tables.synthesized import PostAndComment
@@ -185,8 +180,9 @@ def comment_parent_id_field(context=None, session=None):
     logger.debug('parent PostAndComment query returned %s',
                  parent_post_and_comment)
     if parent_post_and_comment:
-        logger.debug('parent PostAndComment found, returning parent Comment.id: %s',
-                     parent_post_and_comment.id)
+        logger.debug(
+                'parent PostAndComment found, returning parent Comment.id: %s',
+                parent_post_and_comment.id)
         return parent_post_and_comment.id
     else:
         logger.debug('no PostAndComment parent, returning None')

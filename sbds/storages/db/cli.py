@@ -83,7 +83,7 @@ def bulk_add_blocks(ctx, blocks, chunksize):
     session.execute('SET SESSION innodb_lock_wait_timeout=150')
     try:
         for chunk in chunkify(blocks, chunksize):
-           bulk_add(chunk,session)
+            bulk_add(chunk, session)
     except Exception as e:
         raise e
     finally:

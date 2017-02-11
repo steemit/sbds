@@ -5,13 +5,11 @@ from copy import deepcopy
 from itertools import chain
 
 from sqlalchemy import Column
-from sqlalchemy import Integer
 from sqlalchemy import DateTime
+from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
-from sqlalchemy import Index
-from sqlalchemy.orm import relationship
 
 import sbds.logging
 from sbds.storages.db.tables import Base
@@ -160,12 +158,12 @@ class Block(Base, UniqueMixin):
 
     __tablename__ = 'sbds_core_blocks'
     __table_args__ = (
-        #Index('ix_sbds_core_blocks_raw_fulltext',
+        # Index('ix_sbds_core_blocks_raw_fulltext',
         #      'raw', mysql_prefix='FULLTEXT'),
         {
-        'mysql_engine' : 'InnoDB',
-        'mysql_charset': 'utf8mb4',
-        'mysql_collate': 'utf8mb4_general_ci'
+            'mysql_engine' : 'InnoDB',
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_general_ci'
         },)
 
     raw = Column(UnicodeText)
@@ -176,7 +174,6 @@ class Block(Base, UniqueMixin):
     witness = Column(Unicode(50))
     witness_signature = Column(Unicode(150))
     transaction_merkle_root = Column(Unicode(50))
-
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (
@@ -222,14 +219,15 @@ class Block(Base, UniqueMixin):
             block_nums = [r[0] for r in results]
             low = block_nums[0]
             high = block_nums[-1]
-            correct = set(range(low, high+1))
+            correct = set(range(low, high + 1))
             missing = correct.difference(block_nums)
             yield (low, high, missing)
 
     @classmethod
     def find_missing(cls, session, chunksize=1000):
         all_missing = []
-        for low, high, missing in cls.find_missing_iter(session, chunksize=chunksize):
+        for low, high, missing in cls.find_missing_iter(session,
+                                                        chunksize=chunksize):
             logger.debug('%s-%s: %s', low, high, len(missing))
             if not missing:
                 continue
@@ -238,6 +236,7 @@ class Block(Base, UniqueMixin):
             new_len = len(all_missing)
             logger.debug('extended missing from %s to %s', old_len, new_len)
         return all_missing
+
 
 def from_raw_block(raw_block, session):
     from .tx import TxBase

@@ -41,7 +41,7 @@ bulk_add_checkpoint_blocks() {
 
 bulk_add_steemd_blocks() {
 
-  bulk-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}" --max_workers "${SBDS_MAX_WORKERS:=5}" \
+  bulk-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}" --max_workers "${SBDS_MAX_WORKERS:=1}" \
     | db --database_url "${DATABASE_URL}" bulk-add --chunksize $3  -
 }
 

@@ -118,7 +118,7 @@ def dump_links(text):
             images[label]['lxml'].extend(img.attrib.get('src') for img in dump_tags(tree, 'img'))
             links[label]['lxml'].extend(link.attrib.get('href') for link in dump_tags(tree, 'a'))
         except Exception as e:
-            # logger.info('lmxl %s error' % label)
+            # root_logger.info('lmxl %s error' % label)
             pass
         try:
             tree = soupparser.fromstring(t)

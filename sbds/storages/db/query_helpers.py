@@ -21,9 +21,10 @@ def past_48_hours():
 def past_72_hours():
     return maya.when('72 hours ago').datetime(naive=True)
 
+
 def past_24_to_48_hours():
     return past_24_hours(), past_48_hours()
 
+
 def past_48_to_72_hours():
     return past_48_hours(), past_72_hours()
-

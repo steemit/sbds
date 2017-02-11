@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
 import os
-
-import click
-from sqlalchemy import create_engine
+from datetime import datetime
 
 import bottle
-from bottle import route, run, request, response
-from bottle import HTTPError
+import click
+from bottle import route, run
 from bottle.ext import sqlalchemy
+from sqlalchemy import create_engine
 
-import maya
-
-from sbds.logging import getLogger
 from sbds.http_client import SimpleSteemAPIClient
-
+from sbds.logging import getLogger
 from sbds.storages.db import Base, Session
 from sbds.storages.db.tables.core import Block
 

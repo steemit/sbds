@@ -40,6 +40,7 @@ from sbds.utils import canonicalize_url
 logger = sbds.logging.getLogger(__name__)
 
 
+# noinspection PyMethodParameters
 class SynthBase(UniqueMixin):
     @classmethod
     def unique_hash(cls, *arg, **kw):
@@ -125,8 +126,7 @@ class Account(Base, SynthBase):
     @classmethod
     def from_tx(cls, tx_obj):
         return dict(name=tx_obj.new_account_name,
-                        created=tx_obj.timestamp)
-
+                    created=tx_obj.timestamp)
 
     @classmethod
     def add_missing(cls, sessionmaker):
@@ -134,20 +134,23 @@ class Account(Base, SynthBase):
         session1 = sessionmaker()
         session2 = sessionmaker()
         q = session1.query(TxAccountCreate.new_account_name,
-                           TxAccountCreate.timestamp)\
-            .outerjoin(Account,TxAccountCreate.new_account_name == Account.name)\
+                           TxAccountCreate.timestamp) \
+            .outerjoin(Account,
+                       TxAccountCreate.new_account_name == Account.name) \
             .filter(Account.name.is_(None))
 
         for tx in q.yield_per(1000):
             prepared = cls.from_tx(tx)
-            logger.debug('%s.add_missing: tx: %s prepared:%s', cls.__name__, tx, prepared)
+            logger.debug('%s.add_missing: tx: %s prepared:%s', cls.__name__, tx,
+                         prepared)
             result = cls.as_unique(session2, **prepared)
             logger.debug('%s.add_missing result: %s', cls.__name__, result)
+
 
 class PostAndComment(Base, SynthBase):
     __tablename__ = 'sbds_syn_posts_and_comments'
     __extra_table_args__ = (
-        UniqueConstraint('block_num','transaction_num', 'operation_num',
+        UniqueConstraint('block_num', 'transaction_num', 'operation_num',
                          name='ix_sbds_syn_posts_and_comments_unique_1'),
         Index('ix_sbds_syn_posts_and_comments_body_fulltext',
               'body', mysql_prefix='FULLTEXT'),
@@ -206,16 +209,9 @@ class PostAndComment(Base, SynthBase):
             category=lambda x: x.get('parent_permlink'),
             url=lambda x: url_field(context=x),
             length=lambda x: len(x.get('body')),
-            images=lambda x: images_field(context=x,
-                                          meta=x.get('json_metadata'),
-                                          body=x.get('body'),
-                                          session=x.get('session')),
-            links=lambda x: links_field(context=x,
-                                        meta=x.get('json_metadata'),
-                                        body=x.get('body'),
-                                        session=x.get('session')),
-            tags=lambda x: tags_field(context=x,
-                                      meta=x.get('json_metadata'),
+            images=lambda x: images_field(meta=x.get('json_metadata')),
+            links=lambda x: links_field(meta=x.get('json_metadata')),
+            tags=lambda x: tags_field(meta=x.get('json_metadata'),
                                       session=x.get('session')),
             language=lambda x: language_field(x.get('body')),
             has_patch=lambda x: has_patch_field(x.get('body'))
@@ -226,6 +222,7 @@ class PostAndComment(Base, SynthBase):
     def prepare_from_tx(cls, txcomment, session=None, **kwargs):
         """
         returns fields key value dict
+        :param session:
         :param txcomment: TxComment instance
         :param kwargs:
         :return: dict
@@ -257,6 +254,8 @@ class PostAndComment(Base, SynthBase):
         elif txcomment.is_post:
             obj_cls = Post
             cls_name = 'Post'
+        else:
+            raise ValueError('txcomment must by either post or comment')
         prepared = cls.prepare_from_tx(txcomment, session=session, **kwargs)
         logger.debug('%s.add: tx: %s prepared:%s', cls_name, txcomment,
                      prepared)
@@ -274,12 +273,11 @@ class PostAndComment(Base, SynthBase):
         prepared = cls.prepare_from_tx(txcomment, session=session, **kwargs)
         if txcomment.is_comment:
             obj_cls = Comment
-            cls_name = 'Comment'
         elif txcomment.is_post:
             obj_cls = Post
-            cls_name = 'Post'
+        else:
+            raise ValueError('txcomment must by either post or comment')
         return obj_cls.as_unique(session, **prepared)
-
 
     @classmethod
     def _prepare_for_storage(cls, **kwargs):
@@ -298,7 +296,7 @@ class PostAndComment(Base, SynthBase):
 
     @property
     def bto(self):
-        return (self.block_num, self.transaction_num, self.operation_num)
+        return self.block_num, self.transaction_num, self.operation_num
 
     def __repr__(self):
         return "<%s (id=%s bto=%s author=%s title=%s)>" % (
@@ -321,7 +319,6 @@ class PostAndComment(Base, SynthBase):
                             cls.operation_num == kwargs['operation_num'],
                             )
 
-
     @classmethod
     def find_missing(cls, session):
         from .tx import TxComment
@@ -330,7 +327,7 @@ class PostAndComment(Base, SynthBase):
                         TxComment.block_num == cls.block_num,
                         TxComment.transaction_num == cls.transaction_num,
                         TxComment.operation_num == cls.operation_num)
-                ).filter(cls.block_num.is_(None)).order_by(TxComment.block_num)
+        ).filter(cls.block_num.is_(None)).order_by(TxComment.block_num)
 
     @classmethod
     def find_missing_block_nums(cls, session):
@@ -350,7 +347,6 @@ class PostAndComment(Base, SynthBase):
         missing = cls.find_missing(session)
         cls.add_txs(missing.yield_per(100), sessionmaker)
 
-
     @classmethod
     def add_txs(cls, items, sessionmaker):
         session = sessionmaker()
@@ -361,15 +357,17 @@ class PostAndComment(Base, SynthBase):
             elif tx.is_post:
                 obj_cls = Post
                 cls_name = 'Post'
-
+            else:
+                raise ValueError('txcomment must by either post or comment')
             prepared = cls.prepare_from_tx(tx, session=session)
-            logger.debug('%s.add: tx: %s prepared:%s',cls_name, tx,
+            logger.debug('%s.add: tx: %s prepared:%s', cls_name, tx,
                          prepared)
             if not prepared:
-                logger.warning('skipping prepared with no value from tx: %s', tx)
+                logger.warning('skipping prepared with no value from tx: %s',
+                               tx)
                 continue
+            new_obj = obj_cls(**prepared)
             try:
-                new_obj = obj_cls(**prepared)
                 session.add(new_obj)
                 session.commit()
             except Exception as e:
@@ -389,6 +387,8 @@ class PostAndComment(Base, SynthBase):
             elif tx.is_post:
                 obj_cls = Post
                 cls_name = 'Post'
+            else:
+                raise ValueError('txcomment must by either post or comment')
             prepared = cls.prepare_from_tx(tx, session=session)
             logger.debug('%s.merge: tx: %s prepared:%s', cls_name, tx,
                          prepared)
@@ -402,8 +402,6 @@ class PostAndComment(Base, SynthBase):
                 logger.exception(e)
             else:
                 logger.debug('%s.merge success: %s', cls_name, new_obj)
-
-
 
 
 class Post(PostAndComment):

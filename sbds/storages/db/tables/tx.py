@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 from copy import deepcopy
 
 from sqlalchemy import BigInteger
@@ -10,7 +9,6 @@ from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import SmallInteger
-from sqlalchemy import DateTime
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy.ext.declarative import declared_attr
@@ -23,16 +21,17 @@ from .core import extract_operations_from_block
 from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
-from ..utils import UniqueMixin
 from ..query_helpers import past_24_hours, past_48_hours, past_72_hours
 from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
+from ..utils import UniqueMixin
+
 # from .core import Transaction
 
 
 logger = sbds.logging.getLogger(__name__)
 
 
-
+# noinspection PyMethodParameters
 class TxBase(UniqueMixin):
     @declared_attr
     def __table_args__(cls):
@@ -87,21 +86,22 @@ class TxBase(UniqueMixin):
     def from_raw_block(cls, raw_block):
         operations = list(extract_operations_from_block(raw_block))
         if not operations:
-            #logger.debug('no transactions extracted from block')
+            # root_logger.debug('no transactions extracted from block')
             return []
 
         bn = operations[0].get('block_num', '')
         logger.debug('extracted %s operations from block %s',
-                 len(operations), bn)
+                     len(operations), bn)
         prepared = [cls._prepare_for_storage(data_dict=d) for d in operations]
         objs = []
         for i, prepared_tx in enumerate(prepared):
             op_type = operations[i]['type']
             tx_cls = cls.tx_class_for_type(op_type)
             logger.debug('operation type %s mapped to class %s',
-                     op_type, tx_cls.__name__)
+                         op_type, tx_cls.__name__)
             objs.append(tx_cls(**prepared_tx))
-            logger.debug('instantiated: %s', [o.__class__.__name__ for o in objs])
+            logger.debug('instantiated: %s',
+                         [o.__class__.__name__ for o in objs])
         return objs
 
     @classmethod

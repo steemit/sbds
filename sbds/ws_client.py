@@ -55,6 +55,8 @@ class GrapheneWebsocketRPC(object):
     """
 
     def __init__(self, urls, user="", password="", **kwargs):
+        self.url = next(self.urls)
+        self.ws = websocket.WebSocket()
         self.api_id = {}
         self._request_id = 0
         if isinstance(urls, list):
@@ -95,14 +97,13 @@ class GrapheneWebsocketRPC(object):
         cnt = 0
         while True:
             cnt += 1
-            self.url = next(self.urls)
             log.debug("Trying to connect to node %s" % self.url)
             if self.url[:3] == "wss":
                 sslopt_ca_certs = {'cert_reqs': ssl.CERT_NONE}
                 self.ws = websocket.WebSocket(sslopt=sslopt_ca_certs,
                                               enable_multithread=True)
             else:
-                self.ws = websocket.WebSocket()
+                pass
             try:
                 self.ws.connect(self.url)
                 break
@@ -177,6 +178,7 @@ class GrapheneWebsocketRPC(object):
             # Sleep for one block
             time.sleep(block_interval)
 
+    # noinspection PyPep8Naming
     def stream(self, opName, *args, **kwargs):
         """ Yield specific operations (e.g. transfers) only
 
@@ -229,7 +231,7 @@ class GrapheneWebsocketRPC(object):
             except KeyboardInterrupt:
                 raise
             except:
-                if (-1 < self.num_retries < cnt):
+                if -1 < self.num_retries < cnt:
                     raise NumRetriesReached()
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:

@@ -4,9 +4,10 @@ from itertools import chain
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
 
-import sbds.logging
+from sbds.logging import getLogger
 from sbds.logging import generate_fail_log_from_raw_block
 from sbds.logging import generate_fail_log_from_obj
+
 from .tables import Base
 from .tables import Session
 from .tables.core import from_raw_block
@@ -16,28 +17,31 @@ from .utils import session_scope
 
 metadata = Base.metadata
 
-logger = sbds.logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 def safe_merge_insert(objects, session, load=True):
+    # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
-            for object in objects:
-                session.merge(object, load=load)
+            for obj in objects:
+                s.merge(obj, load=load)
     except:
         return False
     else:
         return True
 
 
-def safe_insert(object, session, log_fail=False):
+def safe_insert(obj, session, log_fail=False):
     with session_scope(session) as s:
-        s.add(object)
-    result =  object_state(object).persistent
+        s.add(obj)
+    result = object_state(obj).persistent
     if not result and log_fail:
-        generate_fail_log_from_obj(object)
+        generate_fail_log_from_obj(logger, obj)
+
 
 def safe_insert_many(objects, session):
+    # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
             s.add_all(objects)
@@ -48,6 +52,7 @@ def safe_insert_many(objects, session):
 
 
 def safe_bulk_save(objects, session):
+    # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
             s.bulk_save_objects(objects)
@@ -57,6 +62,7 @@ def safe_bulk_save(objects, session):
         return False
     else:
         return True
+
 
 def adaptive_insert(objects, session, bulk=False, insert_many=True,
                     merge_insert=True, insert=True):
@@ -92,29 +98,36 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
     # fallback to safe_insert each object
     logger.debug('attempting individual safe_insert')
     if insert:
-        results = [safe_insert(object, session) for object in objects]
+        results = [safe_insert(obj, session) for obj in objects]
         if all(r for r in results):
             logger.debug('individual safe_insert success')
             return True
+        # log failed objects
+        failed = [obj for obj, r in zip(objects, results) if not r]
+        logger.debug(
+            'individual safe_insert results: failed to insert %s of %s objects',
+            len(failed), len(objects))
+        objects = failed
 
     # log failed objects
-    for obj, result in zip(objects, results):
-        if not result:
-            generate_fail_log_from_obj(obj)
+    for obj in objects:
+        generate_fail_log_from_obj(logger, obj)
 
-    logger.debug('adaptive_insert  success')
+    logger.debug('adaptive_insert failed partially or completely')
     return False
 
-def add_block(raw_block, session, info=None):
+
+def add_block(raw_block, session):
     """
     :param raw_block: str
     :param session:
-    :param info: dict
     :return: boolean
     """
     block_obj, txtransactions = from_raw_block(raw_block, session)
     result = adaptive_insert(list([block_obj, *txtransactions]), session,
                              insert=False)
+    return result
+
 
 def filter_existing_blocks(block_objects, session):
     """
@@ -150,8 +163,7 @@ def add_blocks(raw_blocks,
     for raw_block in raw_blocks:
         result = add_block(raw_block, session)
         if not result:
-            generate_fail_log_from_raw_block(raw_block)
-
+            generate_fail_log_from_raw_block(logger, raw_block)
 
 
 def bulk_add(raw_blocks, session):

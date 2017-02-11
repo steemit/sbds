@@ -40,6 +40,7 @@ def s3(ctx, region, access_key_id, secret_access_key, profile):
                    secret_access_key=secret_access_key,
                    profile=profile)
 
+
 @s3.command('create-bucket')
 @click.argument('bucket', type=str)
 @click.pass_context
@@ -136,4 +137,3 @@ def get_top_level_keys(bucket):
     '''
     nums = [int(p['Prefix'][8:].strip('/')) for p in results[0]['CommonPrefixes']]
     '''
-

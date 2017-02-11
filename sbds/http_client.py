@@ -9,6 +9,7 @@ import urllib3
 import certifi
 
 import sbds.utils
+import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -53,12 +54,12 @@ class SimpleSteemAPIClient(object):
         pool_block = kwargs.get('pool_block', True)
         self.http = urllib3.poolmanager.PoolManager(
                 num_pools=50,
-                headers={'Content-Type':'application/json'},
+                headers={'Content-Type': 'application/json'},
                 maxsize=maxsize,
-                block=True,
+                block=pool_block,
                 timeout=timeout,
                 cert_reqs='CERT_REQUIRED',
-                ca_certs = certifi.where()
+                ca_certs=certifi.where()
         )
         '''
         urlopen(method, url, body=None, headers=None, retries=None,
@@ -67,10 +68,10 @@ class SimpleSteemAPIClient(object):
         **response_kw)
         '''
         body = json.dumps({
-            "method": 'get_dynamic_global_properties',
-            "params": [],
+            "method" : 'get_dynamic_global_properties',
+            "params" : [],
             "jsonrpc": "2.0",
-            "id": 0
+            "id"     : 0
         }, ensure_ascii=False).encode('utf8')
 
         self.request = partial(self.http.urlopen, 'POST', url,
@@ -80,19 +81,21 @@ class SimpleSteemAPIClient(object):
 
     def exec(self, name, *args, return_json=True, raise_for_status=True):
         body = json.dumps({
-            "method": name,
-            "params": args,
+            "method" : name,
+            "params" : args,
             "jsonrpc": "2.0",
-            "id": 0
+            "id"     : 0
         }, ensure_ascii=False).encode('utf8')
         extra = dict(appinfo=dict(body=body))
-        logger.debug('rpc request to {}'.format, extra=extra )
+        logger.debug('rpc request to {}'.format, extra=extra)
         response = self.request(body=body)
         extra = dict(body=response.data)
         logger.debug('rpc response: %s' % response.status, extra=extra)
-        if response.status not in tuple([*response.REDIRECT_STATUSES, 200]) and raise_for_status:
+        if response.status not in tuple(
+                [*response.REDIRECT_STATUSES, 200]) and raise_for_status:
             logger.info('non 200 response:%s', response.status)
-            raise RPCConnectionError(response)
+            #raise RPCConnectionError(response)
+            return
         ret = json.loads(response.data.decode('utf-8'))
         if 'error' in ret:
             raise RPCError(ret['error'].get('detail', ret['error']['message']))
@@ -107,16 +110,21 @@ class SimpleSteemAPIClient(object):
             "method": name, "params": [i], "jsonrpc": "2.0", "id": 0
         }, ensure_ascii=False).encode('utf8') for i in params)
         for body in body_gen:
-            yield json.loads(self.request(body=body).data.decode('utf-8'))['result']
+            yield json.loads(self.request(body=body).data.decode('utf-8'))[
+                'result']
 
-    get_dynamic_global_properties = partialmethod(exec, 'get_dynamic_global_properties')
+    get_dynamic_global_properties = partialmethod(exec,
+                                                  'get_dynamic_global_properties')
     get_block = partialmethod(exec, 'get_block')
 
     def last_irreversible_block_num(self):
-        return self.get_dynamic_global_properties()['last_irreversible_block_num']
+        return self.get_dynamic_global_properties()[
+            'last_irreversible_block_num']
 
     def head_block_height(self):
-        return self.get_dynamic_global_properties()['last_irreversible_block_num']
+        return self.get_dynamic_global_properties()[
+            'last_irreversible_block_num']
 
     def block_height(self):
-        return self.get_dynamic_global_properties()['last_irreversible_block_num']
+        return self.get_dynamic_global_properties()[
+            'last_irreversible_block_num']

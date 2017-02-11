@@ -18,12 +18,13 @@ logger = sbds.logging.getLogger(__name__)
 # https://github.com/matiasb/python-unidiff/blob/master/unidiff/constants.py#L37
 # @@ (source offset, length) (target offset, length) @@ (section header)
 RE_HUNK_HEADER = re.compile(
-            r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
-            flags=re.MULTILINE)
+        r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
+        flags=re.MULTILINE)
 
 # ensure deterministec language detection
 DetectorFactory.seed = 0
 MIN_TEXT_LENGTH_FOR_DETECTION = 20
+
 
 # first 4 bytes (8 hex digits) of the block ID represents the block number
 def block_num_from_hash(block_hash: str) -> int:
@@ -132,7 +133,7 @@ def json_metadata_keys(operations):
 
 
 def ensure_decoded(thing):
-    if not thing :
+    if not thing:
         logger.debug('ensure_decoded thing is logically False')
         return None
     if isinstance(thing, (list, dict)):
@@ -160,11 +161,12 @@ def ensure_decoded(thing):
         logger.error('ensure_decoded error', extra=extra)
         return None
 
+
 def findkeys(node, kv):
     if isinstance(node, list):
         for i in node:
             for x in findkeys(i, kv):
-               yield x
+                yield x
     elif isinstance(node, dict):
         if kv in node:
             yield node[kv]
@@ -216,18 +218,19 @@ def canonicalize_url(url, **kwargs):
         logger.warning('url preparation error', extra=dict(url=url, error=e))
         return None
     if canonical_url != url:
-        _log = dict(url=url, canonical_url=canonical_url)
-        logger.info('canonical_url changed %s to %s', url, canonical_url)
+        logger.debug('canonical_url changed %s to %s', url, canonical_url)
     try:
         parsed_url = urlparse(canonical_url)
         if not parsed_url.scheme and not parsed_url.netloc:
-            _log = dict(url=url, canonical_url=canonical_url, parsed_url=parsed_url)
+            _log = dict(url=url, canonical_url=canonical_url,
+                        parsed_url=parsed_url)
             logger.warning('bad url encountered', extra=_log)
             return None
     except Exception as e:
         logger.warning('url parse error', extra=dict(url=url, error=e))
         return None
     return canonical_url
+
 
 def findall_patch_hunks(body=None):
     return RE_HUNK_HEADER.findall(body)
