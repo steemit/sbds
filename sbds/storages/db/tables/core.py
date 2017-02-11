@@ -10,6 +10,7 @@ from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
+import maya
 
 import sbds.logging
 from sbds.storages.db.tables import Base
@@ -264,6 +265,9 @@ def prepare_raw_block(raw_block):
     if 'block_num' not in block_dict:
         block_num = block_num_from_previous(block_dict['previous'])
         block_dict['block_num'] = block_num
+    if isinstance(block_dict.get('timestamp'), str):
+        timestamp = maya.dateparser.parse(block_dict['timestamp'])
+        block_dict['timestamp'] = timestamp
     return block_dict
 
 

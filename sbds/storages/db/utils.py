@@ -30,7 +30,7 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, arg, kw):
                 obj = constructor(*arg, **kw)
 
                 # prevent race condition by using savepoint (begin_nested)
-                session.begin_nested()
+                session.begin(subtransactions=True)
                 logger.debug('_unique beginning nested transaction')
                 try:
                     logger.debug('_unique while in nested transaction: attempting to create %s', obj)
