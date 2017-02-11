@@ -53,10 +53,16 @@ def db(ctx, database_url):
 def test(ctx):
     """Test connection to database"""
     engine = ctx.obj['engine']
-    result = engine.execute('SHOW TABLES').fetchall()
+    metadata = ctx.obj['metadata']
+    Session = ctx.obj['Session']
+    metadata.create_all(bind=engine, checkfirst=True)
+
+    from sqlalchemy import MetaData
+    _metadata = MetaData()
+    _metadata.reflect(bind=engine)
     click.echo(
             'Success! Connected to database and found %s tables' % (
-                len(result)))
+                len(_metadata.tables)))
 
 
 @db.command(name='insert-blocks')
@@ -65,6 +71,8 @@ def test(ctx):
 def insert_blocks(ctx, blocks):
     """Insert blocks in the database, accepts "-" for STDIN (default)"""
     engine = ctx.obj['engine']
+    metadata = ctx.obj['metadata']
+    metadata.create_all(bind=engine, checkfirst=True)
     Session.configure(bind=engine)
     session = Session()
     add_blocks(blocks, session)
