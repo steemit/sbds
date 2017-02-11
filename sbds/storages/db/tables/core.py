@@ -4,13 +4,13 @@ from copy import copy
 from copy import deepcopy
 from itertools import chain
 
+import maya
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
-import maya
 
 import sbds.logging
 from sbds.storages.db.tables import Base

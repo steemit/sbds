@@ -5,10 +5,9 @@ from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
 
-import urllib3
 import certifi
+import urllib3
 
-import sbds.utils
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)

@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 import maya
 
-from sqlalchemy.sql import func
-
-import sbds.logging
-
 
 def hours_ago(hours):
     return maya.when('%s hours ago' % hours).datetime(naive=True)

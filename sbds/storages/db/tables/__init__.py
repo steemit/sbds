@@ -3,9 +3,6 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-import sbds.logging
-
-logger = sbds.logging.getLogger(__name__)
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
@@ -41,3 +38,35 @@ from .tx import TxWithdraw
 from .tx import TxWitnessUpdate
 
 import sbds.storages.db.events
+
+
+def init_tables(engine, metadata, checkfirst=True):
+    """Create any missing tables on the database"""
+    metadata.create_all(bind=engine, checkfirst=checkfirst)
+
+
+def reset_tables(engine, metadata):
+    """Drop and then create tables on the database"""
+
+    # use unadulterated MetaData to avoid errors due to ORM classes
+    # being inconsistent with existing tables
+    from sqlalchemy import MetaData
+    _metadata = MetaData()
+    _metadata.reflect(bind=engine)
+    _metadata.drop_all(bind=engine)
+
+    # use ORM clases to define tables to create
+    init_tables(engine, metadata)
+
+def test_connection(engine):
+    from sqlalchemy import MetaData
+    _metadata = MetaData()
+
+    try:
+        _metadata.reflect(bind=engine)
+        table_count = len(_metadata.tables)
+        url = engine.url
+        return url, table_count
+    except Exception as e:
+        return False, e
+

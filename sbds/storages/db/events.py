@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import event
-from sqlalchemy.orm.session import object_session
 
 import sbds.logging
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables.synthesized import Account
-from sbds.storages.db.tables.synthesized import Comment
-from sbds.storages.db.tables.synthesized import Post
 from sbds.storages.db.tables.synthesized import PostAndComment
 from sbds.storages.db.tables.tx import TxAccountCreate
 from sbds.storages.db.tables.tx import TxComment
-from sbds.storages.db.tables.tx import TxVote
 from .utils import session_scope
 
 logger = sbds.logging.getLogger(__name__)

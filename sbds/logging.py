@@ -1,7 +1,7 @@
 # coding=utf-8
 import logging
-import time
 import os
+import time
 
 from pythonjsonlogger import jsonlogger
 

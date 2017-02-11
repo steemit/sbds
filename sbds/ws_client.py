@@ -1,10 +1,11 @@
 # coding=utf-8
-import websocket
-import ssl
 import json
+import logging
+import ssl
 import time
 from itertools import cycle
-import logging
+
+import websocket
 
 log = logging.getLogger(__name__)
 

@@ -1,56 +1,43 @@
 # -*- coding: utf-8 -*-
-import datetime
-import json
-from datetime import timezone
 
-utcnow = lambda: datetime.datetime.now(timezone.utc)
+import json
+
+
+
 import boto3
 import click
 
 import sbds.logging
+from sbds.utils import block_num_from_previous
+
 
 logger = sbds.logging.getLogger(__name__)
 
-s3_resource = boto3.resource('s3')
-client = boto3.client('s3')
+
 
 
 @click.group(name='s3')
-@click.option('--region',
-              help='AWS region',
-              envvar='AWS_DEFAULT_REGION',
-              default='us-east-1')
-@click.option('--access_key_id',
-              help='AWS access key ID',
-              envvar='AWS_ACCESS_KEY_ID')
-@click.option('--secret_access_key',
-              help='AWS secret access key',
-              envvar='AWS_SECRET_ACCESS_KEY')
-@click.option('--profile',
-              help='AWS profile',
-              envvar='AWS_PROFILE')
+@click.argument('bucket', type=click.STRING)
 @click.pass_context
-def s3(ctx, region, access_key_id, secret_access_key, profile):
-    """This command provides AWS S3 steem block storage.
-    It offers several subcommands.
-
-    """
-    ctx.obj = dict(region=region,
-                   access_key_id=access_key_id,
-                   secret_access_key=secret_access_key,
-                   profile=profile)
+def s3(ctx, bucket):
+    """This command provides AWS S3 block storage."""
+    ctx.obj = dict(bucket=bucket,
+                   s3_resource=boto3.resource('s3'),
+                   s3_client=boto3.client('s3'),
+                   region='us-east-1')
 
 
 @s3.command('create-bucket')
-@click.argument('bucket', type=str)
 @click.pass_context
-def create_bucket(ctx, bucket):
+def create_bucket(ctx):
     region = ctx.obj['region']
-    s3.create_bucket(Bucket=bucket,
+    bucket = ctx.obj['bucket']
+    s3_client = ctx.obj['s3_client']
+    s3_client.create_bucket(Bucket=bucket,
                      CreateBucketConfiguration={'LocationConstraint': region})
 
 
-def put_json_block(block, bucket):
+def put_json_block(s3_resource, block, bucket):
     blocknum = str(block['block_num'])
     key = '/'.join([blocknum, 'block.json'])
     data = bytes(json.dumps(block), 'utf8')
@@ -60,75 +47,15 @@ def put_json_block(block, bucket):
     return block, bucket, blocknum, key, result
 
 
-@s3.command(name='put-json-blocks')
-@click.argument('bucket', type=str)
+@s3.command(name='put-blocks')
+
 @click.argument('blocks', type=click.File('r'))
-def put_json_blocks(blocks, bucket):
-    start = utcnow()
-    start_str = start.isoformat()
-    elapsed = None
-    logdata = {
-        'blocks' : {
-            'attempt': {
-                'count': 0,
-                'last' : {
-                    'blocknum': None,
-                    'time'    : None
-                }
-            },
-            'success': {
-                'count': 0,
-                'last' : {
-                    'blocknum': None,
-                    'time'    : None
-                }
-            },
-            'fail'   : {
-                'count': 0,
-                'last' : {
-                    'blocknum': None,
-                    'time'    : None
-                }
-            }
-
-        },
-        'last'   : {
-            'blocknum': None,
-            'result'  : None
-        },
-        'start'  : start_str,
-        'elapsed': 0
-    }
+@click.pass_context
+def put_json_blocks(ctx, blocks, bucket):
     for block in blocks:
-        now = utcnow()
-        now_str = now.isoformat()
-        logdata['blocks']['attempt']['count'] += 1
-        logdata['blocks']['attempt']['last']['time'] = now_str
-        elapsed = now - start
-        logdata['elapsed'] = str(elapsed)
-        try:
-            block = json.loads(block)
-            res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(
-                    block, bucket)
-            res_blocknum = int(res_blocknum)
-            logdata['blocks']['attempt']['last']['blocknum'] = res_blocknum
-            logdata['blocks']['attempt']['last']['key'] = res_key
-            logdata['blocks']['success']['count'] += 1
-            logdata['blocks']['success']['last']['blocknum'] = res_blocknum
-            logdata['blocks']['success']['last']['time'] = now_str
-            logdata['blocks']['success']['last']['key'] = res_key
-            logdata['last']['blocknum'] = res_blocknum
-            logdata['last']['result'] = 'success'
-            logdata['last']['key'] = res_key
-        except Exception as e:
-            logdata['blocks']['fail']['count'] += 1
-            logdata['blocks']['fail']['last']['time'] = now_str
-            logdata['last']['blocknum'] = None
-            logdata['last']['result'] = 'fail'
-            logger.error('Error {} with block {}'.format(e, block))
+        block = json.loads(block)
+        res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(block, bucket)
 
-        if logdata['blocks']['attempt']['count'] % 10 == 0:
-            logger.info('appinfo', extra=dict(appinfo=logdata))
 
 
 def get_top_level_keys(bucket):

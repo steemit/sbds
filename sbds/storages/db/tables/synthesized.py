@@ -6,18 +6,18 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import ForeignKeyConstraint
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Index
 from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import Table
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import UniqueConstraint
+from sqlalchemy import and_
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
-from sqlalchemy import Index
-from sqlalchemy import and_
 from sqlalchemy.orm.session import object_session
 
 import sbds.logging
@@ -26,13 +26,12 @@ from sbds.storages.db.enums import extraction_source_enum
 from sbds.storages.db.field_handlers import author_field
 from sbds.storages.db.field_handlers import comment_body_field
 from sbds.storages.db.field_handlers import comment_parent_id_field
+from sbds.storages.db.field_handlers import has_patch_field
 from sbds.storages.db.field_handlers import images_field
+from sbds.storages.db.field_handlers import language_field
 from sbds.storages.db.field_handlers import links_field
 from sbds.storages.db.field_handlers import tags_field
 from sbds.storages.db.field_handlers import url_field
-from sbds.storages.db.field_handlers import language_field
-from sbds.storages.db.field_handlers import has_patch_field
-
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import canonicalize_url

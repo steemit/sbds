@@ -4,10 +4,9 @@ from itertools import chain
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
 
-from sbds.logging import getLogger
-from sbds.logging import generate_fail_log_from_raw_block
 from sbds.logging import generate_fail_log_from_obj
-
+from sbds.logging import generate_fail_log_from_raw_block
+from sbds.logging import getLogger
 from .tables import Base
 from .tables import Session
 from .tables.core import from_raw_block

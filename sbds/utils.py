@@ -3,13 +3,14 @@ import datetime
 import json
 import math
 import os
+import re
 from collections import defaultdict
 from urllib.parse import urlparse
-import re
+from copy import deepcopy
 
 import langdetect
-from langdetect import DetectorFactory
 import w3lib.url
+from langdetect import DetectorFactory
 
 import sbds.logging
 
@@ -33,6 +34,31 @@ def block_num_from_hash(block_hash: str) -> int:
 
 def block_num_from_previous(previous_block_hash: str) -> int:
     return block_num_from_hash(previous_block_hash) + 1
+
+
+def prepare_raw_block(raw_block):
+    block_dict = dict()
+    if isinstance(raw_block, dict):
+        block = deepcopy(raw_block)
+        block_dict.update(**block)
+        block_dict['raw'] = json.dumps(block, ensure_ascii=True)
+    elif isinstance(raw_block, str):
+        block_dict.update(**json.loads(raw_block))
+        block_dict['raw'] = copy(raw_block)
+    elif isinstance(raw_block, bytes):
+        block = deepcopy(raw_block)
+        raw = block.decode('utf8')
+        block_dict.update(**json.loads(raw))
+        block_dict['raw'] = copy(raw)
+    else:
+        raise TypeError('Unsupported raw block type')
+    if 'block_num' not in block_dict:
+        block_num = block_num_from_previous(block_dict['previous'])
+        block_dict['block_num'] = block_num
+    if isinstance(block_dict.get('timestamp'), str):
+        timestamp = maya.dateparser.parse(block_dict['timestamp'])
+        block_dict['timestamp'] = timestamp
+    return block_dict
 
 
 def percentile(n, percent, key=lambda x: x):
