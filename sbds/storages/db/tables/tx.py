@@ -126,7 +126,7 @@ class TxBase(UniqueMixin):
         q = query.filter(cls.timestamp >= _from)
         if to:
             q = q.filter(cls.timestamp <= to)
-        return q
+        return _from, to, q
 
     @classmethod
     def past_24(cls, session):

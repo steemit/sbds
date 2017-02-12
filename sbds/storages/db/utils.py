@@ -2,6 +2,8 @@
 from contextlib import contextmanager
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.engine.url import make_url
+from sqlalchemy import create_engine
 
 import sbds.logging
 
@@ -251,3 +253,34 @@ def session_scope(session=None,
         if not session.is_active:
             logger.debug('second session.rollback required')
             session.rollback()
+
+
+def configure_engine(database_url, **kwargs):
+    if kwargs:
+        base_engine_kwargs = kwargs
+    else:
+        base_engine_kwargs = dict()
+
+    url = make_url(database_url)
+    logger.debug('configuring engine using %s', url)
+    backend = url.get_backend_name()
+
+    if backend == 'sqlite':
+        logger.debug('configuring sqlite backend')
+        engine_kwargs = base_engine_kwargs
+    if backend == 'mysql':
+        logger.debug('configuring mysql backend')
+        if 'charset' not in url.query:
+            logger.debug('adding `charset=utf8mb4` to mysql engine config')
+            url.query.update(charset='utf8mb4')
+
+        engine_kwargs = base_engine_kwargs
+        engine_kwargs.update(server_side_cursors=True, encoding='utf8')
+    else:
+        logger.debug('configuring %s backend', backend)
+        engine_kwargs = base_engine_kwargs
+    logger.debug('engine_kwargs: %s', engine_kwargs)
+
+    engine = create_engine(url, **engine_kwargs)
+
+    return database_url, url, engine_kwargs, engine

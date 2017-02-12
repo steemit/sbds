@@ -7,7 +7,7 @@ setup(
     version='0.1',
     packages=find_packages(),
     setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
+    tests_require=['pytest', 'pep8', 'pytest-pep8', 'yapf'],
     install_requires=[
         'Click',
         'steem-piston==0.4.1',
@@ -26,8 +26,7 @@ setup(
         'toolz',
         'w3lib',
         'langdetect',
-        'lxml',
-        'markdown'
+        'yapf'
     ],
     scripts=['sbds/storages/db/scripts/populate.sh',
              'sbds/storages/db/scripts/stream.sh'],

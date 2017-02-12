@@ -1,3 +1,10 @@
 #!/bin/bash
 
-exec setuidgid nobody dev-server
+
+exec setuidgid nobody uwsgi \
+ --master \
+ --http :"${HTTP_SERVER_PORT}" \
+ --wsgi-file "${WSGI_APP}" \
+ --processes "${HTTP_SERVER_PROCESSES}" \
+ --threads "${HTTP_SERVER_THREADS}" \
+ --stats 127.0.0.1:"${HTTP_SERVER_STATS_PORT}"
