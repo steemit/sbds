@@ -276,7 +276,7 @@ def configure_engine(database_url, **kwargs):
         base_engine_kwargs = dict()
 
     url = make_url(database_url)
-    logger.debug('configuring engine using %s', url)
+    logger.debug('configuring engine using %s', url.__repr__())
     backend = url.get_backend_name()
 
     if backend == 'sqlite':
