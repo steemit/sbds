@@ -65,7 +65,7 @@ def test(ctx):
     if result[0]:
         click.echo(
         'Success! Connected using %s, found %s tables' %
-            (result[0], result[1]))
+            (result[0].__repr__(), result[1]))
     else:
         click.echo('Failed to connect: %s', result[1])
         click.exit(code=127)
