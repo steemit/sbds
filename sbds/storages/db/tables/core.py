@@ -211,7 +211,9 @@ class Block(Base, UniqueMixin):
 
     @classmethod
     def highest_block(cls, session):
-        return session.query(func.max(cls.block_num)).scalar()
+        highest = session.query(func.max(cls.block_num)).scalar()
+        if not highest:
+            return 0
 
     @classmethod
     def find_missing_iter(cls, session, chunksize=1000):

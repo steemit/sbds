@@ -3,14 +3,14 @@
 import json
 
 import click
-from sqlalchemy.engine.url import make_url
-from sqlalchemy import create_engine
+
 
 import sbds.logging
 from sbds.storages.db import Base
 from sbds.storages.db import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
+from sbds.storages.db.utils import configure_engine
 
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
@@ -43,20 +43,8 @@ def db(ctx, database_url, echo):
 
     """
 
-    base_engine_kwargs = dict(echo=echo)
-    url = make_url(database_url)
-    backend = url.get_backend_name()
-    if backend == 'sqlite':
-        engine_kwargs = base_engine_kwargs
-    if backend == 'mysql':
-        if 'charset' not in url.query:
-            url.query.update(charset='utf8mb4')
-        engine_kwargs = base_engine_kwargs.update(server_side_cursors=True,
-                                                  encoding='utf8')
-    else:
-        engine_kwargs = base_engine_kwargs
-
-    engine = create_engine(url, **engine_kwargs)
+    database_url, url, engine_kwargs, engine = configure_engine(database_url,
+                                                                echo=echo)
 
     ctx.obj = dict(database_url=database_url,
                    url=url,

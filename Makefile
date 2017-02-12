@@ -4,7 +4,7 @@ default: build
 
 .PHONY: test run
 
-build: test
+build: pep8
 	docker build -t steemit/sbds .
 
 run:
@@ -13,4 +13,12 @@ run:
 test:
 	python setup.py test
 
+pep8-test:
+	py.test --pep8 -m pep8
+
+fmt:
+	yapf --recursive .
+
+pep8:
+	pep8 .
 
