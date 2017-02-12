@@ -4,7 +4,6 @@ from collections import namedtuple
 import sbds.logging
 
 logger = sbds.logging.getLogger(__name__)
-
 '''
 block
 =====
@@ -19,13 +18,10 @@ block
 }
 '''
 
-Block = namedtuple('Block', ['previous',
-                             'timestamp',
-                             'witness',
-                             'transaction_merkle_root',
-                             'extentions',
-                             'witness_signature',
-                             'transactions'])
+Block = namedtuple('Block', [
+    'previous', 'timestamp', 'witness', 'transaction_merkle_root',
+    'extentions', 'witness_signature', 'transactions'
+])
 
 
 class AbstractStorageContainer(object):
@@ -90,57 +86,3 @@ transaction
     "ref_block_prefix": 4197255167
 }
 '''
-
-Transaction = namedtuple('Transaction', ['expiration',
-                                         'extensions',
-                                         'operations',
-                                         'signatures',
-                                         'ref_block_num',
-                                         'ref_block_prefix'])
-
-used_operation_types = frozenset([
-    'account_create',
-    'account_update',
-    'account_witness_proxy',
-    'account_witness_vote',
-    'cancel_transfer_from_savings',
-    'change_recovery_account',
-    'comment',
-    'comment_options',
-    'convert',
-    'custom',
-    'custom_json',
-    'delete_comment',
-    'feed_publish',
-    'limit_order_cancel',
-    'limit_order_create',
-    'pow',
-    'pow2',
-    'recover_account',
-    'request_account_recovery',
-    'set_withdraw_vesting_route',
-    'transfer',
-    'transfer_from_savings',
-    'transfer_to_savings',
-    'transfer_to_vesting',
-    'vote',
-    'withdraw_vesting',
-    'witness_update'
-])
-
-unused_operation_types = frozenset([
-    'challenge_authority',
-    'custom_binary_operation',
-    'decline_voting_rights_operation',
-    'escrow_approve',
-    'escrow_dispute',
-    'escrow_release',
-    'escrow_transfer',
-    'limit_order_create2',
-    'prove_authority',
-    'report_over_production',
-    'reset_account_operation',
-    'set_reset_account_operation'
-])
-
-operation_types = used_operation_types.union(unused_operation_types)

@@ -16,8 +16,12 @@ logger = sbds.logging.getLogger(__name__)
 
 
 @click.group()
-@click.option('--elasticsearch_url', type=click.STRING, envvar='ELASTICSEARCH_URL',
-              help='Elastic connection URL, read from "ELASTICSEARCH_URL" ENV var by default')
+@click.option(
+    '--elasticsearch_url',
+    type=click.STRING,
+    envvar='ELASTICSEARCH_URL',
+    help='Elastic connection URL, read from "ELASTICSEARCH_URL" ENV var by default'
+)
 @click.option('--index', type=click.STRING, default='blocks')
 @click.pass_context
 def es(ctx, elasticsearch_url, index):
@@ -36,11 +40,12 @@ def es(ctx, elasticsearch_url, index):
         db --elasticsearch_url 'http[s]://user:password@host/index[?key=value..]' tests
 
     """
-    esd = connections.create_connection(hosts=[elasticsearch_url],
-                                        port=443,
-                                        use_ssl=True,
-                                        verify_certs=True,
-                                        ca_certs=certifi.where(), )
+    esd = connections.create_connection(
+        hosts=[elasticsearch_url],
+        port=443,
+        use_ssl=True,
+        verify_certs=True,
+        ca_certs=certifi.where(), )
     ctx.obj = dict(esd=esd, index=index, elasticsearch_url=elasticsearch_url)
 
 
@@ -84,7 +89,8 @@ def init_es(ctx):
 
 
 @es.command(name='reset')
-@click.confirmation_option(prompt='Are you sure you want to drop and then create the index?')
+@click.confirmation_option(
+    prompt='Are you sure you want to drop and then create the index?')
 @click.pass_context
 def reset_es(ctx):
     """Drop and then create the index and mappings"""
@@ -104,25 +110,32 @@ def reset_es(ctx):
 
 @es.command(name='insert-bulk-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
-@click.option('--raise-on-error/--no-raise-on-error', is_flag=True, default=True)
-@click.option('--raise-on-exception/--no-raise-on-exception', is_flag=True, default=True)
+@click.option(
+    '--raise-on-error/--no-raise-on-error', is_flag=True, default=True)
+@click.option(
+    '--raise-on-exception/--no-raise-on-exception', is_flag=True, default=True)
 @click.pass_context
 def insert_bulk_blocks(ctx, blocks, raise_on_error, raise_on_exception):
     """Insert or update blocks in the index, accepts "-" for STDIN (default)"""
-    es = elasticsearch.Elasticsearch(hosts=[ctx.obj['elasticsearch_url']],
-                                     port=443,
-                                     use_ssl=True,
-                                     verify_certs=True,
-                                     ca_certs=certifi.where(),
-                                     maxsize=10,
-                                     block=True,
-                                     timeout=10
-                                     )
+    es = elasticsearch.Elasticsearch(
+        hosts=[ctx.obj['elasticsearch_url']],
+        port=443,
+        use_ssl=True,
+        verify_certs=True,
+        ca_certs=certifi.where(),
+        maxsize=10,
+        block=True,
+        timeout=10)
 
-    actions = chain.from_iterable(map(extract_bulk_operation_from_block, blocks))
-    results = streaming_bulk(es, chunk_size=2000, max_chunk_bytes=10485760, actions=actions,
-                             raise_on_error=raise_on_error,
-                             raise_on_exception=raise_on_exception)
+    actions = chain.from_iterable(
+        map(extract_bulk_operation_from_block, blocks))
+    results = streaming_bulk(
+        es,
+        chunk_size=2000,
+        max_chunk_bytes=10485760,
+        actions=actions,
+        raise_on_error=raise_on_error,
+        raise_on_exception=raise_on_exception)
 
     for status, details in results:
         if status is False:

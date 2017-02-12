@@ -3,7 +3,6 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
@@ -58,6 +57,7 @@ def reset_tables(engine, metadata):
     # use ORM clases to define tables to create
     init_tables(engine, metadata)
 
+
 def test_connection(engine):
     from sqlalchemy import MetaData
     _metadata = MetaData()
@@ -69,4 +69,3 @@ def test_connection(engine):
         return url, table_count
     except Exception as e:
         return False, e
-

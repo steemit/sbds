@@ -37,7 +37,9 @@ CheckpointFile = namedtuple('CheckpointFile',
                              'filename_regex_pattern',
                              'blocks_per_checkpoint',
                              'available_block_space',
-                             'min_left_pad'])
+                             'min_left_pad'
+                             ]
+                            )
 
 CheckpointSet = namedtuple('CheckpointSet',
                            ['checkpoints',

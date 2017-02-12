@@ -67,10 +67,7 @@ class GrapheneWebsocketRPC(object):
         self.user = user
         self.password = password
         self.num_retries = kwargs.get("num_retries", -1)
-        self.apis = kwargs.pop(
-                "apis",
-                ["database", "network_broadcast"]
-        )
+        self.apis = kwargs.pop("apis", ["database", "network_broadcast"])
         self.wsconnect()
         self.register_apis()
 
@@ -81,7 +78,8 @@ class GrapheneWebsocketRPC(object):
     def register_apis(self):
         for api in self.apis:
             api = api.replace("_api", "")
-            self.api_id[api] = self.exec('get_api_by_name', "%s_api" % api, api_id=1)
+            self.api_id[api] = self.exec(
+                'get_api_by_name', "%s_api" % api, api_id=1)
             if not self.api_id[api] and not isinstance(self.api_id[api], int):
                 raise NoAccessApi("No permission to access %s API. " % api)
 
@@ -101,8 +99,8 @@ class GrapheneWebsocketRPC(object):
             log.debug("Trying to connect to node %s" % self.url)
             if self.url[:3] == "wss":
                 sslopt_ca_certs = {'cert_reqs': ssl.CERT_NONE}
-                self.ws = websocket.WebSocket(sslopt=sslopt_ca_certs,
-                                              enable_multithread=True)
+                self.ws = websocket.WebSocket(
+                    sslopt=sslopt_ca_certs, enable_multithread=True)
             else:
                 pass
             try:
@@ -117,10 +115,9 @@ class GrapheneWebsocketRPC(object):
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:
                     log.warning(
-                            "Lost connection to node during wsconnect(): %s (%d/%d) "
-                            % (self.url, cnt, self.num_retries) +
-                            "Retrying in %d seconds" % sleeptime
-                    )
+                        "Lost connection to node during wsconnect(): %s (%d/%d) "
+                        % (self.url, cnt, self.num_retries
+                           ) + "Retrying in %d seconds" % sleeptime)
                     time.sleep(sleeptime)
         self.exec('login', self.user, self.password, api_id=1)
 
@@ -147,9 +144,7 @@ class GrapheneWebsocketRPC(object):
             elif mode == "irreversible":
                 start = props['last_irreversible_block_num']
             else:
-                raise ValueError(
-                        '"mode" has to be "head" or "irreversible"'
-                )
+                raise ValueError('"mode" has to be "head" or "irreversible"')
 
         # We are going to loop indefinitely
         while True:
@@ -164,9 +159,7 @@ class GrapheneWebsocketRPC(object):
             elif mode == "irreversible":
                 head_block = props['last_irreversible_block_num']
             else:
-                raise ValueError(
-                        '"mode" has to be "head" or "irreversible"'
-                )
+                raise ValueError('"mode" has to be "head" or "irreversible"')
 
             # Blocks from start until head block
             for blocknum in range(start, head_block + 1):
@@ -226,7 +219,8 @@ class GrapheneWebsocketRPC(object):
             cnt += 1
 
             try:
-                self.ws.send(json.dumps(payload, ensure_ascii=False).encode('utf8'))
+                self.ws.send(
+                    json.dumps(payload, ensure_ascii=False).encode('utf8'))
                 reply = self.ws.recv()
                 break
             except KeyboardInterrupt:
@@ -237,10 +231,9 @@ class GrapheneWebsocketRPC(object):
                 sleeptime = (cnt - 1) * 2 if cnt < 10 else 10
                 if sleeptime:
                     log.warning(
-                            "Lost connection to node during rpcexec(): %s (%d/%d) "
-                            % (self.url, cnt, self.num_retries) +
-                            "Retrying in %d seconds" % sleeptime
-                    )
+                        "Lost connection to node during rpcexec(): %s (%d/%d) "
+                        % (self.url, cnt, self.num_retries
+                           ) + "Retrying in %d seconds" % sleeptime)
                     time.sleep(sleeptime)
 
                 # retry
@@ -276,11 +269,9 @@ class GrapheneWebsocketRPC(object):
                         self.api_id[kwargs["api"]]):
                     api_id = self.api_id[kwargs["api"]]
                 else:
-                    raise ValueError(
-                            "Unknown API! "
-                            "Verify that you have registered to %s"
-                            % kwargs["api"]
-                    )
+                    raise ValueError("Unknown API! "
+                                     "Verify that you have registered to %s" %
+                                     kwargs["api"])
             else:
                 api_id = 0
         else:
@@ -329,21 +320,15 @@ class SimpleSteemWSAPI(GrapheneWebsocketRPC):
     call_id = 0
     api_id = {}
 
-    def __init__(self,
-                 urls,
-                 user="",
-                 password="",
-                 **kwargs):
-        self.apis = kwargs.pop(
-                "apis",
-                ["database", "network_broadcast"]
-        )
+    def __init__(self, urls, user="", password="", **kwargs):
+        self.apis = kwargs.pop("apis", ["database", "network_broadcast"])
         super(SimpleSteemWSAPI, self).__init__(urls, user, password, **kwargs)
 
     def register_apis(self):
         for api in self.apis:
             api = api.replace("_api", "")
-            self.api_id[api] = self.exec('get_api_by_name', "%s_api" % api, api_id=1)
+            self.api_id[api] = self.exec(
+                'get_api_by_name', "%s_api" % api, api_id=1)
             if not self.api_id[api] and not isinstance(self.api_id[api], int):
                 raise NoAccessApi("No permission to access %s API. " % api)
 

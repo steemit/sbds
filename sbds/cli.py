@@ -31,25 +31,29 @@ def parse_block_nums(ctx, param, value):
 
 
 @click.command()
-@click.option('--server',
-              metavar='WEBSOCKET_URL',
-              envvar='WEBSOCKET_URL',
-              help='Steemd server URL',
-              default='wss://steemd.steemitdev.com:443')
-@click.option('--block_nums',
-              type=click.File('r'),
-              required=False,
-              callback=parse_block_nums)
-@click.option('--start',
-              help='Starting block_num, default is 1',
-              default=1,
-              envvar='STARTING_BLOCK_NUM',
-              type=click.IntRange(min=1))
-@click.option('--end',
-              help='Ending block_num, default is infinity',
-              metavar="INTEGER BLOCK_NUM",
-              type=click.IntRange(min=0),
-              default=None)
+@click.option(
+    '--server',
+    metavar='WEBSOCKET_URL',
+    envvar='WEBSOCKET_URL',
+    help='Steemd server URL',
+    default='wss://steemd.steemitdev.com:443')
+@click.option(
+    '--block_nums',
+    type=click.File('r'),
+    required=False,
+    callback=parse_block_nums)
+@click.option(
+    '--start',
+    help='Starting block_num, default is 1',
+    default=1,
+    envvar='STARTING_BLOCK_NUM',
+    type=click.IntRange(min=1))
+@click.option(
+    '--end',
+    help='Ending block_num, default is infinity',
+    metavar="INTEGER BLOCK_NUM",
+    type=click.IntRange(min=0),
+    default=None)
 def cli(server, block_nums, start, end):
     """Output blocks from steemd in JSON format.
 
@@ -90,10 +94,11 @@ def cli(server, block_nums, start, end):
 
 
 @click.command()
-@click.option('--url',
-              metavar='STEEMD_HTTP_URL',
-              envvar='STEEMD_HTTP_URL',
-              help='Steemd HTTP server URL')
+@click.option(
+    '--url',
+    metavar='STEEMD_HTTP_URL',
+    envvar='STEEMD_HTTP_URL',
+    help='Steemd HTTP server URL')
 def block_height(url):
     rpc = SimpleSteemAPIClient(url)
     click.echo(rpc.last_irreversible_block_num())
@@ -114,10 +119,11 @@ def get_blocks(rpc, block_nums):
 @click.option('--end', type=click.INT, default=0)
 @click.option('--chunksize', type=click.INT, default=100)
 @click.option('--max_workers', type=click.INT, default=None)
-@click.option('--url',
-              metavar='STEEMD_HTTP_URL',
-              envvar='STEEMD_HTTP_URL',
-              help='Steemd HTTP server URL')
+@click.option(
+    '--url',
+    metavar='STEEMD_HTTP_URL',
+    envvar='STEEMD_HTTP_URL',
+    help='Steemd HTTP server URL')
 def bulk_blocks(start, end, chunksize, max_workers, url):
     """Quickly request blocks from steemd"""
 
@@ -126,17 +132,31 @@ def bulk_blocks(start, end, chunksize, max_workers, url):
         end = rpc.last_irreversible_block_num()
 
     with click.open_file('-', 'w', encoding='utf8') as f:
-        blocks = get_blocks_fast(start=start, end=end, chunksize=chunksize,
-                                 max_workers=max_workers, rpc=rpc, url=url)
+        blocks = get_blocks_fast(
+            start=start,
+            end=end,
+            chunksize=chunksize,
+            max_workers=max_workers,
+            rpc=rpc,
+            url=url)
         json_blocks = map(json.dumps, blocks)
         for block in json_blocks:
             click.echo(block.encode('utf8'), file=f)
 
 
-def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
-                    rpc=None, url=None):
-    extra = dict(start=start, end=end, chunksize=chunksize,
-                 max_workers=max_workers, rpc=rpc, url=url)
+def get_blocks_fast(start=None,
+                    end=None,
+                    chunksize=None,
+                    max_workers=None,
+                    rpc=None,
+                    url=None):
+    extra = dict(
+        start=start,
+        end=end,
+        chunksize=chunksize,
+        max_workers=max_workers,
+        rpc=rpc,
+        url=url)
     logger.debug('get_blocks_fast', extra=extra)
     rpc = rpc or SimpleSteemAPIClient(url)
     with concurrent.futures.ThreadPoolExecutor(
@@ -152,23 +172,21 @@ def get_blocks_fast(start=None, end=None, chunksize=None, max_workers=None,
 
 
 @click.command(name='load-checkpoint-blocks')
-@click.argument('checkpoints_path',
-                type=click.STRING,
-                envvar='CHECKPOINTS_PATH')
+@click.argument(
+    'checkpoints_path', type=click.STRING, envvar='CHECKPOINTS_PATH')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 def load_blocks_from_checkpoints(checkpoints_path, start, end):
     """Load blocks from checkpoints"""
 
     checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(
-            path=checkpoints_path,
-            start=start, end=end)
+        path=checkpoints_path, start=start, end=end)
     total_blocks_to_load = end - start
 
-    with fileinput.FileInput(mode='r',
-                             files=checkpoint_set.checkpoint_paths,
-                             openhook=checkpoint_opener_wrapper(
-                                     encoding='utf8')) as blocks:
+    with fileinput.FileInput(
+            mode='r',
+            files=checkpoint_set.checkpoint_paths,
+            openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
 
         blocks = toolz.itertoolz.drop(checkpoint_set.initial_checkpoint_offset,
                                       blocks)
@@ -185,25 +203,24 @@ def load_blocks_from_checkpoints(checkpoints_path, start, end):
 
 
 @click.command(name='test-checkpoint-access')
-@click.argument('checkpoints_path',
-                type=click.STRING,
-                envvar='CHECKPOINTS_PATH')
+@click.argument(
+    'checkpoints_path', type=click.STRING, envvar='CHECKPOINTS_PATH')
 @click.pass_context
 def test_checkpoint_access(ctx, checkpoints_path):
     """Test checkpoint access"""
     try:
         checkpoint_set = sbds.checkpoint.required_checkpoints_for_range(
-                path=checkpoints_path,
-                start=1, end=0)
-        with fileinput.FileInput(mode='r',
-                                 files=checkpoint_set.checkpoint_paths,
-                                 openhook=checkpoint_opener_wrapper(
-                                         encoding='utf8')) as blocks:
+            path=checkpoints_path, start=1, end=0)
+        with fileinput.FileInput(
+                mode='r',
+                files=checkpoint_set.checkpoint_paths,
+                openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
 
             for i, block in enumerate(blocks):
                 block_num = json.loads(block)['block_num']
                 if block_num:
-                    click.echo('Success: loaded block %s' % block_num, err=True)
+                    click.echo(
+                        'Success: loaded block %s' % block_num, err=True)
                     ctx.exit(code=0)
                 else:
                     click.echo('Failed to load block', err=True)

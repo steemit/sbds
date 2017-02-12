@@ -28,32 +28,44 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, arg, kw):
             logger.debug('_unique query %s', q)
             obj = q.one_or_none()
             if not obj:
-                logger.debug('_unique query found no existing %s instance', cls_name)
+                logger.debug('_unique query found no existing %s instance',
+                             cls_name)
                 obj = constructor(*arg, **kw)
 
                 # prevent race condition by using savepoint (begin_nested)
                 session.begin(subtransactions=True)
                 logger.debug('_unique beginning nested transaction')
                 try:
-                    logger.debug('_unique while in nested transaction: attempting to create %s', obj)
+                    logger.debug(
+                        '_unique while in nested transaction: attempting to create %s',
+                        obj)
                     session.add(obj)
                     session.commit()
-                    logger.debug('_unique while in nested transaction: created %s', obj)
+                    logger.debug(
+                        '_unique while in nested transaction: created %s', obj)
                 except IntegrityError as e:
-                    logger.debug('_unique IntegrityError while creating %s instance', cls_name)
+                    logger.debug(
+                        '_unique IntegrityError while creating %s instance',
+                        cls_name)
                     session.rollback()
-                    logger.debug('_unique while handling IntegrityError: rollback transaction')
+                    logger.debug(
+                        '_unique while handling IntegrityError: rollback transaction'
+                    )
                     q = session.query(cls)
                     q = queryfunc(q, *arg, **kw)
                     obj = q.one()
-                    logger.debug('_unique while handling IntegrityError: query found  %s', obj)
+                    logger.debug(
+                        '_unique while handling IntegrityError: query found  %s',
+                        obj)
                 except Exception as e:
-                    logger.error('_unique error creating %s instance: %s', cls_name, e)
+                    logger.error('_unique error creating %s instance: %s',
+                                 cls_name, e)
                     raise e
                 else:
                     logger.debug('_unique %s instance created', cls_name)
             else:
-                logger.debug('_unique query found existing %s instance', cls_name)
+                logger.debug('_unique query found existing %s instance',
+                             cls_name)
         cache[key] = obj
         return obj
 
@@ -69,14 +81,8 @@ class UniqueMixin(object):
 
     @classmethod
     def as_unique(cls, session, *arg, **kw):
-        return _unique(
-                session,
-                cls,
-                cls.unique_hash,
-                cls.unique_filter,
-                cls,
-                arg, kw
-        )
+        return _unique(session, cls, cls.unique_hash, cls.unique_filter, cls,
+                       arg, kw)
 
 
 def dump_tags(tree, tag):
@@ -117,15 +123,19 @@ def dump_links(text):
             label = 'text'
         try:
             tree = html.fromstring(t)
-            images[label]['lxml'].extend(img.attrib.get('src') for img in dump_tags(tree, 'img'))
-            links[label]['lxml'].extend(link.attrib.get('href') for link in dump_tags(tree, 'a'))
+            images[label]['lxml'].extend(
+                img.attrib.get('src') for img in dump_tags(tree, 'img'))
+            links[label]['lxml'].extend(
+                link.attrib.get('href') for link in dump_tags(tree, 'a'))
         except Exception as e:
             # root_logger.info('lmxl %s error' % label)
             pass
         try:
             tree = soupparser.fromstring(t)
-            images[label]['soup'].extend(img.attrib.get('src') for img in dump_tags(tree, 'img'))
-            links[label]['soup'].extend(link.attrib.get('href') for link in dump_tags(tree, 'a'))
+            images[label]['soup'].extend(
+                img.attrib.get('src') for img in dump_tags(tree, 'img'))
+            links[label]['soup'].extend(
+                link.attrib.get('href') for link in dump_tags(tree, 'a'))
         except Exception as e:
             pass
 
@@ -172,7 +182,8 @@ def reset_tables(engine, metadata, exclude_tables=None):
     exclude_tables = exclude_tables or tuple()
     for t in exclude_tables:
         if t not in [tbl.name for tbl in metadata.tables]:
-            raise ValueError('excluding non-existent table %s, is this a typo?', t)
+            raise ValueError(
+                'excluding non-existent table %s, is this a typo?', t)
     drop_tables = filter_tables(metadata, exclude_tables)
     try:
         metadata.drop_all(bind=engine, tables=drop_tables)
@@ -200,7 +211,8 @@ def session_scope(session=None,
 
     if not session:
         if bind:
-            logger.debug('configuring session factory before creating new session')
+            logger.debug(
+                'configuring session factory before creating new session')
             session_factory.configure(bind)
         logger.debug('creating new session')
         session = session_factory()
@@ -209,12 +221,14 @@ def session_scope(session=None,
     logger.debug('initial session.dirty count: %s', len(session.dirty))
     logger.debug('initial session.new count: %s', len(session.new))
     logger.debug('initial session.is_active: %s', session.is_active)
-    logger.debug('initial sesssion.transaction.parent: %s', session.transaction.parent)
+    logger.debug('initial sesssion.transaction.parent: %s',
+                 session.transaction.parent)
     # rollback passed session if required
     if not session.is_active:
         logger.debug('rolling back passed session')
         session.rollback()
-        logger.debug('after rollback session.dirty count: %s', len(session.dirty))
+        logger.debug('after rollback session.dirty count: %s',
+                     len(session.dirty))
         logger.debug('after rollback session.new count: %s', len(session.new))
     try:
         session.info['err'] = None

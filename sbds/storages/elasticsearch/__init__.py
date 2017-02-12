@@ -19,30 +19,24 @@ class Operation(DocType):
     # block
     id = Long()
     block = Object(properties=dict(
-            witness=String(fields={'raw': String(index='not_analyzed')}),
-            transaction_merkle_root=String(),
-            witness_signature=String(),
-            raw=String()
-    ))
+        witness=String(fields={'raw': String(index='not_analyzed')}),
+        transaction_merkle_root=String(),
+        witness_signature=String(),
+        raw=String()))
 
     # transaction
-    transaction = Object(
-            properties=dict(
-                    block_num=Integer(),
-                    previous=String(),
-                    timestamp=Date(),
-                    witness=String(fields={'raw': String(index='not_analyzed')}),
-                    transaction_merkle_root=String(),
-                    extensions=String(multi=True),
-                    witness_signature=String(),
-            )
-    )
+    transaction = Object(properties=dict(
+        block_num=Integer(),
+        previous=String(),
+        timestamp=Date(),
+        witness=String(fields={'raw': String(index='not_analyzed')}),
+        transaction_merkle_root=String(),
+        extensions=String(multi=True),
+        witness_signature=String(), ))
 
     # operation
     operation = Object(properties=dict(
-            operation_num=Integer(),
-            op_type=String(index='not_analyzed')
-    ))
+        operation_num=Integer(), op_type=String(index='not_analyzed')))
 
     class Meta:
         index = 'blocks'
@@ -59,7 +53,6 @@ class Operation(DocType):
                 }
             }
         },
-
         {
             "pow": {
                 "path_match": "operation.pow.nonce",
@@ -161,14 +154,16 @@ def extract_from_block_and_save(raw_block):
             return e
 
 
-def extract_bulk_operation_from_block(block, _index='blocks', _op_type='index'):
+def extract_bulk_operation_from_block(block, _index='blocks',
+                                      _op_type='index'):
     operations = extract_operations_from_block(block)
     for operation_dict in operations:
-        yield dict(_source=operation_dict,
-                   _index=_index,
-                   _op_type=_op_type,
-                   _type='block_operation',
-                   _id=int(operation_dict['id']))
+        yield dict(
+            _source=operation_dict,
+            _index=_index,
+            _op_type=_op_type,
+            _type='block_operation',
+            _id=int(operation_dict['id']))
 
 
 def transform_pow2(op_dict):

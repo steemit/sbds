@@ -19,8 +19,8 @@ logger = sbds.logging.getLogger(__name__)
 # https://github.com/matiasb/python-unidiff/blob/master/unidiff/constants.py#L37
 # @@ (source offset, length) (target offset, length) @@ (section header)
 RE_HUNK_HEADER = re.compile(
-        r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
-        flags=re.MULTILINE)
+    r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
+    flags=re.MULTILINE)
 
 # ensure deterministec language detection
 DetectorFactory.seed = 0
@@ -62,14 +62,19 @@ def prepare_raw_block(raw_block):
 
 
 def percentile(n, percent, key=lambda x: x):
-    """
-    Find the percentile of a list of values.
+    """Find the percentile of a list of values.
 
-    @parameter N - is a list of values. Note N MUST BE already sorted.
-    @parameter percent - a float value from 0.0 to 1.0.
-    @parameter key - optional key function to compute value from each element of N.
+    Args:
+      eter: N - is a list of values. Note N MUST BE already sorted.
+      eter: percent - a float value from 0.0 to 1.0.
+      eter: key - optional key function to compute value from each element of N.
+      n: 
+      percent: 
+      key:  (Default value = lambda x: x)
 
-    @return - the percentile of the values
+    Returns:
+      the percentile of the values
+
     """
     if not n:
         return None
@@ -84,7 +89,15 @@ def percentile(n, percent, key=lambda x: x):
 
 
 def chunkify(iterable, chunksize=10000):
-    """Yield successive chunksized chunks from iterable."""
+    """Yield successive chunksized chunks from iterable.
+
+    Args:
+      iterable: 
+      chunksize:  (Default value = 10000)
+
+    Returns:
+
+    """
     i = 0
     chunk = []
     for item in iterable:
@@ -102,14 +115,15 @@ def write_json_items(items, filename=None, topic='', ext='json'):
     filename = filename or timestamp_filename(topic=topic, ext=ext)
     try:
         lineitems = os.linesep.join(
-                json.dumps(item, ensure_ascii=True) for item in items)
+            json.dumps(item, ensure_ascii=True) for item in items)
         with open(filename, mode='a', encoding='utf8') as f:
             f.writelines(lineitems)
     except Exception as e:
         logger.error(e)
 
 
-def write_json(items, dirname=None, prefix='sbds_error_', topic='', ext='json'):
+def write_json(items, dirname=None, prefix='sbds_error_', topic='',
+               ext='json'):
     filename = timestamp_filename(topic=topic, prefix=prefix, ext=ext)
     dirname = dirname or 'failed_blocks'
     if not os.path.exists(dirname):
@@ -128,10 +142,10 @@ def write_json(items, dirname=None, prefix='sbds_error_', topic='', ext='json'):
 def timestamp_filename(topic='', prefix=None, ext='json'):
     prefix = prefix or ''
     while True:
-        now = datetime.datetime.now().isoformat().replace(':', '-').replace('.',
-                                                                            '-')
-        filename = '{prefix}{now}_{topic}.{ext}'.format(prefix=prefix, now=now,
-                                                        topic=topic, ext=ext)
+        now = datetime.datetime.now().isoformat().replace(':', '-').replace(
+            '.', '-')
+        filename = '{prefix}{now}_{topic}.{ext}'.format(
+            prefix=prefix, now=now, topic=topic, ext=ext)
         if not os.path.exists(filename):
             break
     return filename
@@ -150,11 +164,11 @@ def json_metadata_keys(operations):
                     jm2 = json.loads(jm)
                     jm_keys[op['type']].update(jm2.keys())
                 else:
-                    print('op_type:%s type:%s jm:%s jm2:%s orig:%s' % (
-                        op['type'], type(jm), jm, jm2, op['json_metadata']))
+                    print('op_type:%s type:%s jm:%s jm2:%s orig:%s' %
+                          (op['type'], type(jm), jm, jm2, op['json_metadata']))
             except Exception as e:
-                print('op_type:%s orig:%s jm:%s jm2:%s error:%s' % (
-                    op['type'], op['json_metadata'], jm, jm2, e))
+                print('op_type:%s orig:%s jm:%s jm2:%s error:%s' %
+                      (op['type'], op['json_metadata'], jm, jm2, e))
     return jm_keys
 
 
@@ -174,16 +188,19 @@ def ensure_decoded(thing):
         elif isinstance(single_encoded_dict, str):
             logger.debug('ensure_decoded thing is single encoded str')
             if single_encoded_dict == "":
-                logger.debug('ensure_decoded thing is single encoded str == ""')
+                logger.debug(
+                    'ensure_decoded thing is single encoded str == ""')
                 return None
             else:
                 double_encoded_dict = json.loads(single_encoded_dict)
                 logger.debug('ensure_decoded thing is double encoded')
                 return double_encoded_dict
     except Exception as e:
-        extra = dict(thing=thing, single_encoded_dict=single_encoded_dict,
-                     double_encoded_dict=double_encoded_dict,
-                     error=e)
+        extra = dict(
+            thing=thing,
+            single_encoded_dict=single_encoded_dict,
+            double_encoded_dict=double_encoded_dict,
+            error=e)
         logger.error('ensure_decoded error', extra=extra)
         return None
 
@@ -219,12 +236,12 @@ def extract_keys_from_meta(meta, keys):
 def block_info(block):
     from sbds.storages.db.tables.core import prepare_raw_block
     block_dict = prepare_raw_block(block)
-    info = dict(block_num=block_dict['block_num'],
-                transaction_count=len(block_dict['transactions']),
-                operation_count=sum(len(t['operations']) for t in
-                                    block_dict['transactions']),
-                transactions=[],
-                )
+    info = dict(
+        block_num=block_dict['block_num'],
+        transaction_count=len(block_dict['transactions']),
+        operation_count=sum(
+            len(t['operations']) for t in block_dict['transactions']),
+        transactions=[], )
     info['brief'] = \
         'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
 
@@ -248,8 +265,8 @@ def canonicalize_url(url, **kwargs):
     try:
         parsed_url = urlparse(canonical_url)
         if not parsed_url.scheme and not parsed_url.netloc:
-            _log = dict(url=url, canonical_url=canonical_url,
-                        parsed_url=parsed_url)
+            _log = dict(
+                url=url, canonical_url=canonical_url, parsed_url=parsed_url)
             logger.warning('bad url encountered', extra=_log)
             return None
     except Exception as e:

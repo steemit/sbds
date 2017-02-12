@@ -4,7 +4,6 @@ import json
 
 import click
 
-
 import sbds.logging
 from sbds.storages.db import Base
 from sbds.storages.db import Session
@@ -22,8 +21,12 @@ logger = sbds.logging.getLogger(__name__)
 
 
 @click.group()
-@click.option('--database_url', type=str, envvar='DATABASE_URL',
-              help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default')
+@click.option(
+    '--database_url',
+    type=str,
+    envvar='DATABASE_URL',
+    help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
+)
 @click.option('--echo', is_flag=True)
 @click.pass_context
 def db(ctx, database_url, echo):
@@ -43,16 +46,17 @@ def db(ctx, database_url, echo):
 
     """
 
-    database_url, url, engine_kwargs, engine = configure_engine(database_url,
-                                                                echo=echo)
+    database_url, url, engine_kwargs, engine = configure_engine(
+        database_url, echo=echo)
 
-    ctx.obj = dict(database_url=database_url,
-                   url=url,
-                   engine_kwargs=engine_kwargs,
-                   engine=engine,
-                   base=Base,
-                   metadata=Base.metadata,
-                   Session=Session)
+    ctx.obj = dict(
+        database_url=database_url,
+        url=url,
+        engine_kwargs=engine_kwargs,
+        engine=engine,
+        base=Base,
+        metadata=Base.metadata,
+        Session=Session)
 
 
 @db.command()
@@ -63,9 +67,8 @@ def test(ctx):
 
     result = test_connection(engine)
     if result[0]:
-        click.echo(
-        'Success! Connected using %s, found %s tables' %
-            (result[0].__repr__(), result[1]))
+        click.echo('Success! Connected using %s, found %s tables' %
+                   (result[0].__repr__(), result[1]))
     else:
         click.echo('Failed to connect: %s', result[1])
         click.exit(code=127)
@@ -128,7 +131,7 @@ def init_db_tables(ctx):
 
 @db.command(name='reset')
 @click.confirmation_option(
-        prompt='Are you sure you want to drop and then create the db?')
+    prompt='Are you sure you want to drop and then create the db?')
 @click.pass_context
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""

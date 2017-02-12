@@ -7,11 +7,11 @@ from pythonjsonlogger import jsonlogger
 
 LOG_LEVEL = os.environ.get('SBDS_LOG_LEVEL', 'info').lower()
 
-log_level_map = dict(debug=logging.DEBUG,
-                     info=logging.INFO,
-                     warning=logging.WARNING,
-                     error=logging.ERROR
-                     )
+log_level_map = dict(
+    debug=logging.DEBUG,
+    info=logging.INFO,
+    warning=logging.WARNING,
+    error=logging.ERROR)
 
 _log_level = log_level_map.get(LOG_LEVEL, logging.INFO)
 
@@ -55,8 +55,8 @@ def generate_fail_log(logger, **kwargs):
 
 def generate_fail_log_from_block_info(logger, block_info):
     kwargs = dict(
-            block_num=block_info['block_num'],
-            transactions=block_info['transactions'])
+        block_num=block_info['block_num'],
+        transactions=block_info['transactions'])
     return generate_fail_log(logger, **kwargs)
 
 
@@ -68,11 +68,12 @@ def generate_fail_log_from_raw_block(logger, raw_block):
 
 def generate_fail_log_from_obj(logger, obj):
     try:
-        kwargs = dict(block_num=getattr(obj, 'block_num', None),
-                      transaction_num=getattr(obj, 'transaction_num', None),
-                      operation_num=getattr(obj, 'operation_num', None),
-                      cls=obj.__class__,
-                      object_name=obj.__class__.__name__)
+        kwargs = dict(
+            block_num=getattr(obj, 'block_num', None),
+            transaction_num=getattr(obj, 'transaction_num', None),
+            operation_num=getattr(obj, 'operation_num', None),
+            cls=obj.__class__,
+            object_name=obj.__class__.__name__)
     except Exception as e:
         logger.error(e)
         return generate_fail_log(logger, object=obj)
