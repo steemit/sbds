@@ -1,6 +1,6 @@
 # coding=utf-8
 import os
-import ujson as json
+import json
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
@@ -23,24 +23,24 @@ class RPCConnectionError(Exception):
 
 class SimpleSteemAPIClient(object):
     """Simple Steem JSON-HTTP-RPC API
-    
+
         This class serves as an abstraction layer for easy use of the
         Steem API.
 
     Args:
       str: url: url of the API server
       urllib3: HTTPConnectionPool url: instance of urllib3.HTTPConnectionPool
-    
+
     .. code-block:: python
-    
+
     from sbds.client import SimpleSteemAPIClient
     rpc = SimpleSteemAPIClient("http://domain.com:port")
-    
+
     any call available to that port can be issued using the instance
     via the syntax rpc.exec_rpc('command', (*parameters*). Example:
-    
+
     .. code-block:: python
-    
+
     rpc.exec('info')
 
     Returns:
@@ -95,11 +95,10 @@ class SimpleSteemAPIClient(object):
         logger.debug('rpc request to {}'.format, extra=extra)
         response = self.request(body=body)
         extra = dict(body=response.data)
-        logger.debug('rpc response: %s' % response.status, extra=extra)
+        logger.debug('rpc response: %s', response.status, extra=extra)
         if response.status not in tuple(
             [*response.REDIRECT_STATUSES, 200]) and raise_for_status:
             logger.info('non 200 response:%s', response.status)
-            #raise RPCConnectionError(response)
             return
         ret = json.loads(response.data.decode('utf-8'))
         if 'error' in ret:

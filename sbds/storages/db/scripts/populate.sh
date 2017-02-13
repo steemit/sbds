@@ -21,7 +21,7 @@ is_interactive() {
 
 
 latest_db_block() {
-  local LATEST_DB_BLOCK="$(db --database_url "${DATABASE_URL}" last-block)"
+  local LATEST_DB_BLOCK="$(sbds db --database_url "${DATABASE_URL}" last-block)"
   if [[ ${LATEST_DB_BLOCK} -lt 1 ]]; then
     local LATEST_DB_BLOCK=1
   fi
@@ -29,20 +29,20 @@ latest_db_block() {
 }
 
 stream_blocks() {
-  local LATEST_DB_BLOCK="$(latest_db_block)"
-  sbds --start "${LATEST_DB_BLOCK}" --server "${WEBSOCKET_URL}"  \
-    | db --database_url "${DATABASE_URL}" insert-blocks
+  local LATEST_DB_BLOCK="$(sbds db --database_url latest_db_block)"
+  sbds chain stream-blocks --start "${LATEST_DB_BLOCK}" --server "${WEBSOCKET_URL}"  \
+    | sbds db --database_url "${DATABASE_URL}" insert-blocks
 }
 
 bulk_add_checkpoint_blocks() {
-  load-checkpoint-blocks --start $1 --end $2  "${CHECKPOINTS_PATH}" \
-    | db --database_url "${DATABASE_URL}" bulk-add --chunksize $3 -
+  sbds checkpoints load-blocks --start $1 --end $2  "${CHECKPOINTS_PATH}" \
+    | sbds db --database_url "${DATABASE_URL}" bulk-add --chunksize $3 -
 }
 
 bulk_add_steemd_blocks() {
 
-  bulk-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}" --max_workers "${SBDS_MAX_WORKERS:=1}" \
-    | db --database_url "${DATABASE_URL}" bulk-add --chunksize $3  -
+  sbds chain get-blocks --start $1 --end $2  --url "${STEEMD_HTTP_URL}" --max_workers "${SBDS_MAX_WORKERS:=1}" \
+    | sbds db --database_url "${DATABASE_URL}" bulk-add --chunksize $3  -
 }
 
 
@@ -99,7 +99,7 @@ main () {
 
 
   (>&2 echo "initializing db if required")
-  db --database_url "${DATABASE_URL}" init
+  sbds db --database_url "${DATABASE_URL}" init
 
   # no checkpoints
   if [ -z "${CHECKPOINTS_PATH}" ]; then
@@ -110,7 +110,7 @@ main () {
   # checkpoints
   else
     # testing checkpoints access
-    test-checkpoint-access "${CHECKPOINTS_PATH}"
+    sbds checkpoints test-access "${CHECKPOINTS_PATH}"
     if [ $? -eq 0 ]; then
       (>&2 echo "loading blocks from checkpoints")
       load_checkpoints

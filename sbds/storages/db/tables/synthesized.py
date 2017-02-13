@@ -191,30 +191,30 @@ class PostAndComment(Base, SynthBase):
         'PostAndComment', backref=backref('parent', remote_side=[id]))
 
     _fields = dict(
-            block_num=lambda x: x.get('block_num'),
-            transaction_num=lambda x: x.get('transaction_num'),
-            operation_num=lambda x: x.get('operation_num'),
-            author_name=lambda x: author_field(context=x,
-                                               author_name=x.get('author'),
-                                               session=x.get('session')),
-            parent_id=lambda x: comment_parent_id_field(context=x,
-                                                        session=x.get(
-                                                                'session')),
-            timestamp=lambda x: x.get('timestamp'),
-            type=lambda x: x.get('type'),
-            permlink=lambda x: x.get('permlink'),
-            title=lambda x: x.get('title'),
-            body=lambda x: comment_body_field(x.get('body')),
-            json_metadata=lambda x: x.get('json_metadata'),
-            category=lambda x: x.get('parent_permlink'),
-            url=lambda x: url_field(context=x),
-            length=lambda x: len(x.get('body')),
-            images=lambda x: images_field(meta=x.get('json_metadata')),
-            links=lambda x: links_field(meta=x.get('json_metadata')),
-            tags=lambda x: tags_field(meta=x.get('json_metadata'),
-                                      session=x.get('session')),
-            language=lambda x: language_field(x.get('body')),
-            has_patch=lambda x: has_patch_field(x.get('body'))
+        block_num=lambda x: x.get('block_num'),
+        transaction_num=lambda x: x.get('transaction_num'),
+        operation_num=lambda x: x.get('operation_num'),
+        author_name=lambda x: author_field(context=x,
+                                           author_name=x.get('author'),
+                                           session=x.get('session')),
+        parent_id=lambda x: comment_parent_id_field(context=x,
+                                                    session=x.get(
+                                                        'session')),
+        timestamp=lambda x: x.get('timestamp'),
+        type=lambda x: x.get('type'),
+        permlink=lambda x: x.get('permlink'),
+        title=lambda x: x.get('title'),
+        body=lambda x: comment_body_field(x.get('body')),
+        json_metadata=lambda x: x.get('json_metadata'),
+        category=lambda x: x.get('parent_permlink'),
+        url=lambda x: url_field(context=x),
+        length=lambda x: len(x.get('body')),
+        images=lambda x: images_field(meta=x.get('json_metadata')),
+        links=lambda x: links_field(meta=x.get('json_metadata')),
+        tags=lambda x: tags_field(meta=x.get('json_metadata'),
+                                  session=x.get('session')),
+        language=lambda x: language_field(x.get('body')),
+        has_patch=lambda x: has_patch_field(x.get('body'))
 
     )
 

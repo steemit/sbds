@@ -23,39 +23,37 @@ CHECKPOINT_FILENAME_FORMAT_STRING = 'blocks-{start}-{end}.json{gzip}'
 BLOCKS_PER_CHECKPOINT = 1000000
 MIN_LEFTPAD_AMOUNT = str(BLOCKS_PER_CHECKPOINT).count('0')
 
-CheckpointFile = namedtuple('CheckpointFile',
-                            ['path',
-                             'filename',
-                             'dirname',
-                             'start',
-                             'end',
-                             'total',
-                             'is_gzipped',
-                             'is_local',
-                             'is_s3',
-                             'filename_shell_pattern',
-                             'filename_regex_pattern',
-                             'blocks_per_checkpoint',
-                             'available_block_space',
-                             'min_left_pad'
-                             ]
-                            )
+CheckpointFile = namedtuple('CheckpointFile', [
+    'path',
+    'filename',
+    'dirname',
+    'start',
+    'end',
+    'total',
+    'is_gzipped',
+    'is_local',
+    'is_s3',
+    'filename_shell_pattern',
+    'filename_regex_pattern',
+    'blocks_per_checkpoint',
+    'available_block_space',
+    'min_left_pad',
+])
 
-CheckpointSet = namedtuple('CheckpointSet',
-                           ['checkpoints',
-                            'checkpoint_paths',
-                            'start',
-                            'end',
-                            'total',
-                            'checkpoint_count',
-                            'dirname',
-                            'missing',
-                            'is_consequtive',
-                            'initial_checkpoint_offset',
-                            'is_local',
-                            'is_s3',
-                            ]
-                           )
+CheckpointSet = namedtuple('CheckpointSet', [
+    'checkpoints',
+    'checkpoint_paths',
+    'start',
+    'end',
+    'total',
+    'checkpoint_count',
+    'dirname',
+    'missing',
+    'is_consequtive',
+    'initial_checkpoint_offset',
+    'is_local',
+    'is_s3',
+])
 
 
 # main module functions
@@ -71,8 +69,8 @@ def required_checkpoints_for_range(path, start, end=None):
             break
         checkpoints.append(cp)
     offset = calculate_initial_checkpoint_offset(start, checkpoints[0])
-    required_checkpointset = checkpointset_from_checkpoints(checkpoints,
-                                                            initial_checkpoint_offset=offset)
+    required_checkpointset = checkpointset_from_checkpoints(
+        checkpoints, initial_checkpoint_offset=offset)
     return required_checkpointset
 
 
@@ -103,24 +101,24 @@ def update_checkpoints(path, blockchain_height, rpc):
         # 1) fill exiting cp
         # 2) create new cps
 
+    # checkpoint functions
 
-# checkpoint functions
 
 default_checkpoint_file = CheckpointFile(
-        path='',
-        filename='',
-        dirname='',
-        start='',
-        end='',
-        total='',
-        is_gzipped='',
-        is_local='',
-        is_s3='',
-        filename_shell_pattern=CHECKPOINT_FILENAME_PATTERN,
-        filename_regex_pattern=CHECKPOINT_FILENAME_REGEX_PATTERN,
-        blocks_per_checkpoint=BLOCKS_PER_CHECKPOINT,
-        available_block_space='',
-        min_left_pad=MIN_LEFTPAD_AMOUNT)
+    path='',
+    filename='',
+    dirname='',
+    start='',
+    end='',
+    total='',
+    is_gzipped='',
+    is_local='',
+    is_s3='',
+    filename_shell_pattern=CHECKPOINT_FILENAME_PATTERN,
+    filename_regex_pattern=CHECKPOINT_FILENAME_REGEX_PATTERN,
+    blocks_per_checkpoint=BLOCKS_PER_CHECKPOINT,
+    available_block_space='',
+    min_left_pad=MIN_LEFTPAD_AMOUNT)
 
 
 def get_checkpoints_from_path(path):
@@ -179,11 +177,12 @@ def is_consequtive(checkpoints):
             continue
         if cp.start != (checkpoints[i - 1].end + 1):
             missing.append(
-                    checkpoint_filename_from_zero_index(i, cp.is_gzipped))
+                checkpoint_filename_from_zero_index(i, cp.is_gzipped))
     return len(missing) == 0, missing
 
 
-def checkpointset_from_checkpoints(checkpoints, initial_checkpoint_offset=None):
+def checkpointset_from_checkpoints(checkpoints,
+                                   initial_checkpoint_offset=None):
     initial_checkpoint_offset = initial_checkpoint_offset or 0
     start = checkpoints[0].start
     end = checkpoints[-1].end
@@ -194,22 +193,22 @@ def checkpointset_from_checkpoints(checkpoints, initial_checkpoint_offset=None):
     is_local = checkpoints[0].is_local
     is_s3 = checkpoints[0].is_s3
     return CheckpointSet(
-            checkpoints=checkpoints,
-            checkpoint_paths=checkpoint_paths,
-            start=start,
-            end=end,
-            total=total,
-            checkpoint_count=len(checkpoints),
-            dirname=dirname,
-            missing=missing,
-            is_consequtive=consequtive,
-            initial_checkpoint_offset=initial_checkpoint_offset,
-            is_local=is_local,
-            is_s3=is_s3
-    )
+        checkpoints=checkpoints,
+        checkpoint_paths=checkpoint_paths,
+        start=start,
+        end=end,
+        total=total,
+        checkpoint_count=len(checkpoints),
+        dirname=dirname,
+        missing=missing,
+        is_consequtive=consequtive,
+        initial_checkpoint_offset=initial_checkpoint_offset,
+        is_local=is_local,
+        is_s3=is_s3)
 
 
 # checkpoints math functions
+
 
 def roundup(x, factor=BLOCKS_PER_CHECKPOINT):
     return x if x % factor == 0 else x + factor - x % factor
@@ -235,7 +234,8 @@ def generate_checkpoint_intervals(end):
     return intervals
 
 
-def calculate_initial_checkpoint_offset(starting_block_num, initial_checkpoint):
+def calculate_initial_checkpoint_offset(starting_block_num,
+                                        initial_checkpoint):
     return starting_block_num - initial_checkpoint.start
 
 
@@ -262,18 +262,18 @@ def parse_checkpoint_filename(filename_or_path):
     end = int(end)
     total = (end + 1) - start
     cp = default_checkpoint_file._replace(
-            start=start,
-            end=end,
-            total=total,
-            path=os.path.abspath(filename_or_path),
-            filename=filename,
-            dirname=os.path.dirname(os.path.abspath(filename_or_path)),
-            is_gzipped=is_gzipped,
-            is_local=True,
-            is_s3=False,
-            available_block_space=calculate_available_block_space(start, end)
-    )
-    if not any([cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
+        start=start,
+        end=end,
+        total=total,
+        path=os.path.abspath(filename_or_path),
+        filename=filename,
+        dirname=os.path.dirname(os.path.abspath(filename_or_path)),
+        is_gzipped=is_gzipped,
+        is_local=True,
+        is_s3=False,
+        available_block_space=calculate_available_block_space(start, end))
+    if not any(
+        [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
         raise ValueError('Bad values for CheckpointFile: %s' % cp)
     return cp
 
@@ -293,18 +293,18 @@ def parse_checkpoint_s3_path(path):
     end = int(end)
     total = (end + 1) - start
     cp = default_checkpoint_file._replace(
-            start=start,
-            end=end,
-            total=total,
-            path=path,
-            filename=filename,
-            dirname=os.path.dirname(key),
-            is_gzipped=is_gzipped,
-            is_local=False,
-            is_s3=True,
-            available_block_space=calculate_available_block_space(start, end)
-    )
-    if not any([cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
+        start=start,
+        end=end,
+        total=total,
+        path=path,
+        filename=filename,
+        dirname=os.path.dirname(key),
+        is_gzipped=is_gzipped,
+        is_local=False,
+        is_s3=True,
+        available_block_space=calculate_available_block_space(start, end))
+    if not any(
+        [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
         raise ValueError('Bad values for CheckpointFile: %s' % cp)
     return cp
 
@@ -323,8 +323,8 @@ def checkpoint_filename_from_zero_index(index, is_gzipped=True):
         gzip = '.gz'
     else:
         gzip = ''
-    return CHECKPOINT_FILENAME_FORMAT_STRING.format(start=start, end=end,
-                                                    gzip=gzip)
+    return CHECKPOINT_FILENAME_FORMAT_STRING.format(
+        start=start, end=end, gzip=gzip)
 
 
 # checkpoint file/data functions
@@ -361,8 +361,7 @@ def checkpoint_opener_wrapper(encoding='utf8', real_mode='rt'):
             else:
                 logger.debug('opening s3 checkpoint: %s', filename)
                 buffer = data['Body']
-            return io.TextIOWrapper(buffer=buffer,
-                                    encoding=encoding)
+            return io.TextIOWrapper(buffer=buffer, encoding=encoding)
         else:
             # local checkpoint
             logger.debug('loading local checkpoint')

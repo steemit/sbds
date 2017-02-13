@@ -26,67 +26,28 @@ RE_HUNK_HEADER = re.compile(
 DetectorFactory.seed = 0
 MIN_TEXT_LENGTH_FOR_DETECTION = 20
 
-
-# first 4 bytes (8 hex digits) of the block ID represents the block number
 def block_num_from_hash(block_hash: str) -> int:
+    """
+    return the first 4 bytes (8 hex digits) of the block ID (the block_num)
+    Args:
+        block_hash (str):
+
+    Returns:
+        int:
+    """
     return int(str(block_hash)[:8], base=16)
 
 
 def block_num_from_previous(previous_block_hash: str) -> int:
-    return block_num_from_hash(previous_block_hash) + 1
-
-
-def prepare_raw_block(raw_block):
-    block_dict = dict()
-    if isinstance(raw_block, dict):
-        block = deepcopy(raw_block)
-        block_dict.update(**block)
-        block_dict['raw'] = json.dumps(block, ensure_ascii=True)
-    elif isinstance(raw_block, str):
-        block_dict.update(**json.loads(raw_block))
-        block_dict['raw'] = copy(raw_block)
-    elif isinstance(raw_block, bytes):
-        block = deepcopy(raw_block)
-        raw = block.decode('utf8')
-        block_dict.update(**json.loads(raw))
-        block_dict['raw'] = copy(raw)
-    else:
-        raise TypeError('Unsupported raw block type')
-    if 'block_num' not in block_dict:
-        block_num = block_num_from_previous(block_dict['previous'])
-        block_dict['block_num'] = block_num
-    if isinstance(block_dict.get('timestamp'), str):
-        timestamp = maya.dateparser.parse(block_dict['timestamp'])
-        block_dict['timestamp'] = timestamp
-    return block_dict
-
-
-def percentile(n, percent, key=lambda x: x):
-    """Find the percentile of a list of values.
+    """
 
     Args:
-      eter: N - is a list of values. Note N MUST BE already sorted.
-      eter: percent - a float value from 0.0 to 1.0.
-      eter: key - optional key function to compute value from each element of N.
-      n: 
-      percent: 
-      key:  (Default value = lambda x: x)
+        previous_block_hash (str):
 
     Returns:
-      the percentile of the values
-
+        int:
     """
-    if not n:
-        return None
-    k = (len(n) - 1) * percent
-    f = math.floor(k)
-    c = math.ceil(k)
-    if f == c:
-        return key(n[int(k)])
-    d0 = key(n[int(f)]) * (c - k)
-    d1 = key(n[int(c)]) * (k - f)
-    return d0 + d1
-
+    return block_num_from_hash(previous_block_hash) + 1
 
 def chunkify(iterable, chunksize=10000):
     """Yield successive chunksized chunks from iterable.
@@ -110,66 +71,6 @@ def chunkify(iterable, chunksize=10000):
     if len(chunk) > 0:
         yield chunk
 
-
-def write_json_items(items, filename=None, topic='', ext='json'):
-    filename = filename or timestamp_filename(topic=topic, ext=ext)
-    try:
-        lineitems = os.linesep.join(
-            json.dumps(item, ensure_ascii=True) for item in items)
-        with open(filename, mode='a', encoding='utf8') as f:
-            f.writelines(lineitems)
-    except Exception as e:
-        logger.error(e)
-
-
-def write_json(items, dirname=None, prefix='sbds_error_', topic='',
-               ext='json'):
-    filename = timestamp_filename(topic=topic, prefix=prefix, ext=ext)
-    dirname = dirname or 'failed_blocks'
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-    path = os.path.join(dirname, filename)
-    try:
-        with open(path, mode='at', encoding='utf8', errors='replace') as f:
-            json.dump(items, f, ensure_ascii=True)
-        return True
-    except Exception as e:
-        logger.exception(e)
-        logger.error(items)
-        return False
-
-
-def timestamp_filename(topic='', prefix=None, ext='json'):
-    prefix = prefix or ''
-    while True:
-        now = datetime.datetime.now().isoformat().replace(':', '-').replace(
-            '.', '-')
-        filename = '{prefix}{now}_{topic}.{ext}'.format(
-            prefix=prefix, now=now, topic=topic, ext=ext)
-        if not os.path.exists(filename):
-            break
-    return filename
-
-
-def json_metadata_keys(operations):
-    jm_keys = defaultdict(set)
-    for op in operations:
-        if 'json_metadata' in op and op['json_metadata']:
-            jm = jm2 = None
-            try:
-                jm = json.loads(op['json_metadata'])
-                if isinstance(jm, dict):
-                    jm_keys[op['type']].update(jm.keys())
-                elif isinstance(jm, str):
-                    jm2 = json.loads(jm)
-                    jm_keys[op['type']].update(jm2.keys())
-                else:
-                    print('op_type:%s type:%s jm:%s jm2:%s orig:%s' %
-                          (op['type'], type(jm), jm, jm2, op['json_metadata']))
-            except Exception as e:
-                print('op_type:%s orig:%s jm:%s jm2:%s error:%s' %
-                      (op['type'], op['json_metadata'], jm, jm2, e))
-    return jm_keys
 
 
 def ensure_decoded(thing):

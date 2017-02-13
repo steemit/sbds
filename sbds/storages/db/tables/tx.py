@@ -231,7 +231,7 @@ class TxAccountCreate(Base, TxBase):
         "ref_block_num": 29707,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -308,7 +308,7 @@ class TxAccountRecover(Base, TxBase):
         "ref_block_num": 11112,
     "extensions": []
     }
-    
+
     op_type==recover_account
     ========================
     {
@@ -350,8 +350,8 @@ class TxAccountRecover(Base, TxBase):
         "ref_block_prefix": 311057647,
         "extensions": []
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -416,8 +416,8 @@ class TxAccountUpdate(Base, TxBase):
         "extensions": [],
         "new_recovery_account": "boombastic"
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -481,7 +481,7 @@ class TxAccountWitnessProxy(Base, TxBase):
         "expiration": "2016-04-08T15:47:00",
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -532,7 +532,7 @@ class TxAccountWitnessVote(Base, TxBase):
         "expiration": "2016-03-28T23:43:36",
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -589,7 +589,7 @@ class TxComment(Base, TxBase):
         "expiration": "2016-04-08T16:20:27",
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -680,7 +680,7 @@ class TxCommentsOption(Base, TxBase):
         "ref_block_num": 13118,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -710,13 +710,13 @@ class TxCommentsOption(Base, TxBase):
     allow_curation_rewards = Column(Boolean, nullable=False)
 
     _fields = dict(comment_options=dict(
-            author=lambda x: x.get('author'),
-            permlink=lambda x: x.get('permlink'),
-            max_accepted_payout=lambda x: amount_field(
-                    x.get('max_accepted_payout'), num_func=float),
-            percent_steem_dollars=lambda x: x.get('percent_steem_dollars'),
-            allow_votes=lambda x: x.get('allow_votes'),
-            allow_curation_rewards=lambda x: x.get('allow_curation_rewards')
+        author=lambda x: x.get('author'),
+        permlink=lambda x: x.get('permlink'),
+        max_accepted_payout=lambda x: amount_field(
+            x.get('max_accepted_payout'), num_func=float),
+        percent_steem_dollars=lambda x: x.get('percent_steem_dollars'),
+        allow_votes=lambda x: x.get('allow_votes'),
+        allow_curation_rewards=lambda x: x.get('allow_curation_rewards')
     )
     )
     op_types = tuple(_fields.keys())
@@ -738,7 +738,7 @@ class TxConvert(Base, TxBase):
         'ref_block_prefix': 521569582,
         'signatures': ['1f0cd39195d45d5d40cd92651081670b5a799217d615c311921fc1981a0898703d1864555148c2e1246a19fa8ea1b80b4dd4474df86fc9a9c9d6a9c8576d467687']
     }
-    
+
     Prepared Format
     ===============
     {
@@ -792,8 +792,8 @@ class TxCustom(Base, TxBase):
         "ref_block_num": 56232,
         "extensions": []
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -842,8 +842,8 @@ class TxDeleteComment(Base, TxBase):
         "ref_block_num": 12211,
         "extensions": []
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -895,8 +895,8 @@ class TxFeed(Base, TxBase):
         "ref_block_num": 19946,
         "extensions": []
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -919,13 +919,12 @@ class TxFeed(Base, TxBase):
     exchange_rate_base = Column(Numeric(15, 4), nullable=False)
     exchange_rate_quote = Column(Numeric(15, 4), nullable=False)
 
-    _fields = dict(feed_publish=
-    dict(
-            publisher=lambda x: x.get('publisher'),
-            exchange_rate_base=lambda x: amount_field(
-                    get_in(['exchange_rate', 'base'], x), num_func=float),
-            exchange_rate_quote=lambda x: amount_field(
-                    get_in(['exchange_rate', 'quote'], x), num_func=float)
+    _fields = dict(feed_publish=dict(
+        publisher=lambda x: x.get('publisher'),
+        exchange_rate_base=lambda x: amount_field(
+            get_in(['exchange_rate', 'base'], x), num_func=float),
+        exchange_rate_quote=lambda x: amount_field(
+            get_in(['exchange_rate', 'quote'], x), num_func=float)
     )
     )
     op_types = tuple(_fields.keys())
@@ -957,7 +956,7 @@ class TxLimitOrder(Base, TxBase):
         "ref_block_num": 969,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -991,17 +990,17 @@ class TxLimitOrder(Base, TxBase):
     expiration = Column(DateTime)
 
     common = dict(
-            owner=lambda x: x.get('owner'),
-            orderid=lambda x: x.get('orderid'),
-            cancel=lambda x: x.get('cancel'),
-            amount_to_sell=lambda x: amount_field(x.get('amount_to_sell'),
-                                                  num_func=float),
-            # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
-            min_to_receive=lambda x: amount_field(x.get('min_to_receive'),
-                                                  num_func=float),
-            # receive_symbol=lambda x: x['min_to_receive'].split()[1],
-            fill_or_kill=lambda x: x.get('fill_or_kill'),
-            expiration=lambda x: x.get('expiration')
+        owner=lambda x: x.get('owner'),
+        orderid=lambda x: x.get('orderid'),
+        cancel=lambda x: x.get('cancel'),
+        amount_to_sell=lambda x: amount_field(x.get('amount_to_sell'),
+                                              num_func=float),
+        # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
+        min_to_receive=lambda x: amount_field(x.get('min_to_receive'),
+                                              num_func=float),
+        # receive_symbol=lambda x: x['min_to_receive'].split()[1],
+        fill_or_kill=lambda x: x.get('fill_or_kill'),
+        expiration=lambda x: x.get('expiration')
     )
     _fields = dict(
         limit_order_create=common,
@@ -1015,7 +1014,7 @@ class TxLimitOrder(Base, TxBase):
 class TxPow(Base, TxBase):
     """Raw Format
     ==========
-    
+
     op_type=='pow'
     ==============
     {
@@ -1046,7 +1045,7 @@ class TxPow(Base, TxBase):
         "ref_block_num": 1097,
         "extensions": []
     }
-    
+
     op_type=='pow2'
     ==============
     {
@@ -1153,10 +1152,10 @@ class TxPow(Base, TxBase):
         "ref_block_num": 61513,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
-    
+
     op_type=='pow'
     ==============
     {
@@ -1165,7 +1164,7 @@ class TxPow(Base, TxBase):
         "worker_account": "admin",
         "block_id": "000004433bd4602cf5f74dbb564183837df9cef8"
     }
-    
+
     op_type=='pow2'
     ==============
     {
@@ -1189,9 +1188,9 @@ class TxPow(Base, TxBase):
     _fields = dict(pow=dict(worker_account=lambda x: x.get('worker_account'),
                             block_id=lambda x: x.get('block_id')),
                    pow2=dict(worker_account=lambda x: get_in(
-                           ['work', 1, 'input', 'worker_account'], x),
-                             block_id=lambda x: get_in(
-                                     ['work', 1, 'input', 'prev_block'], x))
+                       ['work', 1, 'input', 'worker_account'], x),
+        block_id=lambda x: get_in(
+                       ['work', 1, 'input', 'prev_block'], x))
                    )
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
@@ -1200,7 +1199,7 @@ class TxPow(Base, TxBase):
 class TxTransfer(Base, TxBase):
     """Raw Format
     ==========
-    
+
     op_type==tranfer
     ================
     {
@@ -1223,7 +1222,7 @@ class TxTransfer(Base, TxBase):
         "ref_block_num": 25501,
         "extensions": []
     }
-    
+
     op_type==transfer_from_savings
     ==============================
     {
@@ -1247,7 +1246,7 @@ class TxTransfer(Base, TxBase):
         "ref_block_num": 42559,
         "extensions": []
     }
-    
+
     op_type==transfer_to_savings
     ============================
     {
@@ -1270,8 +1269,8 @@ class TxTransfer(Base, TxBase):
         "ref_block_num": 12870,
         "extensions": []
     }
-    
-    
+
+
     op_type==transfer_to_vesting
     ============================
     {
@@ -1293,7 +1292,7 @@ class TxTransfer(Base, TxBase):
         "ref_block_num": 9132,
         "extensions": []
     }
-    
+
      op_type==cancel_transfer_from_savings
     ============================
     {
@@ -1314,8 +1313,8 @@ class TxTransfer(Base, TxBase):
         "ref_block_prefix": 2784823756,
         "extensions": []
     }
-    
-    
+
+
     Prepared Format
     ===============
     {
@@ -1392,7 +1391,7 @@ class TxVote(Base, TxBase):
     "ref_block_num": 32469,
     "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -1450,7 +1449,7 @@ class TxWithdrawVestingRoute(Base, TxBase):
         "ref_block_num": 1756,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -1505,7 +1504,7 @@ class TxWithdraw(Base, TxBase):
         "ref_block_num": 7003,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -1527,9 +1526,9 @@ class TxWithdraw(Base, TxBase):
     vesting_shares = Column(Numeric(25, 4), nullable=False, default=0.0)
 
     _fields = dict(withdraw_vesting=dict(
-            account=lambda x: x.get('account'),
-            vesting_shares=lambda x: amount_field(x.get('vesting_shares'),
-                                                  num_func=float)
+        account=lambda x: x.get('account'),
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'),
+                                              num_func=float)
     )
     )
     op_types = tuple(_fields.keys())
@@ -1564,7 +1563,7 @@ class TxWitnessUpdate(Base, TxBase):
         "ref_block_num": 64732,
         "extensions": []
     }
-    
+
     Prepared Format
     ===============
     {
@@ -1596,16 +1595,16 @@ class TxWitnessUpdate(Base, TxBase):
     fee = Column(Numeric(15, 4), nullable=False, default=0.0)
 
     _fields = dict(witness_update=dict(
-            owner=lambda x: x.get('owner'),
-            url=lambda x: x.get('url'),
-            block_signing_key=lambda x: x.get('block_signing_key'),
-            props_account_creation_fee=lambda x: amount_field(
-                    x.get('account_creation_fee'), num_func=float, no_value=0),
-            props_maximum_block_size=lambda x: get_in(
-                    ['props', 'maximum_block_size'], x),
-            props_sbd_interest_rate=lambda x: get_in(
-                    ['props', 'sbd_interest_rate'], x),
-            fee=lambda x: amount_field(x.get('fee'), num_func=float)
+        owner=lambda x: x.get('owner'),
+        url=lambda x: x.get('url'),
+        block_signing_key=lambda x: x.get('block_signing_key'),
+        props_account_creation_fee=lambda x: amount_field(
+            x.get('account_creation_fee'), num_func=float, no_value=0),
+        props_maximum_block_size=lambda x: get_in(
+            ['props', 'maximum_block_size'], x),
+        props_sbd_interest_rate=lambda x: get_in(
+            ['props', 'sbd_interest_rate'], x),
+        fee=lambda x: amount_field(x.get('fee'), num_func=float)
     )
     )
     op_types = tuple(_fields.keys())

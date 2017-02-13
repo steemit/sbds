@@ -15,7 +15,7 @@ logger = sbds.logging.getLogger(__name__)
 @click.argument('bucket', type=click.STRING)
 @click.pass_context
 def s3(ctx, bucket):
-    """This command provides AWS S3 block storage."""
+    """Interact with an S3 storage backend"""
     ctx.obj = dict(
         bucket=bucket,
         s3_resource=boto3.resource('s3'),
@@ -26,6 +26,7 @@ def s3(ctx, bucket):
 @s3.command('create-bucket')
 @click.pass_context
 def create_bucket(ctx):
+    """Create S3 bucket to store blocks"""
     region = ctx.obj['region']
     bucket = ctx.obj['bucket']
     s3_client = ctx.obj['s3_client']
@@ -47,16 +48,8 @@ def put_json_block(s3_resource, block, bucket):
 @click.argument('blocks', type=click.File('r'))
 @click.pass_context
 def put_json_blocks(ctx, blocks, bucket):
+    """Store JSON blocks"""
     for block in blocks:
         block = json.loads(block)
         res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(
             block, bucket)
-
-
-def get_top_level_keys(bucket):
-    paginator = client.get_paginator('list_objects_v2')
-    result = paginator.paginate(
-        Bucket=bucket, Delimiter='/', Prefix='blocknum')
-    '''
-    nums = [int(p['Prefix'][8:].strip('/')) for p in results[0]['CommonPrefixes']]
-    '''

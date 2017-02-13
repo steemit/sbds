@@ -42,7 +42,7 @@ correctly. As an alternative to installing those libraries, a `Dockerfile` is av
 
 ## Usage
 
-During an initial install, blocks can be quickly loaded from "checkpoints" which are gzipped text files that are 1M
+On initial use, blocks can be quickly loaded from "checkpoints" which are gzipped text files that are 1M
 blocks in length and currently hosted on S3 at `s3://steemit-dev-sbds-checkpoints`.
 
 Once the storage is synced with all previous blocks, blocks can be streamed to storage backends as they are confirmed.
@@ -53,7 +53,7 @@ or verify blockchain consensus state), so you may wish to regenerate these check
 `sbds` is designed to always be used in conjunction with a trusted instance of `steemd` to validate all block data before
 `sbds` ever receives it.  This daemon **does not** implement any consensus rules.
 
-### Streaming / Blockchain Commands
+### Command
 
 #### `sbds`
 
@@ -88,60 +88,7 @@ Options:
   --help                     Show this message and exit.
 ```
 
-#### `notify`
-```
-$ notify --help
-Usage: notify [OPTIONS] [BLOCKS]
 
-wsdump.py --text '{"jsonrpc": "2.0", "method": "call", "params": ["database_api","set_block_applied_callback",[1234]], "id": 1}' --raw
-wss://steemit.com/wspa | notify
-
-Options:
-  --help  Show this message and exit.
-
-```
-
-
-#### `block-height`
-```
-$ block-height --help
-Usage: block-height [OPTIONS]
-
-Options:
-  --url STEEMD_HTTP_URL  Steemd HTTP server URL
-  --help                 Show this message and exit.
-
-```
-#### `bulk-blocks`
-```
-$ bulk-blocks --help
-Usage: bulk-blocks [OPTIONS]
-
-  Quickly request blocks from steemd
-
-Options:
-  --start INTEGER
-  --end INTEGER
-  --chunksize INTEGER
-  --max_workers INTEGER
-  --url STEEMD_HTTP_URL  Steemd HTTP server URL
-  --help                 Show this message and exit.
-
-```
-
-#### `load-checkpoint-blocks`
-```
-$ load-checkpoint-blocks --help
-Usage: load-checkpoint-blocks [OPTIONS] CHECKPOINTS_DIR
-
-  Load blocks from locally stored "checkpoint" files
-
-Options:
-  --start INTEGER
-  --end INTEGER
-  --help           Show this message and exit.
-
-```
 
 #### Storages
 
@@ -169,40 +116,7 @@ Commands:
   put-json-blocks
 
 ```
-#### Elasticsearch
-#### Command: `es`
 
-```
-$ es --help
-Usage: es [OPTIONS] COMMAND [ARGS]...
-
-  Group of commands used to interact with the elasticsearch storage backend.
-  Typical usage would be reading blocks in JSON format from STDIN and then
-  storing those blocks in the index:
-
-  sbds | es insert-blocks
-
-  In the example above, the "sbds" command streams new blocks to STDOUT,
-  which are piped to STDIN of the "insert-blocks" db command by default. The
-  "database_url" was read from the "DATABASE_URL" ENV var, though it may
-  optionally be provided on the command line:
-
-  db --elasticsearch_url 'http[s]://user:password@host/index[?key=value..]' test
-
-Options:
-  --elasticsearch_url TEXT  Elastic connection URL, read from
-                            "ELASTICSEARCH_URL" ENV var by default
-  --index TEXT
-  --help                    Show this message and exit.
-
-Commands:
-  init                Create any missing mappings on the index
-  insert-blocks       Insert or update blocks in the index, accepts...
-  insert-bulk-blocks  Insert or update blocks in the index, accepts...
-  reset               Drop and then create the index and mappings
-  test                Test connection to elasticsearch
-
-```
 
 #### SQL Database
 

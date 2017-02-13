@@ -148,12 +148,11 @@ class Block(Base, UniqueMixin):
     """
 
     __tablename__ = 'sbds_core_blocks'
-    __table_args__ = (
-        {
-            'mysql_engine': 'InnoDB',
-            'mysql_charset': 'utf8mb4',
-            'mysql_collate': 'utf8mb4_general_ci'
-        }, )
+    __table_args__ = ({
+        'mysql_engine': 'InnoDB',
+        'mysql_charset': 'utf8mb4',
+        'mysql_collate': 'utf8mb4_general_ci'
+    }, )
 
     raw = Column(UnicodeText)
     block_num = Column(
@@ -315,17 +314,17 @@ def extract_transactions_from_block(_block):
     """
     block = prepare_raw_block(_block)
     block_transactions = deepcopy(block['transactions'])
-    for transaction_num, t in enumerate(block_transactions, 1):
-        t = deepcopy(t)
+    for transaction_num, tx in enumerate(block_transactions, 1):
+        tx = deepcopy(t)
         yield dict(
             block_num=block['block_num'],
             timestamp=block['timestamp'],
             transaction_num=transaction_num,
-            ref_block_num=t['ref_block_num'],
-            ref_block_prefix=t['ref_block_prefix'],
-            expiration=t['expiration'],
-            type=t['operations'][0][0],
-            operations=t['operations'])
+            ref_block_num=tx['ref_block_num'],
+            ref_block_prefix=tx['ref_block_prefix'],
+            expiration=tx['expiration'],
+            type=tx['operations'][0][0],
+            operations=tx['operations'])
 
 
 def extract_operations_from_block(raw_block):

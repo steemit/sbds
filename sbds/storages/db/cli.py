@@ -20,7 +20,7 @@ from sbds.utils import chunkify
 logger = sbds.logging.getLogger(__name__)
 
 
-@click.group()
+@click.group(short_help='Interact with an SQL storage backend')
 @click.option(
     '--database_url',
     type=str,
@@ -30,12 +30,12 @@ logger = sbds.logging.getLogger(__name__)
 @click.option('--echo', is_flag=True)
 @click.pass_context
 def db(ctx, database_url, echo):
-    """Group of commands used to interact with the SQL storage backend.
+    """Interact with an SQL storage backend
         Typical usage would be reading blocks in JSON format from STDIN
         and then storing those blocks in the database:
 
         \b
-        sbds | db insert-blocks
+            sbds | db insert-blocks
 
         In the example above, the "sbds" command streams new blocks to STDOUT, which are piped to STDIN of
         the "db insert-blocks" command by default. The "database_url" was read from the "DATABASE_URL"
@@ -162,7 +162,7 @@ def last_block(ctx):
 @db.command(name='find-missing-blocks')
 @click.pass_context
 def find_missing_blocks(ctx):
-    """JSON array of block_nums from missing blocks"""
+    """Ouput JSON array of block_nums from missing blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -180,7 +180,7 @@ def find_missing_blocks(ctx):
 @db.command(name='add-missing-posts-and-comments')
 @click.pass_context
 def add_missing_posts_and_comments(ctx):
-    """add missing posts and comments from txcomments"""
+    """Add missing posts and comments from txcomments"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -197,7 +197,7 @@ def add_missing_posts_and_comments(ctx):
 @db.command(name='find-missing-posts-and-comments')
 @click.pass_context
 def find_missing_posts_and_comments(ctx):
-    """JSON array of block_nums from missing post and comment blocks"""
+    """Ouput JSON array of block_nums from missing post and comment blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
