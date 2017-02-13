@@ -9,8 +9,7 @@ Welcome to sbds's documentation!
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-   :glob:
-    src/*
+   :glob: src/*
 
 
 Indices and tables

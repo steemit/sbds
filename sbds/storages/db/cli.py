@@ -78,7 +78,7 @@ def test(ctx):
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    """Insert blocks in the database, accepts "-" for STDIN (default)"""
+    """Insert blocks into the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -97,7 +97,7 @@ def insert_blocks(ctx, blocks):
 @click.option('--chunksize', type=click.INT, default=1000)
 @click.pass_context
 def bulk_add_blocks(ctx, blocks, chunksize):
-    """Insert blocks in the database, accepts "-" for STDIN (default)"""
+    """Insert many blocks in the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -144,7 +144,7 @@ def reset_db_tables(ctx):
 @db.command(name='last-block')
 @click.pass_context
 def last_block(ctx):
-    """Create any missing tables on the database"""
+    """Return the highest block stored in the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -162,7 +162,7 @@ def last_block(ctx):
 @db.command(name='find-missing-blocks')
 @click.pass_context
 def find_missing_blocks(ctx):
-    """Ouput JSON array of block_nums from missing blocks"""
+    """Return JSON array of block_nums from missing blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -197,7 +197,7 @@ def add_missing_posts_and_comments(ctx):
 @db.command(name='find-missing-posts-and-comments')
 @click.pass_context
 def find_missing_posts_and_comments(ctx):
-    """Ouput JSON array of block_nums from missing post and comment blocks"""
+    """Return JSON array of block_nums from missing post and comment blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
