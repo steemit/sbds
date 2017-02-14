@@ -19,8 +19,10 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import object_session
+from toolz.dicttoolz import dissoc
 
 import sbds.logging
+import sbds.json
 from sbds.storages.db.enums import comment_types_enum
 from sbds.storages.db.enums import extraction_source_enum
 from sbds.storages.db.field_handlers import author_field
@@ -64,10 +66,13 @@ class SynthBase(UniqueMixin):
         return "<%s (%s)>" % (self.__class__.__name__, self.dump())
 
     def dump(self):
-        data = deepcopy(self.__dict__)
-        if '_sa_instance_state' in data:
-            del data['_sa_instance_state']
-        return data
+        return dissoc(self.__dict__, '_sa_instance_state')
+
+    def to_dict(self):
+        return self.dump()
+
+    def to_json(self):
+        return sbds.json.dumps(self.to_dict())
 
 
 class Account(Base, SynthBase):

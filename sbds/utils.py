@@ -271,3 +271,4 @@ def detect_language(text):
     except langdetect.lang_detect_exception.LangDetectException as e:
         logger.warning(e)
         return None
+
