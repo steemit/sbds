@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from copy import deepcopy
 
 from sqlalchemy import BigInteger
@@ -14,8 +15,10 @@ from sqlalchemy import UnicodeText
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
 from toolz.dicttoolz import get_in
+from toolz.dicttoolz import dissoc
 
 import sbds.logging
+import sbds.json
 from .core import Base
 from .core import extract_operations_from_block
 from ..field_handlers import amount_field
@@ -24,6 +27,8 @@ from ..field_handlers import comment_body_field
 from ..query_helpers import past_24_hours, past_48_hours, past_72_hours
 from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
 from ..utils import UniqueMixin
+
+
 
 # from .core import Transaction
 
@@ -121,53 +126,81 @@ class TxBase(UniqueMixin):
                             cls.operation_num == kwargs['operation_num'],
                             )
 
+
     @classmethod
-    def time_window_filter(cls, query, _from=None, to=None):
-        q = query.filter(cls.timestamp >= _from)
+    def from_to_filter(cls, query, _from=None, to=None):
+        if isinstance(_from, int):
+            query = cls.block_num_window_filter(query, _from=_from)
+        elif isinstance(_from, datetime):
+            query = cls.datetime_window_filter(query, _from=_from)
+
+        if isinstance(to, int):
+            query = cls.block_num_window_filter(query, to=to)
+        elif isinstance(to, datetime):
+            query = cls.datetime_window_filter(query, to=to)
+
+        return query
+
+
+    @classmethod
+    def block_num_window_filter(cls, query, _from=None, to=None):
+        if _from:
+            query = query.filter(cls.block_num >= _from)
         if to:
-            q = q.filter(cls.timestamp <= to)
-        return _from, to, q
+            query = query.filter(cls.block_num <= to)
+        return query
+
+    @classmethod
+    def datetime_window_filter(cls, query, _from=None, to=None):
+        if _from:
+            query = query.filter(cls.timestamp >= _from)
+        if to:
+            query = query.filter(cls.timestamp <= to)
+        return query
 
     @classmethod
     def past_24(cls, session):
         q = session.query(cls)
         past_24 = past_24_hours()
-        q = cls.time_window_filter(q, _from=past_24)
+        q = cls.datetime_window_filter(q, _from=past_24)
         return q
 
     @classmethod
     def past_48(cls, session):
         q = session.query(cls)
         past_48 = past_48_hours()
-        q = cls.time_window_filter(q, _from=past_48)
+        q = cls.datetime_window_filter(q, _from=past_48)
         return q
 
     @classmethod
     def past_72(cls, session):
         q = session.query(cls)
         past_72 = past_72_hours()
-        q = cls.time_window_filter(q, _from=past_72)
+        q = cls.datetime_window_filter(q, _from=past_72)
         return q
 
     @classmethod
     def past_24_to_48(cls, session):
         q = session.query(cls)
         past_24, past_48 = past_24_to_48_hours()
-        q = cls.time_window_filter(q, _from=past_24, to=past_48)
+        q = cls.datetime_window_filter(q, _from=past_24, to=past_48)
         return q
 
     @classmethod
     def past_48_to_72(cls, session):
         q = session.query(cls)
         past_48, past_72 = past_48_to_72_hours()
-        q = cls.time_window_filter(q, _from=past_48, to=past_72)
+        q = cls.datetime_window_filter(q, _from=past_48, to=past_72)
         return q
 
     def dump(self):
-        data = deepcopy(self.__dict__)
-        if '_sa_instance_state' in data:
-            del data['_sa_instance_state']
-        return data
+        return dissoc(self.__dict__, '_sa_instance_state')
+
+    def to_dict(self):
+        return self.dump()
+
+    def to_json(self):
+        return sbds.json.dumps(self.to_dict())
 
     def __repr__(self):
         return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (

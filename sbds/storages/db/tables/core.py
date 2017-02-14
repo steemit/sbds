@@ -11,8 +11,10 @@ from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
+from toolz.dicttoolz import dissoc
 
 import sbds.logging
+import sbds.json
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
@@ -180,6 +182,19 @@ class Block(Base, UniqueMixin):
         return "<Block(block_num='%s', timestamp='%s')>" % (
             self.block_num, self.timestamp)
 
+    def dump(self):
+        return dissoc(self.__dict__, '_sa_instance_state')
+
+    def to_dict(self, include_raw=False):
+        data = self.dump()
+        if not include_raw:
+            return dissoc(data, 'raw')
+        else:
+            return data
+
+    def to_json(self):
+        return sbds.json.dumps(self.to_dict())
+
     @classmethod
     def _prepare_for_storage(cls, raw_block):
         block = prepare_raw_block(raw_block)
@@ -214,6 +229,8 @@ class Block(Base, UniqueMixin):
         highest = session.query(func.max(cls.block_num)).scalar()
         if not highest:
             return 0
+        else:
+            return highest
 
     @classmethod
     def find_missing_iter(cls, session, chunksize=1000):
