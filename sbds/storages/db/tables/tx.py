@@ -32,6 +32,8 @@ logger = sbds.logging.getLogger(__name__)
 
 # noinspection PyMethodParameters
 class TxBase(UniqueMixin):
+    # pylint: disable=no-self-argument
+
     @declared_attr
     def __table_args__(cls):
         args = (PrimaryKeyConstraint('block_num', 'transaction_num',
@@ -41,6 +43,8 @@ class TxBase(UniqueMixin):
                                          'mysql_collate': 'utf8mb4_general_ci'
                                      })
         return getattr(cls, '__extra_table_args__', tuple()) + args
+
+    # pylint: enable=no-self-argument
 
     block_num = Column(Integer, nullable=False)
     transaction_num = Column(SmallInteger, nullable=False)
@@ -106,6 +110,7 @@ class TxBase(UniqueMixin):
     def tx_class_for_type(cls, tx_type):
         return tx_class_map[tx_type]
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return tuple([
@@ -119,6 +124,8 @@ class TxBase(UniqueMixin):
             cls.block_num == kwargs['block_num'],
             cls.transaction_num == kwargs['transaction_num'],
             cls.operation_num == kwargs['operation_num'], )
+
+    # pylint: enable=unused-argument
 
     @classmethod
     def time_window_filter(cls, query, _from=None, to=None):
@@ -177,6 +184,7 @@ class TxBase(UniqueMixin):
         return str(self.dump())
 
 
+# pylint: disable=line-too-long, bad-continuation, too-many-lines, no-self-argument
 class TxAccountCreate(Base, TxBase):
     """Raw Format
     ==========

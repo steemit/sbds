@@ -10,7 +10,7 @@ setup(
     setup_requires=['pytest-runner'],
     tests_require=['pytest',
                    'pep8',
-                   'pytest-pep8',
+                   'pytest-pylint',
                    'yapf',
                    'sphinx',
                    'recommonmark',

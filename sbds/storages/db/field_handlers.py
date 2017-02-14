@@ -11,6 +11,7 @@ from sbds.utils import findall_patch_hunks
 logger = sbds.logging.getLogger(__name__)
 
 
+# pylint: disable=unused-argument
 def example_field_handler(value=None, context=None, **kwargs):
     """
 
@@ -18,7 +19,7 @@ def example_field_handler(value=None, context=None, **kwargs):
       value: value received from field lambda function (Default value = None)
       context: all values of the dict populating the instance (Default value = None)
       kwargs: any additional params required
-      **kwargs: 
+      **kwargs:
 
     Returns:
       value, modified or not
@@ -48,7 +49,7 @@ def images_field(meta=None):
             logger.warning('skipping bad url: %s', url)
             continue
         images.append(Image(url=canon_url, extraction_source='meta')
-                      )  # TODO Do these need to be unique to post?
+                     )  # TODO Do these need to be unique to post?
     return images
 
 
@@ -67,7 +68,7 @@ def links_field(meta=None):
             logger.warning('skipping bad url: %s', url)
             continue
         links.append(Link(url=canon_url, extraction_source='meta')
-                     )  # TODO Do these need to be unique to post?
+                    )  # TODO Do these need to be unique to post?
     return links
 
 

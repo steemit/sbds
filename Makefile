@@ -7,7 +7,7 @@ default: build
 
 .PHONY: test run
 
-build: pep8 README.rst
+build: test README.rst
 	docker build -t steemit/sbds .
 
 run:
@@ -16,12 +16,11 @@ run:
 test:
 	python setup.py test
 
-pep8-test:
-	py.test --pep8 -m pep8
+pylint-test:
+	py.test --pyline -m pylint
 
 fmt:
-	yapf --recursive --in-place .
-	autopep8 --recursive --in-place .
+	yapf --recursive --in-place --style pep8 .
 	
 README.rst: docs/src/README.rst 
 	cd docs

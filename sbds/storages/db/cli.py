@@ -9,12 +9,10 @@ from sbds.storages.db import Base
 from sbds.storages.db import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
-from sbds.storages.db.utils import configure_engine
-
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
-
+from sbds.storages.db.utils import configure_engine
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
@@ -71,7 +69,7 @@ def test(ctx):
                    (result[0].__repr__(), result[1]))
     else:
         click.echo('Failed to connect: %s', result[1])
-        click.exit(code=127)
+        ctx.exit(code=127)
 
 
 @db.command(name='insert-blocks')

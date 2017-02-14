@@ -19,8 +19,9 @@ metadata = Base.metadata
 logger = getLogger(__name__)
 
 
+# pylint: disable=bare-except,too-many-branches,too-many-arguments
 def safe_merge_insert(objects, session, load=True):
-    # noinspection PyBroadException
+    # pylint: disable=bare-except
     try:
         with session_scope(session, _raise=True) as s:
             for obj in objects:
@@ -34,7 +35,7 @@ def safe_merge_insert(objects, session, load=True):
 def safe_insert(obj, session, log_fail=False):
     with session_scope(session) as s:
         s.add(obj)
-    result = object_state(obj).persistent
+    result = getattr(object_state(obj), 'persistent', False)
     if not result and log_fail:
         generate_fail_log_from_obj(logger, obj)
 

@@ -41,6 +41,8 @@ logger = sbds.logging.getLogger(__name__)
 
 # noinspection PyMethodParameters
 class SynthBase(UniqueMixin):
+    # pylint: disable=unused-argument
+
     @classmethod
     def unique_hash(cls, *arg, **kw):
         raise NotImplementedError
@@ -49,6 +51,9 @@ class SynthBase(UniqueMixin):
     def unique_filter(cls, query, *arg, **kw):
         raise NotImplementedError
 
+    # pylint: enable=unused-argument
+
+    # pylint: disable=no-self-argument
     @declared_attr
     def __table_args__(cls):
         args = ({
@@ -57,6 +62,8 @@ class SynthBase(UniqueMixin):
             'mysql_collate': 'utf8mb4_general_ci'
         }, )
         return getattr(cls, '__extra_table_args__', tuple()) + args
+
+    # pylint: enable=no-self-argument
 
     def __repr__(self):
         return "<%s (%s)>" % (self.__class__.__name__, self.dump())
@@ -110,6 +117,7 @@ class Account(Base, SynthBase):
         TxWithdraw='account',
         TxWitnessUpdate='owner')
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return kwargs['name']
@@ -117,6 +125,8 @@ class Account(Base, SynthBase):
     @classmethod
     def unique_filter(cls, query, *args, **kwargs):
         return query.filter(cls.name == kwargs['name'])
+
+    # pylint: enable=unused-argument
 
     @classmethod
     def from_tx(cls, tx_obj):
@@ -219,14 +229,14 @@ class PostAndComment(Base, SynthBase):
     )
 
     @classmethod
-    def prepare_from_tx(cls, txcomment, session=None, **kwargs):
+    def prepare_from_tx(cls, txcomment, session=None):
         """returns fields key value dict
 
         Args:
           session: param txcomment: TxComment instance (Default value = None)
           kwargs: return: dict
-          txcomment: 
-          **kwargs: 
+          txcomment:
+          **kwargs:
 
         Returns:
           dict
@@ -252,7 +262,7 @@ class PostAndComment(Base, SynthBase):
           txcomment: param session:
           kwargs: return:  Post | Comment
           session:  (Default value = None)
-          **kwargs: 
+          **kwargs:
 
         Returns:
           Post | Comment
@@ -279,7 +289,7 @@ class PostAndComment(Base, SynthBase):
           txcomment: param session:
           kwargs: return:
           session:  (Default value = None)
-          **kwargs: 
+          **kwargs:
 
         Returns:
 
@@ -315,6 +325,7 @@ class PostAndComment(Base, SynthBase):
             self.__class__.__name__, self.id, self.bto, self.author_name,
             self.title)
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return tuple([
@@ -328,6 +339,8 @@ class PostAndComment(Base, SynthBase):
             cls.block_num == kwargs['block_num'],
             cls.transaction_num == kwargs['transaction_num'],
             cls.operation_num == kwargs['operation_num'], )
+
+    # pylint: enable=unused-argument
 
     @classmethod
     def find_missing(cls, session):
@@ -379,6 +392,7 @@ class PostAndComment(Base, SynthBase):
             try:
                 session.add(new_obj)
                 session.commit()
+            # pylint: disable=broad-except
             except Exception as e:
                 session.rollback()
                 logger.warning('%s.add fail: %s', cls_name, new_obj)
@@ -405,6 +419,7 @@ class PostAndComment(Base, SynthBase):
             try:
                 session.merge(new_obj)
                 session.commit()
+            # pylint: disable=broad-except
             except Exception as e:
                 session.rollback()
                 logger.error('%s.merge fail: %s', cls_name, new_obj)
@@ -449,6 +464,7 @@ class Tag(Base, SynthBase):
                          formatted_string, id_string)
         return formatted_string
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return cls.format_id_string(kwargs['id'])
@@ -457,6 +473,8 @@ class Tag(Base, SynthBase):
     def unique_filter(cls, query, *args, **kwargs):
         id_string = cls.format_id_string(kwargs['id'])
         return query.filter(cls.id == id_string)
+
+    # pylint: enable=unused-argument
 
 
 class Link(Base, SynthBase):
@@ -482,6 +500,7 @@ class Link(Base, SynthBase):
         else:
             self._url = canonical_url
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         url = canonicalize_url(kwargs['url'])
@@ -493,6 +512,8 @@ class Link(Base, SynthBase):
         url = kwargs['url']
         pac_id = kwargs.get('pac_id')
         return query.filter_by(pac_id=pac_id, url=url)
+
+    # pylint: enable=unused-argument
 
 
 class Image(Base, SynthBase):
@@ -519,6 +540,7 @@ class Image(Base, SynthBase):
         else:
             self._url = canonical_url
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         url = canonicalize_url(kwargs['url'])
@@ -530,6 +552,8 @@ class Image(Base, SynthBase):
         url = kwargs['url']
         pac_id = kwargs.get('pac_id')
         return query.filter_by(pac_id=pac_id, url=url)
+
+    # pylint: enable=unused-argument
 
 
 tag_table = Table(

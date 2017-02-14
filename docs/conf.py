@@ -17,7 +17,6 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
@@ -26,16 +25,15 @@ from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
 import sbds
+
+
 # setup AutoStructify
 def setup(app):
     app.add_config_value('recommonmark_config', {
-            'url_resolver': lambda url: github_doc_root + url,
-            'auto_toc_tree_section': 'Contents',
-            }, True)
+        'url_resolver': lambda url: github_doc_root + url,
+        'auto_toc_tree_section': 'Contents',
+    }, True)
     app.add_transform(AutoStructify)
-
-
-
 
 
 # -- General configuration ------------------------------------------------
@@ -48,7 +46,6 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.ifconfig',
@@ -56,7 +53,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinxcontrib.programoutput',
     'sphinxcontrib.restbuilder',
-    ]
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -106,7 +103,6 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
-
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -131,12 +127,10 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'sbdsdoc'
-
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -162,20 +156,14 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'sbds.tex', 'sbds Documentation',
-     'jg@steemit.com', 'manual'),
+    (master_doc, 'sbds.tex', 'sbds Documentation', 'jg@steemit.com', 'manual'),
 ]
-
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'sbds', 'sbds Documentation',
-     [author], 1)
-]
-
+man_pages = [(master_doc, 'sbds', 'sbds Documentation', [author], 1)]
 
 # -- Options for Texinfo output -------------------------------------------
 
@@ -183,10 +171,6 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'sbds', 'sbds Documentation',
-     author, 'sbds', 'One line description of project.',
-     'Miscellaneous'),
+    (master_doc, 'sbds', 'sbds Documentation', author, 'sbds',
+     'One line description of project.', 'Miscellaneous'),
 ]
-
-
-

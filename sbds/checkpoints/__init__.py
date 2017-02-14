@@ -74,7 +74,7 @@ def required_checkpoints_for_range(path, start, end=None):
     return required_checkpointset
 
 
-def update_checkpoints(path, blockchain_height, rpc):
+def update_checkpoints(path, blockchain_height):
     checkpoint_set = checkpointset_from_path(path)
     if checkpoint_set.checkpoints[0].is_gzipped:
         raise TypeError('Cannot update gzipped checkpoint set directly')
@@ -327,18 +327,8 @@ def checkpoint_filename_from_zero_index(index, is_gzipped=True):
         start=start, end=end, gzip=gzip)
 
 
-# checkpoint file/data functions
-def add_blocks_to_existing_checkpoint(cp, blocks):
-    # TODO
-    pass
-
-
-def add_blocks_to_new_checkpoint(path, blocks):
-    # TODO
-    pass
-
-
 def checkpoint_opener_wrapper(encoding='utf8', real_mode='rt'):
+    # pylint: disable=unused-argument
     def checkpoint_opener(filename, mode):
         ext = os.path.splitext(filename)[1]
         logger.debug('checkpoint ext: %s', ext)
@@ -374,6 +364,7 @@ def checkpoint_opener_wrapper(encoding='utf8', real_mode='rt'):
                 logger.debug('opening local checkpoint: %s', filename)
                 return open(filename, mode=real_mode, encoding=encoding)
 
+    # pylint: enable=unused-argument
     return checkpoint_opener
 
 

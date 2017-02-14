@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
-import fileinput
 import json
 
 import click
-import toolz.itertoolz
 from steemapi.steemnoderpc import SteemNodeRPC
 
-
 import sbds.logging
-
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
-
 
 
 @click.group()
@@ -29,10 +24,7 @@ def chain():
     envvar='WEBSOCKET_URL',
     help='Steemd server URL',
     default='wss://steemd.steemitdev.com:443')
-@click.option(
-    '--block_nums',
-    type=click.File('r'),
-    required=False)
+@click.option('--block_nums', type=click.File('r'), required=False)
 @click.option(
     '--start',
     help='Starting block_num, default is 1',
@@ -100,7 +92,6 @@ def block_height(url):
     click.echo(rpc.last_irreversible_block_num())
 
 
-
 @chain.command(name='get-blocks')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
@@ -131,12 +122,13 @@ def get_blocks_fast(start, end, chunksize, max_workers, url):
             click.echo(block.encode('utf8'), file=f)
 
 
+# pylint: disable=too-many-arguments
 def _get_blocks_fast(start=None,
-                    end=None,
-                    chunksize=None,
-                    max_workers=None,
-                    rpc=None,
-                    url=None):
+                     end=None,
+                     chunksize=None,
+                     max_workers=None,
+                     rpc=None,
+                     url=None):
     extra = dict(
         start=start,
         end=end,
@@ -156,5 +148,3 @@ def _get_blocks_fast(start=None,
                 # from an HTTP 503 error
                 if b:
                     yield b
-
-

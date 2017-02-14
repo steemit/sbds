@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-import datetime
 import json
-import math
-import os
 import re
-from collections import defaultdict
 from urllib.parse import urlparse
-from copy import deepcopy
 
 import langdetect
 import w3lib.url
@@ -25,6 +20,7 @@ RE_HUNK_HEADER = re.compile(
 # ensure deterministec language detection
 DetectorFactory.seed = 0
 MIN_TEXT_LENGTH_FOR_DETECTION = 20
+
 
 def block_num_from_hash(block_hash: str) -> int:
     """
@@ -49,6 +45,7 @@ def block_num_from_previous(previous_block_hash: str) -> int:
     """
     return block_num_from_hash(previous_block_hash) + 1
 
+
 def chunkify(iterable, chunksize=10000):
     """Yield successive chunksized chunks from iterable.
 
@@ -70,7 +67,6 @@ def chunkify(iterable, chunksize=10000):
             chunk = []
     if len(chunk) > 0:
         yield chunk
-
 
 
 def ensure_decoded(thing):
@@ -141,13 +137,13 @@ def block_info(block):
         block_num=block_dict['block_num'],
         transaction_count=len(block_dict['transactions']),
         operation_count=sum(
-            len(t['operations']) for t in block_dict['transactions']),
+            len(trans['operations']) for trans in block_dict['transactions']),
         transactions=[], )
     info['brief'] = \
         'block: {block_num} transaction_types: {transactions} total_operations: {operation_count}'
 
-    for t in block_dict['transactions']:
-        info['transactions'].append(t['operations'][0][0])
+    for trans in block_dict['transactions']:
+        info['transactions'].append(trans['operations'][0][0])
     return info
 
 

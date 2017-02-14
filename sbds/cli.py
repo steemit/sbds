@@ -6,7 +6,10 @@ from sbds.checkpoints.cli import checkpoints
 from sbds.storages.db.cli import db
 from sbds.storages.s3.cli import s3
 
-@click.group(short_help='manages storage, retrieval, and querying of the Steem blockchain')
+
+@click.group(
+    short_help='manages storage, retrieval, and querying of the Steem blockchain'
+)
 def sbds():
     """The *sbds* CLI manages storage, retrieval, and querying of the Steem
     blockchain.
@@ -18,11 +21,8 @@ def sbds():
         sbds COMMAND --help
     """
 
+
 sbds.add_command(chain)
 sbds.add_command(checkpoints)
 sbds.add_command(db)
 sbds.add_command(s3)
-
-
-
-

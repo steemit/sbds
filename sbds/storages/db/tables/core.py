@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import ujson as json
+import json
 from copy import copy
 from copy import deepcopy
 from itertools import chain
@@ -21,6 +21,7 @@ from sbds.utils import chunkify
 logger = sbds.logging.getLogger(__name__)
 
 
+# pylint: disable=line-too-long
 class Block(Base, UniqueMixin):
     """{
         "extensions": [],
@@ -146,7 +147,7 @@ class Block(Base, UniqueMixin):
     Returns:
 
     """
-
+    # pylint: enable=line-too-long
     __tablename__ = 'sbds_core_blocks'
     __table_args__ = ({
         'mysql_engine': 'InnoDB',
@@ -217,6 +218,7 @@ class Block(Base, UniqueMixin):
         prepared = cls._prepare_for_storage(raw_block)
         return cls(**prepared)
 
+    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return kwargs['block_num']
@@ -224,6 +226,8 @@ class Block(Base, UniqueMixin):
     @classmethod
     def unique_filter(cls, query, *args, **kwargs):
         return query.filter(cls.block_num == kwargs['block_num'])
+
+    # pylint: enable=unused-argument
 
     @classmethod
     def highest_block(cls, session):
@@ -314,8 +318,8 @@ def extract_transactions_from_block(_block):
     """
     block = prepare_raw_block(_block)
     block_transactions = deepcopy(block['transactions'])
-    for transaction_num, tx in enumerate(block_transactions, 1):
-        tx = deepcopy(t)
+    for transaction_num, original_tx in enumerate(block_transactions, 1):
+        tx = deepcopy(original_tx)
         yield dict(
             block_num=block['block_num'],
             timestamp=block['timestamp'],

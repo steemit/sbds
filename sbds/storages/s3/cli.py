@@ -6,7 +6,6 @@ import boto3
 import click
 
 import sbds.logging
-from sbds.utils import block_num_from_previous
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -47,9 +46,12 @@ def put_json_block(s3_resource, block, bucket):
 @s3.command(name='put-blocks')
 @click.argument('blocks', type=click.File('r'))
 @click.pass_context
-def put_json_blocks(ctx, blocks, bucket):
+def put_json_blocks(ctx, blocks):
     """Store JSON blocks"""
+    s3_resource = ctx.obj['s3_resource']
+    bucket = ctx.obj['bucket']
     for block in blocks:
         block = json.loads(block)
+        # pylint: disable=unused-variable
         res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(
-            block, bucket)
+            s3_resource, block, bucket)

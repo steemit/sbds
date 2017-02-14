@@ -62,8 +62,11 @@ confidence=
 # --disable=W"
 disable=
     # disabled by me,
+    broad-except,
     locally-disabled,
     missing-docstring,
+    line-too-long,
+    pointless-string-statement,
     fixme,
     # disabled by default,
     import-star-module-level,
@@ -170,8 +173,7 @@ no-space-check=trailing-comma,dict-separator
 # tab).
 indent-string='    '
 
-# Number of spaces of indent required inside a hanging  or continued line.
-indent-after-paren=4
+
 
 # Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
 expected-line-ending-format=
@@ -207,7 +209,7 @@ logging-modules=logging
 bad-functions=input
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,e,s,_,fd,fp,db,q,f,tx,to,b
+good-names=i,e,s,_,fd,fp,db,q,f,tx,to,b,bn, s3, id, op, cp, x, k, v, kv,
 
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata

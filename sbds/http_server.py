@@ -1,23 +1,18 @@
 # -*- coding: utf-8 -*-
 import os
-import json
 from datetime import datetime
 
 import bottle
-from bottle.ext import sqlalchemy
 import click
-from bottle import route, run
-
-from bottle import HTTPError
-
 import maya
+from bottle.ext import sqlalchemy
 
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.logging import getLogger
-from sbds.storages.db.utils import configure_engine
 from sbds.storages.db import Base, Session
 from sbds.storages.db.tables.core import Block
 from sbds.storages.db.tables.tx import tx_class_map
+from sbds.storages.db.utils import configure_engine
 
 logger = getLogger(__name__)
 

@@ -9,13 +9,14 @@ import sbds.checkpoints
 import sbds.logging
 from sbds.checkpoints import checkpoint_opener_wrapper
 
-
 logger = sbds.logging.getLogger(__name__)
+
 
 @click.group()
 def checkpoints():
     """retrieve blocks from blockchain checkpoints"""
     pass
+
 
 @checkpoints.command(name='get-blocks')
 @click.argument(
