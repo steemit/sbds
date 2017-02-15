@@ -24,11 +24,10 @@ sys.path.insert(0, os.path.abspath('_themes'))
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
-
-
-
 # setup AutoStructify
 github_doc_root = 'https://github.com/steem/tree/master/docs'
+
+
 def setup(app):
     app.add_config_value('recommonmark_config', {
         'url_resolver': lambda url: github_doc_root + url,
