@@ -16,7 +16,7 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-
+# pylint: disable=redefined-builtin,wrong-import-position,unused-import
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
@@ -24,10 +24,11 @@ sys.path.insert(0, os.path.abspath('_themes'))
 from recommonmark.parser import CommonMarkParser
 from recommonmark.transform import AutoStructify
 
-import sbds
+
 
 
 # setup AutoStructify
+github_doc_root = 'https://github.com/steem/tree/master/docs'
 def setup(app):
     app.add_config_value('recommonmark_config', {
         'url_resolver': lambda url: github_doc_root + url,

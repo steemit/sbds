@@ -3,8 +3,8 @@ import json
 import re
 from urllib.parse import urlparse
 
-import langdetect
 import w3lib.url
+import langdetect
 from langdetect import DetectorFactory
 
 import sbds.logging
@@ -50,7 +50,7 @@ def chunkify(iterable, chunksize=10000):
     """Yield successive chunksized chunks from iterable.
 
     Args:
-      iterable: 
+      iterable:
       chunksize:  (Default value = 10000)
 
     Returns:

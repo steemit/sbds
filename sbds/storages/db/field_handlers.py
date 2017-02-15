@@ -49,7 +49,7 @@ def images_field(meta=None):
             logger.warning('skipping bad url: %s', url)
             continue
         images.append(Image(url=canon_url, extraction_source='meta')
-                     )  # TODO Do these need to be unique to post?
+                      )  # TODO Do these need to be unique to post?
     return images
 
 
@@ -68,7 +68,7 @@ def links_field(meta=None):
             logger.warning('skipping bad url: %s', url)
             continue
         links.append(Link(url=canon_url, extraction_source='meta')
-                    )  # TODO Do these need to be unique to post?
+                     )  # TODO Do these need to be unique to post?
     return links
 
 

@@ -63,7 +63,7 @@ def test_checkpoint_access(ctx, checkpoints_path):
                 files=checkpoint_set.checkpoint_paths,
                 openhook=checkpoint_opener_wrapper(encoding='utf8')) as blocks:
 
-            for i, block in enumerate(blocks):
+            for block in blocks:
                 block_num = json.loads(block)['block_num']
                 if block_num:
                     click.echo(
