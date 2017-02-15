@@ -3,11 +3,11 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
 
+# pylint: disable=wrong-import-position
 from .core import Block
 from .synthesized import Account
 from .synthesized import PostAndComment
@@ -37,29 +37,27 @@ from .tx import TxWithdrawVestingRoute
 from .tx import TxWithdraw
 from .tx import TxWitnessUpdate
 
-import sbds.storages.db.events
 
-
-def init_tables(engine, metadata, checkfirst=True):
+def init_tables(engine, _metadata, checkfirst=True):
     """Create any missing tables on the database"""
-    metadata.create_all(bind=engine, checkfirst=checkfirst)
+    _metadata.create_all(bind=engine, checkfirst=checkfirst)
 
 
-def reset_tables(engine, metadata):
+def reset_tables(engine, _metadata):
     """Drop and then create tables on the database"""
 
     # use unadulterated MetaData to avoid errors due to ORM classes
     # being inconsistent with existing tables
-    from sqlalchemy import MetaData
-    _metadata = MetaData()
-    _metadata.reflect(bind=engine)
-    _metadata.drop_all(bind=engine)
+
+    seperate_metadata = MetaData()
+    seperate_metadata.reflect(bind=engine)
+    seperate_metadata.drop_all(bind=engine)
 
     # use ORM clases to define tables to create
-    init_tables(engine, metadata)
+    init_tables(engine, _metadata)
+
 
 def test_connection(engine):
-    from sqlalchemy import MetaData
     _metadata = MetaData()
 
     try:
@@ -69,4 +67,3 @@ def test_connection(engine):
         return url, table_count
     except Exception as e:
         return False, e
-

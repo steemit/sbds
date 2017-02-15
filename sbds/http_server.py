@@ -1,28 +1,26 @@
 # -*- coding: utf-8 -*-
 import os
 from datetime import datetime
+import logging
 
-import bottle
-from bottle.ext import sqlalchemy
 import click
+import bottle
 from bottle import request
 
-from bottle import HTTPError
-
 import maya
-import sbds.json
+
+
 import sbds.logging
 from sbds.http_client import SimpleSteemAPIClient
 
-from sbds.storages.db.utils import configure_engine
 from sbds.storages.db import Base, Session
 from sbds.storages.db.tables.core import Block
 from sbds.storages.db.tables.tx import tx_class_map
-
+from sbds.storages.db.utils import configure_engine
 
 MAX_DB_ROW_RESULTS = 100000
 DB_QUERY_LIMIT = MAX_DB_ROW_RESULTS + 1
-import logging
+
 logger = sbds.logging.getLogger(__name__, level=logging.DEBUG)
 
 rpc_url = os.environ.get('STEEMD_HTTP_URL', 'https://steemd.steemitdev.com')
@@ -30,29 +28,27 @@ database_url = os.environ.get('DATABASE_URL', 'sqlite:///')
 
 rpc = SimpleSteemAPIClient(rpc_url)
 
-database_url, url, engine_kwargs, engine = configure_engine(database_url, echo=True)
+database_url, url, engine_kwargs, engine = configure_engine(
+    database_url, echo=True)
 Session.configure(bind=engine)
 
-
-
-
-
 app = bottle.Bottle()
+# pylint: disable=undefined-variable
 plugin = sqlalchemy.Plugin(
-        engine,  # SQLAlchemy engine created with create_engine function.
-        Base.metadata,  # SQLAlchemy metadata, required only if create=True.
-        keyword='db',
-        # Keyword used to inject session database in a route (default 'db').
-        create=True,
-        # If it is true, execute `metadata.create_all(engine)` when plugin is applied (default False).
-        commit=False,
-        # If it is true, plugin commit changes after route is executed (default True).
-        use_kwargs=False,
-        # If it is true and keyword is not defined, plugin uses **kwargs argument to inject session database (default False).
-        create_session=Session
-)
-app.install(plugin)
+    engine,  # SQLAlchemy engine created with create_engine function.
+    Base.metadata,  # SQLAlchemy metadata, required only if create=True.
+    keyword='db',
+    # Keyword used to inject session database in a route (default 'db').
+    create=True,
+    # If it is true, execute `metadata.create_all(engine)` when plugin is applied (default False).
+    commit=False,
+    # If it is true, plugin commit changes after route is executed (default True).
+    use_kwargs=False,
+    # If it is true and keyword is not defined, plugin uses **kwargs argument to inject session database (default False).
+    create_session=Session)
+# pylint: enable=undefined-variable
 
+app.install(plugin)
 '''
 Accounts
 =========
@@ -63,31 +59,15 @@ SELECT COUNT(type) FROM sbds_transactions WHERE type='account_create'
 
 '''
 
-TIME_WINDOWS = (
-    'past-24-hours',
-    'past-48-hours',
-    'past-72-hours',
-    'past-24-to-48-hours',
-    'past-48-to-72-hours',
-)
-
-def match_time_windows(window_str):
-    if window_str in TIME_WINDOWS:
-        return window_str
-    try:
-        f, _from, t, to = window_str.split()
-        return maya.dateparser.parse(_from), maya.dateparser.parse(to)
-    except ValueError:
-        return None
-
 
 def match_operation(op_str):
     return tx_class_map[op_str.lower()]
 
+# pylint: disable=unused-argument
 def operation_filter(config):
     ''' Matches blockchain operations. '''
 
-    regexp ='(%s){1}' %  r'|'.join(key for key in tx_class_map.keys())
+    regexp = '(%s){1}' % r'|'.join(key for key in tx_class_map.keys())
 
     def to_python(match):
         return tx_class_map[match]
@@ -96,6 +76,7 @@ def operation_filter(config):
         return tx.operation_type
 
     return regexp, to_python, to_url
+# pylint: enable=unused-argument
 
 app.router.add_filter('operations', operation_filter)
 
@@ -103,17 +84,23 @@ app.router.add_filter('operations', operation_filter)
 class JSONError(bottle.HTTPResponse):
     default_status = 500
 
-    def __init__(self, status=None, body=None, exception=None, traceback=None,
+    def __init__(self,
+                 status=None,
+                 body=None,
+                 exception=None,
+                 traceback=None,
                  **options):
         self.exception = exception
         self.traceback = traceback
         body = dict(error=body)
         headers = {'Content-Type': 'application/json'}
-        super(JSONError, self).__init__(body, status, headers=headers, **options)
+        super(JSONError, self).__init__(
+            body, status, headers=headers, **options)
 
 
 def parse_block_num(block_num):
     return int(block_num)
+
 
 def parse_iso8601(iso_str):
     return maya.dateparser.parse(iso_str)
@@ -132,6 +119,7 @@ def parse_to_query_field(to=None):
     else:
         raise ValueError('to must be a iso8601 string or block_num')
 
+
 def parse_from_query_field(_from=None):
     if isinstance(_from, tuple):
         _from = _from[0]
@@ -147,10 +135,10 @@ def parse_from_query_field(_from=None):
 
 
 query_field_parser_map = {
-    'to'  : parse_to_query_field,
+    'to': parse_to_query_field,
     'from': parse_from_query_field
-
 }
+
 
 def parse_query_fields(query_dict):
     logger.debug('query_dict', extra=query_dict)
@@ -167,11 +155,10 @@ def parse_query_fields(query_dict):
 
 def return_query_response(result):
     if len(result) > MAX_DB_ROW_RESULTS:
-        return JSONError(status=403, body='Too many results (%s rows)' %
-                                          len(result) )
+        return JSONError(
+            status=403, body='Too many results (%s rows)' % len(result))
     else:
         return [row.to_json() for row in result]
-
 
 
 @app.get('/health')
@@ -179,17 +166,15 @@ def health(db):
     last_db_block = Block.highest_block(db)
     last_irreversible_block = rpc.last_irreversible_block_num()
     diff = last_irreversible_block - last_db_block
-    return dict(last_db_block=last_db_block,
-                last_irreversible_block=last_irreversible_block,
-                diff=diff,
-                timestamp=datetime.utcnow().isoformat())
-
-
-
+    return dict(
+        last_db_block=last_db_block,
+        last_irreversible_block=last_irreversible_block,
+        diff=diff,
+        timestamp=datetime.utcnow().isoformat())
 
 
 @app.get('/api/v1/ops/<operation:operations>/count')
-def count_operation(operation,  db):
+def count_operation(operation, db):
     query = db.query(operation)
     if request.query:
         try:
@@ -201,8 +186,6 @@ def count_operation(operation,  db):
         query = operation.from_to_filter(query, _from=_from, to=to)
 
     return dict(count=query.count())
-
-
 
 
 # '/api/v1/ops/custom/:tid?from=<iso8601-or-block_num>&to=<iso8601-or-blocknum>'
@@ -217,12 +200,10 @@ def get_custom_json_by_tid(tid, db):
             logger.error(e)
             return JSONError(status=400, body='Bad query: %s' % e)
 
-        query = cls.from_to_filter(query,
-                                   _from=parsed_fields.get('from'),
-                                   to=parsed_fields.get('to'))
+        query = cls.from_to_filter(
+            query, _from=parsed_fields.get('from'), to=parsed_fields.get('to'))
     result = query.limit(20).all()
     return return_query_response(result)
-
 
 
 # Development server
@@ -230,13 +211,16 @@ def get_custom_json_by_tid(tid, db):
 def dev_server():
     _dev_server()
 
+
 def _dev_server():
+    # pylint: disable=bare-except
     try:
         app.run(port=8080, debug=True)
     except:
         pass
     finally:
         app.close()
+# pylint: enable=bare-except
 
 # WSGI application
 application = app

@@ -1,10 +1,13 @@
+ROOT_DIR := .
+DOCS_DIR := $(ROOT_DIR)/docs
+DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
 
 default: build
 
 .PHONY: test run
 
-build: pep8
+build: test README.rst
 	docker build -t steemit/sbds .
 
 run:
@@ -13,12 +16,12 @@ run:
 test:
 	python setup.py test
 
-pep8-test:
-	py.test --pep8 -m pep8
+pylint-test:
+	py.test --pyline -m pylint
 
 fmt:
-	yapf --recursive .
-
-pep8:
-	pep8 .
-
+	yapf --recursive --in-place --style pep8 .
+	
+README.rst: docs/src/README.rst 
+	cd docs
+	$(MAKE) README

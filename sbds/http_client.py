@@ -1,6 +1,6 @@
 # coding=utf-8
+import json
 import os
-import ujson as json
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
@@ -22,25 +22,28 @@ class RPCConnectionError(Exception):
 
 
 class SimpleSteemAPIClient(object):
-    """ Simple Steem JSON-HTTP-RPC API
+    """Simple Steem JSON-HTTP-RPC API
 
         This class serves as an abstraction layer for easy use of the
         Steem API.
 
-        :param str url: url of the API server
-        :param urllib3.HTTPConnectionPool url: instance of urllib3.HTTPConnectionPool
+    Args:
+      str: url: url of the API server
+      urllib3: HTTPConnectionPool url: instance of urllib3.HTTPConnectionPool
 
-        .. code-block:: python
+    .. code-block:: python
 
-            from sbds.client import SimpleSteemAPIClient
-            rpc = SimpleSteemAPIClient("http://domain.com:port")
+    from sbds.client import SimpleSteemAPIClient
+    rpc = SimpleSteemAPIClient("http://domain.com:port")
 
-        any call available to that port can be issued using the instance
-        via the syntax rpc.exec_rpc('command', (*parameters*). Example:
+    any call available to that port can be issued using the instance
+    via the syntax rpc.exec_rpc('command', (*parameters*). Example:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            rpc.exec('info')
+    rpc.exec('info')
+
+    Returns:
 
     """
 
@@ -52,48 +55,50 @@ class SimpleSteemAPIClient(object):
         timeout = kwargs.get('timeout', 10)
         pool_block = kwargs.get('pool_block', False)
         self.http = urllib3.poolmanager.PoolManager(
-                num_pools=50,
-                headers={'Content-Type': 'application/json'},
-                maxsize=maxsize,
-                block=pool_block,
-                timeout=timeout,
-                cert_reqs='CERT_REQUIRED',
-                ca_certs=certifi.where()
-        )
+            num_pools=50,
+            headers={'Content-Type': 'application/json'},
+            maxsize=maxsize,
+            block=pool_block,
+            timeout=timeout,
+            cert_reqs='CERT_REQUIRED',
+            ca_certs=certifi.where())
         '''
         urlopen(method, url, body=None, headers=None, retries=None,
         redirect=True, assert_same_host=True, timeout=<object object>,
         pool_timeout=None, release_conn=None, chunked=False, body_pos=None,
         **response_kw)
         '''
-        body = json.dumps({
-            "method" : 'get_dynamic_global_properties',
-            "params" : [],
-            "jsonrpc": "2.0",
-            "id"     : 0
-        }, ensure_ascii=False).encode('utf8')
+        body = json.dumps(
+            {
+                "method": 'get_dynamic_global_properties',
+                "params": [],
+                "jsonrpc": "2.0",
+                "id": 0
+            },
+            ensure_ascii=False).encode('utf8')
 
-        self.request = partial(self.http.urlopen, 'POST', url,
-                               retries=2, body=body)
+        self.request = partial(
+            self.http.urlopen, 'POST', url, retries=2, body=body)
 
         logger.setLevel(log_level)
 
     def exec(self, name, *args, return_json=True, raise_for_status=True):
-        body = json.dumps({
-            "method" : name,
-            "params" : args,
-            "jsonrpc": "2.0",
-            "id"     : 0
-        }, ensure_ascii=False).encode('utf8')
+        body = json.dumps(
+            {
+                "method": name,
+                "params": args,
+                "jsonrpc": "2.0",
+                "id": 0
+            },
+            ensure_ascii=False).encode('utf8')
         extra = dict(appinfo=dict(body=body))
         logger.debug('rpc request to {}'.format, extra=extra)
         response = self.request(body=body)
         extra = dict(body=response.data)
-        logger.debug('rpc response: %s' % response.status, extra=extra)
+        logger.debug('rpc response: %s', response.status, extra=extra)
         if response.status not in tuple(
-                [*response.REDIRECT_STATUSES, 200]) and raise_for_status:
+            [*response.REDIRECT_STATUSES, 200]) and raise_for_status:
             logger.info('non 200 response:%s', response.status)
-            #raise RPCConnectionError(response)
             return
         ret = json.loads(response.data.decode('utf-8'))
         if 'error' in ret:
@@ -105,15 +110,20 @@ class SimpleSteemAPIClient(object):
             return json.dumps(result)
 
     def exec_multi(self, name, params):
-        body_gen = (json.dumps({
-            "method": name, "params": [i], "jsonrpc": "2.0", "id": 0
-        }, ensure_ascii=False).encode('utf8') for i in params)
+        body_gen = (json.dumps(
+            {
+                "method": name,
+                "params": [i],
+                "jsonrpc": "2.0",
+                "id": 0
+            },
+            ensure_ascii=False).encode('utf8') for i in params)
         for body in body_gen:
-            yield json.loads(self.request(body=body).data.decode('utf-8'))[
-                'result']
+            yield json.loads(
+                self.request(body=body).data.decode('utf-8'))['result']
 
-    get_dynamic_global_properties = partialmethod(exec,
-                                                  'get_dynamic_global_properties')
+    get_dynamic_global_properties = partialmethod(
+        exec, 'get_dynamic_global_properties')
     get_block = partialmethod(exec, 'get_block')
 
     def last_irreversible_block_num(self):

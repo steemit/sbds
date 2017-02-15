@@ -19,8 +19,9 @@ metadata = Base.metadata
 logger = getLogger(__name__)
 
 
+# pylint: disable=bare-except,too-many-branches,too-many-arguments
 def safe_merge_insert(objects, session, load=True):
-    # noinspection PyBroadException
+    # pylint: disable=bare-except
     try:
         with session_scope(session, _raise=True) as s:
             for obj in objects:
@@ -34,7 +35,7 @@ def safe_merge_insert(objects, session, load=True):
 def safe_insert(obj, session, log_fail=False):
     with session_scope(session) as s:
         s.add(obj)
-    result = object_state(obj).persistent
+    result = getattr(object_state(obj), 'persistent', False)
     if not result and log_fail:
         generate_fail_log_from_obj(logger, obj)
 
@@ -63,8 +64,12 @@ def safe_bulk_save(objects, session):
         return True
 
 
-def adaptive_insert(objects, session, bulk=False, insert_many=True,
-                    merge_insert=True, insert=True):
+def adaptive_insert(objects,
+                    session,
+                    bulk=False,
+                    insert_many=True,
+                    merge_insert=True,
+                    insert=True):
     if not objects:
         logger.debug('adaptive_insert called with empty objects list')
         return True
@@ -123,8 +128,8 @@ def add_block(raw_block, session):
     :return: boolean
     """
     block_obj, txtransactions = from_raw_block(raw_block, session)
-    result = adaptive_insert(list([block_obj, *txtransactions]), session,
-                             insert=False)
+    result = adaptive_insert(
+        list([block_obj, *txtransactions]), session, insert=False)
     return result
 
 
@@ -140,17 +145,16 @@ def filter_existing_blocks(block_objects, session):
     if results:
         results = [r[0] for r in results]
         logger.info('found existing blocks: %s', len(results))
-        filtered_block_objs = [b for b in block_objects if
-                               b.block_num not in results]
+        filtered_block_objs = [
+            b for b in block_objects if b.block_num not in results
+        ]
         logger.info('removed %s existing objects from list',
                     len(block_objects) - len(filtered_block_objs))
         return filtered_block_objs
     return block_objects
 
 
-def add_blocks(raw_blocks,
-               session,
-               offset=0):
+def add_blocks(raw_blocks, session, offset=0):
     """
     :param raw_blocks: list
     :param session:
@@ -177,8 +181,7 @@ def bulk_add(raw_blocks, session):
 
     block_objs = list(map(Block.from_raw_block, raw_blocks_chunk))
     tx_objs = list(
-            chain.from_iterable(
-                    map(TxBase.from_raw_block, raw_blocks_chunk)))
+        chain.from_iterable(map(TxBase.from_raw_block, raw_blocks_chunk)))
 
     # remove existing to avoid IntegrityError
     block_objs = filter_existing_blocks(block_objs, session)

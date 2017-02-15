@@ -4,35 +4,36 @@ import json
 
 import click
 
-
 import sbds.logging
 from sbds.storages.db import Base
 from sbds.storages.db import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
-from sbds.storages.db.utils import configure_engine
-
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
-
+from sbds.storages.db.utils import configure_engine
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
 
 
-@click.group()
-@click.option('--database_url', type=str, envvar='DATABASE_URL',
-              help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default')
+@click.group(short_help='Interact with an SQL storage backend')
+@click.option(
+    '--database_url',
+    type=str,
+    envvar='DATABASE_URL',
+    help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
+)
 @click.option('--echo', is_flag=True)
 @click.pass_context
 def db(ctx, database_url, echo):
-    """Group of commands used to interact with the SQL storage backend.
+    """Interact with an SQL storage backend
         Typical usage would be reading blocks in JSON format from STDIN
         and then storing those blocks in the database:
 
         \b
-        sbds | db insert-blocks
+            sbds | db insert-blocks
 
         In the example above, the "sbds" command streams new blocks to STDOUT, which are piped to STDIN of
         the "db insert-blocks" command by default. The "database_url" was read from the "DATABASE_URL"
@@ -43,16 +44,17 @@ def db(ctx, database_url, echo):
 
     """
 
-    database_url, url, engine_kwargs, engine = configure_engine(database_url,
-                                                                echo=echo)
+    database_url, url, engine_kwargs, engine = configure_engine(
+        database_url, echo=echo)
 
-    ctx.obj = dict(database_url=database_url,
-                   url=url,
-                   engine_kwargs=engine_kwargs,
-                   engine=engine,
-                   base=Base,
-                   metadata=Base.metadata,
-                   Session=Session)
+    ctx.obj = dict(
+        database_url=database_url,
+        url=url,
+        engine_kwargs=engine_kwargs,
+        engine=engine,
+        base=Base,
+        metadata=Base.metadata,
+        Session=Session)
 
 
 @db.command()
@@ -63,19 +65,18 @@ def test(ctx):
 
     result = test_connection(engine)
     if result[0]:
-        click.echo(
-        'Success! Connected using %s, found %s tables' %
-            (result[0].__repr__(), result[1]))
+        click.echo('Success! Connected using %s, found %s tables' %
+                   (result[0].__repr__(), result[1]))
     else:
         click.echo('Failed to connect: %s', result[1])
-        click.exit(code=127)
+        ctx.exit(code=127)
 
 
 @db.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
-    """Insert blocks in the database, accepts "-" for STDIN (default)"""
+    """Insert blocks into the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -94,7 +95,7 @@ def insert_blocks(ctx, blocks):
 @click.option('--chunksize', type=click.INT, default=1000)
 @click.pass_context
 def bulk_add_blocks(ctx, blocks, chunksize):
-    """Insert blocks in the database, accepts "-" for STDIN (default)"""
+    """Insert many blocks in the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -128,7 +129,7 @@ def init_db_tables(ctx):
 
 @db.command(name='reset')
 @click.confirmation_option(
-        prompt='Are you sure you want to drop and then create the db?')
+    prompt='Are you sure you want to drop and then create the db?')
 @click.pass_context
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
@@ -141,7 +142,7 @@ def reset_db_tables(ctx):
 @db.command(name='last-block')
 @click.pass_context
 def last_block(ctx):
-    """Create any missing tables on the database"""
+    """Return the highest block stored in the database"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -159,7 +160,7 @@ def last_block(ctx):
 @db.command(name='find-missing-blocks')
 @click.pass_context
 def find_missing_blocks(ctx):
-    """JSON array of block_nums from missing blocks"""
+    """Return JSON array of block_nums from missing blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -177,7 +178,7 @@ def find_missing_blocks(ctx):
 @db.command(name='add-missing-posts-and-comments')
 @click.pass_context
 def add_missing_posts_and_comments(ctx):
-    """add missing posts and comments from txcomments"""
+    """Add missing posts and comments from txcomments"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
@@ -194,7 +195,7 @@ def add_missing_posts_and_comments(ctx):
 @db.command(name='find-missing-posts-and-comments')
 @click.pass_context
 def find_missing_posts_and_comments(ctx):
-    """JSON array of block_nums from missing post and comment blocks"""
+    """Return JSON array of block_nums from missing post and comment blocks"""
     engine = ctx.obj['engine']
     metadata = ctx.obj['metadata']
 
