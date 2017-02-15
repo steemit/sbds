@@ -83,7 +83,7 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
             logger.debug('attempting safe_insert_many')
             return True
         else:
-            logger.debug('safe_insert_many failed')
+            logger.info('safe_insert_many failed')
 
     if merge_insert:
         # attempt safe_merge_insert
@@ -92,7 +92,7 @@ def adaptive_insert(objects, session, bulk=False, insert_many=True,
             logger.debug('safe_merge_insert success')
             return True
         else:
-            logger.debug('safe_merge_insert failed')
+            logger.info('safe_merge_insert failed')
 
     # fallback to safe_insert each object
     logger.debug('attempting individual safe_insert')
@@ -139,10 +139,10 @@ def filter_existing_blocks(block_objects, session):
         .filter(Block.block_num.in_([b.block_num for b in block_objects])).all()
     if results:
         results = [r[0] for r in results]
-        logger.info('found existing blocks: %s', len(results))
+        logger.debug('found existing blocks: %s', len(results))
         filtered_block_objs = [b for b in block_objects if
                                b.block_num not in results]
-        logger.info('removed %s existing objects from list',
+        logger.debug('removed %s existing objects from list',
                     len(block_objects) - len(filtered_block_objs))
         return filtered_block_objs
     return block_objects
