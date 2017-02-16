@@ -1,6 +1,7 @@
 # coding=utf-8
 import json
 import os
+import logging
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
@@ -46,20 +47,26 @@ class SimpleSteemAPIClient(object):
     Returns:
 
     """
-
-    def __init__(self, url=None, log_level='INFO', **kwargs):
+    def __init__(self, url=None, log_level=logging.INFO, **kwargs):
         url = url or os.environ.get('STEEMD_HTTP_URL')
         self.url = url
         self.hostname = urlparse(url).hostname
+        self.return_with_args = kwargs.get('return_with_args', False)
+        self.re_raise = kwargs.get('re_raise', False)
+
         maxsize = kwargs.get('maxsize', 20)
         timeout = kwargs.get('timeout', 10)
+        retries = kwargs.get('retries', 10)
+
         pool_block = kwargs.get('pool_block', False)
+
         self.http = urllib3.poolmanager.PoolManager(
             num_pools=50,
             headers={'Content-Type': 'application/json'},
             maxsize=maxsize,
             block=pool_block,
             timeout=timeout,
+            retries=retries,
             cert_reqs='CERT_REQUIRED',
             ca_certs=certifi.where())
         '''
@@ -68,6 +75,7 @@ class SimpleSteemAPIClient(object):
         pool_timeout=None, release_conn=None, chunked=False, body_pos=None,
         **response_kw)
         '''
+
         body = json.dumps(
             {
                 "method": 'get_dynamic_global_properties',
@@ -80,9 +88,11 @@ class SimpleSteemAPIClient(object):
         self.request = partial(
             self.http.urlopen, 'POST', url, retries=2, body=body)
 
-        logger.setLevel(log_level)
+        _logger = sbds.logging.getLogger('urllib3')
+        sbds.logging.configure_existing_logger(_logger)
 
-    def exec(self, name, *args, return_json=True, raise_for_status=True):
+    def exec(self, name, *args, re_raise=None, return_with_args=None):
+
         body = json.dumps(
             {
                 "method": name,
@@ -91,23 +101,41 @@ class SimpleSteemAPIClient(object):
                 "id": 0
             },
             ensure_ascii=False).encode('utf8')
-        extra = dict(appinfo=dict(body=body))
-        logger.debug('rpc request to {}'.format, extra=extra)
-        response = self.request(body=body)
-        extra = dict(body=response.data)
-        logger.debug('rpc response: %s', response.status, extra=extra)
-        if response.status not in tuple(
-            [*response.REDIRECT_STATUSES, 200]) and raise_for_status:
-            logger.info('non 200 response:%s', response.status)
-            return
-        ret = json.loads(response.data.decode('utf-8'))
-        if 'error' in ret:
-            raise RPCError(ret['error'].get('detail', ret['error']['message']))
-        result = ret["result"]
-        if return_json:
-            return result
+        try:
+            response = self.request(body=body)
+        except Exception as e:
+            if re_raise:
+                raise e
+            else:
+                extra = dict(err=e, request=self.request)
+                logger.info('Request error', extra=extra)
+                self._return(response=None, args=args, return_with_args=return_with_args)
         else:
-            return json.dumps(result)
+            if response.status not in tuple([*response.REDIRECT_STATUSES, 200]):
+                logger.info('non 200 response:%s', response.status)
+
+            return self._return(response=response, args=args,
+                         return_with_args=return_with_args)
+
+    def _return(self, response=None, args=None, return_with_args=None):
+        return_with_args = return_with_args or self.return_with_args
+        try:
+            response_json = json.loads(response.data.decode('utf-8'))
+        except Exception as e:
+            extra = dict(response=response, args=args, err=e)
+            logger.info('failed to load response', extra=extra)
+        else:
+            if 'error' in response_json:
+                error = response_json['error']
+                error_message = error.get('detail',
+                                          response_json['error']['message'])
+                raise RPCError(error_message)
+
+            result = response_json["result"]
+            if return_with_args:
+                return result, args
+            else:
+                return result
 
     def exec_multi(self, name, params):
         body_gen = (json.dumps(

@@ -273,7 +273,6 @@ class Block(Base, UniqueMixin):
             chunks.append(partial(cls.count, session, start, end))
         return chunks
 
-
     @classmethod
     def count_missing(cls, session, last_chain_block):
         block_count = cls.count(session)
@@ -283,20 +282,18 @@ class Block(Base, UniqueMixin):
     def find_missing_range(cls, session, start, end):
         query = session.query(cls.block_num)
         query = query.filter(cls.block_num >= start, cls.block_num <= end)
-
         results = query.all()
-        if len(results) == len(range(start, end)):
+        correct_range = range(start, end + 1)
+        if len(results) == len(correct_range):
             return []
         else:
             block_nums = [r.block_num for r in results]
             if len(block_nums) == 0:
-                return []
-
-            low = block_nums[0]
-            high = block_nums[-1]
-            correct = set(range(low, high + 1))
-            missing = correct.difference(block_nums)
-            return missing
+                return correct_range
+            else:
+                correct = set(correct_range)
+                missing = correct.difference(block_nums)
+                return missing
 
     @classmethod
     def get_missing_block_num_iterator(cls, session, last_chain_block,
@@ -313,16 +310,16 @@ class Block(Base, UniqueMixin):
                     end = last_chain_block
                 chunks.append(partial(range, start, end))
             return chunks
-
-        num_chunks = (last_chain_block // chunksize) + 1
-        chunks = []
-        for i in range(1, num_chunks + 1):
-            start = (i - 1) * chunksize
-            end = i * chunksize
-            if end >= last_chain_block:
-                end = last_chain_block
-            chunks.append(partial(cls.find_missing_range, session, start, end))
-        return chunks
+        else:
+            num_chunks = (last_chain_block // chunksize) + 1
+            chunks = []
+            for i in range(1, num_chunks + 1):
+                start = (i - 1) * chunksize
+                end = i * chunksize
+                if end >= last_chain_block:
+                    end = last_chain_block
+                chunks.append(partial(cls.find_missing_range, session, start, end))
+            return chunks
 
 
     @classmethod
@@ -336,9 +333,12 @@ class Block(Base, UniqueMixin):
         return all_missing
 
 
-def from_raw_block(raw_block, session):
+def from_raw_block(raw_block, session=None):
     from .tx import TxBase
-    block = Block.get_or_create_from_raw_block(raw_block, session=session)
+    if session:
+        block = Block.get_or_create_from_raw_block(raw_block, session=session)
+    else:
+        block = Block.from_raw_block(raw_block)
     tx_transactions = TxBase.from_raw_block(raw_block)
     return block, tx_transactions
 

@@ -5,17 +5,53 @@ import time
 
 from pythonjsonlogger import jsonlogger
 
-LOG_LEVEL = os.environ.get('SBDS_LOG_LEVEL', 'info').lower()
 
-log_level_map = dict(
-    debug=logging.DEBUG,
-    info=logging.INFO,
-    warning=logging.WARNING,
-    error=logging.ERROR)
+def make_log_format(x):
+    return ['%({0:s})'.format(i) for i in x]
 
-_log_level = log_level_map.get(LOG_LEVEL, logging.INFO)
 
-supported_keys = [
+def get_current_log_level():
+    return log_level_from_str(os.environ.get(SBDS_LOG_LEVEL_ENV_VAR_NAME))
+
+
+def configure_root_logger():
+    import logging
+    root_logger = logging.getLogger()
+
+    # remove all other handlers from root logger
+    for hdlr in root_logger.handlers:
+        root_logger.removeHandler(hdlr)
+
+
+def configure_log_handler(supported_log_message_keys,
+                          log_datetime_format):
+    log_format = ' '.join(make_log_format(supported_log_message_keys))
+    formatter = jsonlogger.JsonFormatter(fmt=log_format,
+                                         datefmt=log_datetime_format)
+    # set all datetimes to utc
+    formatter.converter = time.gmtime
+
+    logHandler = logging.StreamHandler()
+    logHandler.setFormatter(formatter)
+    return logHandler
+
+
+def log_level_from_str(log_level_str):
+    import logging
+    level = SBDS_DEFAULT_LOG_LEVEL
+    try:
+       level = getattr(logging, log_level_str.upper())
+    except Exception as e:
+        logging.WARNING('bad log level %s caused error %s', log_level_str, e)
+    finally:
+        return level
+
+
+# configure root logger and logging
+SBDS_LOG_LEVEL_ENV_VAR_NAME = 'SBDS_LOG_LEVEL'
+SBDS_DEFAULT_LOG_LEVEL = logging.INFO
+SBDS_LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
+SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'levelname',
     # 'asctime',
     'created',
@@ -33,22 +69,34 @@ supported_keys = [
     # 'relativeCreated',
     'thread',
     'threadName'
-]
+)
+SBDS_LOG_HANDLER = configure_log_handler(SBDS_SUPPORTED_LOG_MESSAGE_KEYS,
+                                         SBDS_LOG_DATETIME_FORMAT)
+SBDS_LOG_LEVEL = get_current_log_level()
+configure_root_logger()
 
 
-def make_log_format(x):
-    return ['%({0:s})'.format(i) for i in x]
-
-
-# noinspection PyPep8Naming
-def getLogger(name, level=_log_level):
+# functions to configure other loggers
+def getLogger(name, log_handler=SBDS_LOG_HANDLER, level=None):
     _logger = logging.getLogger(name)
     if not _logger.hasHandlers():
+        level = level or get_current_log_level()
         _logger.setLevel(level)
-        _logger.addHandler(logHandler)
+        _logger.addHandler(log_handler)
     return _logger
 
 
+def configure_existing_logger(logger, log_handler=None, level=None):
+    log_handler = log_handler or SBDS_LOG_HANDLER
+    level = level or get_current_log_level()
+    for hdlr in logger.handlers:
+        logger.removeHandler(hdlr)
+    logger.addHandler(log_handler)
+    logger.setLevel(level)
+    return logger
+
+
+# handle logging of specific messages
 def generate_fail_log(logger, **kwargs):
     logger.error('FAILED TO ADD %s', kwargs.get('name', 'item'), extra=kwargs)
 
@@ -78,17 +126,3 @@ def generate_fail_log_from_obj(logger, obj):
         logger.error(e)
         return generate_fail_log(logger, object=obj)
     return generate_fail_log(logger, **kwargs)
-
-
-# configure logging
-fmt = ' '.join(make_log_format(supported_keys))
-datefmt = r'%Y-%m-%dT%H:%M:%S.%s%Z'
-
-root_logger = logging.getLogger()
-for hdlr in root_logger.handlers:
-    root_logger.removeHandler(hdlr)
-
-formatter = jsonlogger.JsonFormatter(fmt=fmt, datefmt=datefmt)
-formatter.converter = time.gmtime
-logHandler = logging.StreamHandler()
-logHandler.setFormatter(formatter)

@@ -7,6 +7,7 @@ from functools import partial
 import click
 import click_spinner
 import emoji
+from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
 import sbds.json
@@ -18,13 +19,13 @@ from sbds.storages.db.tables import test_connection
 from sbds.storages.db.tables import Block
 from sbds.storages.db.utils import configure_engine
 from sbds.storages.db.utils import kill_db_processes
-from sbds.storages.db import add_block
+from sbds.storages.db import bulk_add
+from sbds.storages.db import add_blocks
 from sbds.utils import chunkify
-from sbds.logging import generate_fail_log_from_raw_block
 
 logger = sbds.logging.getLogger(__name__)
-TOTAL_TASKS = 6
-
+TOTAL_TASKS = 7
+MAX_CHUNKSIZE = 1000000
 
 def fmt_success_message(msg, *args):
     base_msg = msg % (args)
@@ -67,13 +68,20 @@ def fmt_task_message(task_msg, emoji_name=None, emoji_code_point=None,
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
-def populate(database_url, steemd_http_url):
-    _populate(database_url, steemd_http_url)
+@click.option(
+    '--steemd_websocket_url',
+    metavar='WEBSOCKET_URL',
+    envvar='WEBSOCKET_URL',
+    help='Steemd websocket server URL')
+@click.option('--max_procs', type=click.INT, default=None)
+@click.option('--max_threads', type=click.INT, default=5)
+def populate(database_url, steemd_http_url, steemd_websocket_url,
+             max_procs, max_threads):
+    _populate(database_url, steemd_http_url, steemd_websocket_url,
+              max_procs, max_threads)
 
-
-
-
-def _populate(database_url, steemd_http_url):
+def _populate(database_url, steemd_http_url, steemd_websocket_url,
+              max_procs, max_threads):
     rpc = SimpleSteemAPIClient(steemd_http_url)
     engine_config = configure_engine(database_url)
 
@@ -83,7 +91,7 @@ def _populate(database_url, steemd_http_url):
     Session.configure(bind=engine_config.engine)
     session = Session()
 
-    # [1/6] confirm db connectivity
+    # [1/7] confirm db connectivity
 
     task_message = fmt_task_message('Confirm database connectivity',
                                     emoji_name=':telephone_receiver:',
@@ -99,7 +107,7 @@ def _populate(database_url, steemd_http_url):
     if not url:
         click.fail('Unable to connect to database')
 
-    # [2/6] kill existing db threads
+    # [2/7] kill existing db threads
 
     task_message = fmt_task_message('Killing active db threads',
                                     emoji_code_point='\U0001F4A5', counter=2)
@@ -110,7 +118,7 @@ def _populate(database_url, steemd_http_url):
         click.echo(success_msg)
 
 
-    # [3/6] init db if required
+    # [3/7] init db if required
     task_message = fmt_task_message('Initialising db if required',
                                     emoji_name=':electric_plug:', counter=3)
     click.echo(task_message)
@@ -118,7 +126,7 @@ def _populate(database_url, steemd_http_url):
 
 
 
-    # [4/6] find last irreversible block
+    # [4/7] find last irreversible block
     last_chain_block = rpc.last_irreversible_block_num()
     task_message = fmt_task_message('Finding highest blockchain block',
                                     emoji_code_point='\U0001F50E', counter=4)
@@ -131,7 +139,7 @@ def _populate(database_url, steemd_http_url):
     click.echo(success_msg)
 
 
-    # [5/6] get missing block_nums
+    # [5/7] get missing block_nums
 
     _chunksize = 100000
     missing_block_nums_gen = Block.get_missing_block_num_iterator(
@@ -158,51 +166,69 @@ def _populate(database_url, steemd_http_url):
         len(all_missing_block_nums))
     click.echo(success_msg)
 
-    # [6/6] adding missing blocks
+    # [6/7] adding missing blocks
 
-    task_message = fmt_task_message('Adding missing blocks to db',
+    task_message = fmt_task_message('Adding missing blocks to db, this may take a while',
                                     emoji_name=':memo:', counter=6)
     click.echo(task_message)
 
-    num_chunks = os.cpu_count() or 1
+    max_workers = max_procs or os.cpu_count() or 1
+    num_chunks = max_workers
     chunksize = len(all_missing_block_nums) // num_chunks
+    if chunksize <= 0:
+        chunksize = 1
+    if chunksize > MAX_CHUNKSIZE:
+        chunksize = MAX_CHUNKSIZE
 
-
-    map_func = partial(block_adder_process_worker, database_url, steemd_http_url)
+    map_func = partial(block_adder_process_worker, database_url,
+                       steemd_http_url, max_threads=max_threads)
 
     block_chunks = chunkify(all_missing_block_nums, chunksize)
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-            executor.map(map_func, block_chunks)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(map_func, block_chunks, chunksize=chunksize)
+
+    success_msg = fmt_success_message('added missing blocks')
+    click.echo(success_msg)
+
+    # [7/7] stream blocks
+    task_message = fmt_task_message('Streaming blocks',
+                                    emoji_name=':memo:',
+                                    counter=7)
+    click.echo(task_message)
+
+    highest_db_block = Block.highest_block(session)
+    ws_rpc = SteemNodeRPC(steemd_websocket_url)
+    blocks = ws_rpc.block_stream(highest_db_block)
+    add_blocks(blocks, session)
 
 
-def block_adder_process_worker(database_url, rpc_url, block_nums):
+def block_fetcher_thread_worker(rpc_url, block_nums, max_threads=None):
+    rpc = SimpleSteemAPIClient(rpc_url, return_with_args=True)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+        for result, args in executor.map(rpc.get_block, block_nums):
+                # dont yield anything when we encounter a null output
+                # from an HTTP 503 error
+                if result:
+                    yield result
+
+
+def block_adder_process_worker(database_url, rpc_url, block_nums, max_threads=5):
     try:
-        rpc = SimpleSteemAPIClient(rpc_url)
         engine_config = configure_engine(database_url)
-        Session.configure(bind=engine_config.engine)
-        session = Session()
-        completed = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_raw_block = {executor.submit(rpc.get_block, block_num): block_num for block_num in block_nums}
-
-            for future in concurrent.futures.as_completed(future_to_raw_block):
-                block_num = future_to_raw_block[future]
-                try:
-                    raw_block = future.result()
-                except Exception as e:
-                   logger.error(e)
-                else:
-                    result = add_block(raw_block, session, insert=True, _raise=True)
-                    if not result:
-                        generate_fail_log_from_raw_block(logger, raw_block)
-
+        session = Session(bind=engine_config.engine)
+        raw_blocks = block_fetcher_thread_worker(rpc_url, block_nums,
+                                                 max_threads=max_threads)
+        for raw_blocks_chunk in chunkify(raw_blocks, 1000):
+            result = bulk_add(raw_blocks_chunk, session)
+            # we could do something here with results like retry or queue failures
     except Exception as e:
         logger.exception(e)
     finally:
         Session.close_all()
 
-
+# included only for debugging with pdb
 if __name__ == '__main__':
     db_url = os.environ['DATABASE_URL']
     rpc_url = os.environ['STEEMD_HTTP_URL']
-    _populate(db_url, rpc_url)
+    ws_rpc_url = os.environ['WEBSOCKET_URL']
+    _populate(db_url, rpc_url, steemd_websocket_url=ws_rpc_url, max_procs=1, max_threads=1)

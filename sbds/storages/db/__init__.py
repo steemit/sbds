@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
+from itertools import zip_longest
 
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
@@ -78,7 +79,7 @@ def adaptive_insert(objects,
         logger.debug('attempting bulk_save')
         if safe_bulk_save(objects, session, **kwargs):
             logger.debug('bulk_save success')
-            return True
+            return list(zip_longest(objects, list(), fillvalue=True))
         else:
             logger.info('bulk_save failed')
 
@@ -86,7 +87,7 @@ def adaptive_insert(objects,
         # attempt insert_many
         if safe_insert_many(objects, session, **kwargs):
             logger.debug('attempting safe_insert_many')
-            return True
+            return list(zip_longest(objects, list(), fillvalue=True))
         else:
             logger.info('safe_insert_many failed')
 
@@ -95,7 +96,7 @@ def adaptive_insert(objects,
         logger.debug('attempting safe_merge_insert')
         if safe_merge_insert(objects, session, **kwargs):
             logger.debug('safe_merge_insert success')
-            return True
+            return list(zip_longest(objects, list(), fillvalue=True))
         else:
             logger.info('safe_merge_insert failed')
 
@@ -105,7 +106,8 @@ def adaptive_insert(objects,
         results = [safe_insert(obj, session, **kwargs) for obj in objects]
         if all(r for r in results):
             logger.debug('individual safe_insert success')
-            return True
+            return results
+
         # log failed objects
         failed = [obj for obj, r in zip(objects, results) if not r]
         logger.debug(
@@ -118,7 +120,10 @@ def adaptive_insert(objects,
         generate_fail_log_from_obj(logger, obj)
 
     logger.debug('adaptive_insert failed partially or completely')
-    return False
+    if insert:
+        return results
+    else:
+        return list(zip_longest(objects, list(), fillvalue=False))
 
 
 def add_block(raw_block, session, insert=False, **kwargs):
@@ -128,9 +133,9 @@ def add_block(raw_block, session, insert=False, **kwargs):
     :return: boolean
     """
     block_obj, txtransactions = from_raw_block(raw_block, session)
-    result = adaptive_insert(
+    results = adaptive_insert(
         list([block_obj, *txtransactions]), session, insert=insert, **kwargs)
-    return result
+    return results
 
 
 def filter_existing_blocks(block_objects, session):
@@ -187,8 +192,10 @@ def bulk_add(raw_blocks, session):
     block_objs = filter_existing_blocks(block_objs, session)
 
     # add blocks (only if we havent removed them all)
-    if block_objs:
-        result = adaptive_insert(block_objs, session, bulk=True)
-        logger.debug('adaptive_insert blocks result: %s', result)
-        result = adaptive_insert(tx_objs, session, bulk=True)
-        logger.debug('adaptive_insert txs result: %s', result)
+    objs_to_add = [*block_objs, *tx_objs]
+    results = adaptive_insert(objs_to_add, session, bulk=True)
+    success_count = [r[1] for r in results if r[1]]
+    fail_count = [r[1] for r in results if not r[1]]
+    logger.debug('adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
+                 len(raw_blocks), len(tx_objs), success_count, fail_count)
+    return results
