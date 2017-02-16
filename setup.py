@@ -18,6 +18,8 @@ setup(
                    'sphinxcontrib-programoutput'],
     install_requires=[
         'Click',
+        'click-spinner',
+        'emoji',
         'steem-piston==0.4.1',
         'boto3',
         'python-json-logger',
@@ -39,6 +41,7 @@ setup(
     entry_points={
         'console_scripts': [
             'sbds=sbds.cli:sbds',
-            'dev-server=sbds.http_server:dev_server'
+            'dev-server=sbds.http_server:dev_server',
+            'populate=sbds.storages.db.scripts.populate:populate'
         ]
     })

@@ -8,14 +8,8 @@ Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
 
 # pylint: disable=wrong-import-position
+from ..utils import isolated_engine
 from .core import Block
-from .synthesized import Account
-from .synthesized import PostAndComment
-from .synthesized import Post
-from .synthesized import Comment
-from .synthesized import Link
-from .synthesized import Image
-from .synthesized import Tag
 
 from .tx import TxBase
 from .tx import TxAccountCreate
@@ -38,32 +32,41 @@ from .tx import TxWithdraw
 from .tx import TxWitnessUpdate
 
 
-def init_tables(engine, _metadata, checkfirst=True):
+def init_tables(database_url, _metadata, checkfirst=True):
     """Create any missing tables on the database"""
-    _metadata.create_all(bind=engine, checkfirst=checkfirst)
+    with isolated_engine(database_url) as engine:
+        _metadata.create_all(bind=engine, checkfirst=checkfirst)
 
 
-def reset_tables(engine, _metadata):
+def reset_tables(database_url, _metadata):
     """Drop and then create tables on the database"""
 
-    # use unadulterated MetaData to avoid errors due to ORM classes
+    # use reflected MetaData to avoid errors due to ORM classes
     # being inconsistent with existing tables
-
-    seperate_metadata = MetaData()
-    seperate_metadata.reflect(bind=engine)
-    seperate_metadata.drop_all(bind=engine)
+    with isolated_engine(database_url) as engine:
+        seperate_metadata = MetaData()
+        seperate_metadata.reflect(bind=engine)
+        seperate_metadata.drop_all(bind=engine)
 
     # use ORM clases to define tables to create
-    init_tables(engine, _metadata)
+    init_tables(database_url, _metadata)
 
 
-def test_connection(engine):
+def test_connection(database_url):
     _metadata = MetaData()
+    with isolated_engine(database_url) as engine:
+        try:
+            _metadata.reflect(bind=engine)
+            table_count = len(_metadata.tables)
+            url = engine.url
+            return url, table_count
+        except Exception as e:
+            return False, e
 
-    try:
-        _metadata.reflect(bind=engine)
-        table_count = len(_metadata.tables)
-        url = engine.url
-        return url, table_count
-    except Exception as e:
-        return False, e
+def get_table_count(database_url):
+    return len(get_tables(database_url))
+
+def get_tables(database_url):
+    with isolated_engine(database_url) as engine:
+        tables = engine.table_names()
+    return tables

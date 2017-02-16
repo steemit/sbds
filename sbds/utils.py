@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import re
+
 from urllib.parse import urlparse
 
 import w3lib.url

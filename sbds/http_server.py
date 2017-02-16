@@ -9,7 +9,6 @@ from bottle import request
 
 import maya
 
-
 import sbds.logging
 from sbds.http_client import SimpleSteemAPIClient
 
@@ -63,6 +62,7 @@ SELECT COUNT(type) FROM sbds_transactions WHERE type='account_create'
 def match_operation(op_str):
     return tx_class_map[op_str.lower()]
 
+
 # pylint: disable=unused-argument
 def operation_filter(config):
     ''' Matches blockchain operations. '''
@@ -76,6 +76,8 @@ def operation_filter(config):
         return tx.operation_type
 
     return regexp, to_python, to_url
+
+
 # pylint: enable=unused-argument
 
 app.router.add_filter('operations', operation_filter)
@@ -220,6 +222,8 @@ def _dev_server():
         pass
     finally:
         app.close()
+
+
 # pylint: enable=bare-except
 
 # WSGI application

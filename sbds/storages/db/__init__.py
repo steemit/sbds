@@ -20,7 +20,7 @@ logger = getLogger(__name__)
 
 
 # pylint: disable=bare-except,too-many-branches,too-many-arguments
-def safe_merge_insert(objects, session, load=True):
+def safe_merge_insert(objects, session, load=True, **kwargs):
     # pylint: disable=bare-except
     try:
         with session_scope(session, _raise=True) as s:
@@ -32,15 +32,15 @@ def safe_merge_insert(objects, session, load=True):
         return True
 
 
-def safe_insert(obj, session, log_fail=False):
-    with session_scope(session) as s:
+def safe_insert(obj, session, log_fail=False, **kwargs):
+    with session_scope(session, **kwargs) as s:
         s.add(obj)
     result = getattr(object_state(obj), 'persistent', False)
     if not result and log_fail:
         generate_fail_log_from_obj(logger, obj)
 
 
-def safe_insert_many(objects, session):
+def safe_insert_many(objects, session, **kwargs):
     # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
@@ -51,7 +51,7 @@ def safe_insert_many(objects, session):
         return True
 
 
-def safe_bulk_save(objects, session):
+def safe_bulk_save(objects, session, **kwargs):
     # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
@@ -69,14 +69,14 @@ def adaptive_insert(objects,
                     bulk=False,
                     insert_many=True,
                     merge_insert=True,
-                    insert=True):
+                    insert=True, **kwargs):
     if not objects:
         logger.debug('adaptive_insert called with empty objects list')
         return True
     if bulk:
         # attempt bulk save if
         logger.debug('attempting bulk_save')
-        if safe_bulk_save(objects, session):
+        if safe_bulk_save(objects, session, **kwargs):
             logger.debug('bulk_save success')
             return True
         else:
@@ -84,7 +84,7 @@ def adaptive_insert(objects,
 
     if insert_many:
         # attempt insert_many
-        if safe_insert_many(objects, session):
+        if safe_insert_many(objects, session, **kwargs):
             logger.debug('attempting safe_insert_many')
             return True
         else:
@@ -93,7 +93,7 @@ def adaptive_insert(objects,
     if merge_insert:
         # attempt safe_merge_insert
         logger.debug('attempting safe_merge_insert')
-        if safe_merge_insert(objects, session):
+        if safe_merge_insert(objects, session, **kwargs):
             logger.debug('safe_merge_insert success')
             return True
         else:
@@ -102,7 +102,7 @@ def adaptive_insert(objects,
     # fallback to safe_insert each object
     logger.debug('attempting individual safe_insert')
     if insert:
-        results = [safe_insert(obj, session) for obj in objects]
+        results = [safe_insert(obj, session, **kwargs) for obj in objects]
         if all(r for r in results):
             logger.debug('individual safe_insert success')
             return True
@@ -121,7 +121,7 @@ def adaptive_insert(objects,
     return False
 
 
-def add_block(raw_block, session):
+def add_block(raw_block, session, insert=False, **kwargs):
     """
     :param raw_block: str
     :param session:
@@ -129,7 +129,7 @@ def add_block(raw_block, session):
     """
     block_obj, txtransactions = from_raw_block(raw_block, session)
     result = adaptive_insert(
-        list([block_obj, *txtransactions]), session, insert=False)
+        list([block_obj, *txtransactions]), session, insert=insert, **kwargs)
     return result
 
 
