@@ -13,6 +13,9 @@ from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
 from sbds.storages.db.utils import configure_engine
+from sbds.storages.db.utils import get_db_processes
+from sbds.storages.db.utils import kill_db_processes
+from sbds.storages.db.utils import row_to_json
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
@@ -44,14 +47,13 @@ def db(ctx, database_url, echo):
 
     """
 
-    database_url, url, engine_kwargs, engine = configure_engine(
-        database_url, echo=echo)
+    engine_config = configure_engine(database_url, echo=echo)
 
     ctx.obj = dict(
-        database_url=database_url,
-        url=url,
-        engine_kwargs=engine_kwargs,
-        engine=engine,
+        database_url=engine_config.database_url,
+        url=engine_config.url,
+        engine_kwargs=engine_config.engine_kwargs,
+        engine=engine_config.engine,
         base=Base,
         metadata=Base.metadata,
         Session=Session)
@@ -61,14 +63,13 @@ def db(ctx, database_url, echo):
 @click.pass_context
 def test(ctx):
     """Test connection to database"""
-    engine = ctx.obj['engine']
-
-    result = test_connection(engine)
-    if result[0]:
+    database_url = ctx.obj['database_url']
+    url, table_count = test_connection(database_url)
+    if url:
         click.echo('Success! Connected using %s, found %s tables' %
-                   (result[0].__repr__(), result[1]))
+                   (url.__repr__(), table_count))
     else:
-        click.echo('Failed to connect: %s', result[1])
+        click.echo('Failed to connect: %s', url)
         ctx.exit(code=127)
 
 
@@ -78,10 +79,11 @@ def test(ctx):
 def insert_blocks(ctx, blocks):
     """Insert blocks into the database"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)
@@ -97,10 +99,11 @@ def insert_blocks(ctx, blocks):
 def bulk_add_blocks(ctx, blocks, chunksize):
     """Insert many blocks in the database"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)
@@ -121,10 +124,10 @@ def bulk_add_blocks(ctx, blocks, chunksize):
 @click.pass_context
 def init_db_tables(ctx):
     """Create any missing tables on the database"""
-    engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
 
 @db.command(name='reset')
@@ -133,10 +136,35 @@ def init_db_tables(ctx):
 @click.pass_context
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
-    engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
-    reset_tables(engine, metadata)
+    reset_tables(database_url, metadata)
+
+
+@db.command(name='list-processes')
+@click.pass_context
+def list_processes(ctx):
+    """Create any missing tables on the database"""
+    database_url = ctx.obj['database_url']
+
+    processes = get_db_processes(database_url)
+    for proc in processes:
+        click.echo(row_to_json(proc))
+
+
+@db.command(name='kill-processes')
+@click.pass_context
+def kill_processes(ctx):
+    """Create any missing tables on the database"""
+    database_url = ctx.obj['database_url']
+
+    # pylint: disable=unused-variable
+    processes, killed = kill_db_processes(database_url)
+    # pylint: enable=unused-variable
+    click.echo('killed %s processes' % len(killed))
+    for proc in killed:
+        click.echo(row_to_json(proc))
 
 
 @db.command(name='last-block')
@@ -144,10 +172,11 @@ def reset_db_tables(ctx):
 def last_block(ctx):
     """Return the highest block stored in the database"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)
@@ -162,17 +191,18 @@ def last_block(ctx):
 def find_missing_blocks(ctx):
     """Return JSON array of block_nums from missing blocks"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)
     session = Session()
 
     from sbds.storages.db.tables import Block
-    click.echo(json.dumps(Block.find_missing(session)))
+    #click.echo(json.dumps(Block.find_missing(session)))
 
 
 @db.command(name='add-missing-posts-and-comments')
@@ -180,10 +210,11 @@ def find_missing_blocks(ctx):
 def add_missing_posts_and_comments(ctx):
     """Add missing posts and comments from txcomments"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)
@@ -197,10 +228,11 @@ def add_missing_posts_and_comments(ctx):
 def find_missing_posts_and_comments(ctx):
     """Return JSON array of block_nums from missing post and comment blocks"""
     engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
 
     # init tables first
-    init_tables(engine, metadata)
+    init_tables(database_url, metadata)
 
     # configure session
     Session.configure(bind=engine)

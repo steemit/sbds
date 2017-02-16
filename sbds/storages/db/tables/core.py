@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-import json
+
 from copy import copy
 from copy import deepcopy
 from itertools import chain
+from functools import partial
 
 import maya
 from sqlalchemy import Column
@@ -18,7 +19,7 @@ import sbds.json
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
-from sbds.utils import chunkify
+
 
 logger = sbds.logging.getLogger(__name__)
 
@@ -253,28 +254,85 @@ class Block(Base, UniqueMixin):
             return highest
 
     @classmethod
-    def find_missing_iter(cls, session, chunksize=1000):
-        query = session.query(cls.block_num).yield_per(chunksize)
-        for results in chunkify(query, chunksize):
-            block_nums = [r[0] for r in results]
+    def count(cls, session, start=None, end=None):
+        query = session.query(func.count(cls.block_num))
+        if start is not None:
+            query = query.filter(cls.block_num >= start)
+        if end:
+            query = query.filter(cls.block_num <= end)
+        return query.scalar()
+
+    @classmethod
+    def count_iter(cls, session, last_chain_block=None, chunksize=10000):
+        high = last_chain_block or cls.highest_block(session)
+        num_chunks = (high // chunksize) + 1
+        chunks = []
+        for i in range(1, num_chunks +1):
+            start = (i - 1) * chunksize
+            end = i * chunksize
+            chunks.append(partial(cls.count, session, start, end))
+        return chunks
+
+
+    @classmethod
+    def count_missing(cls, session, last_chain_block):
+        block_count = cls.count(session)
+        return last_chain_block - block_count
+
+    @classmethod
+    def find_missing_range(cls, session, start, end):
+        query = session.query(cls.block_num)
+        query = query.filter(cls.block_num >= start, cls.block_num <= end)
+
+        results = query.all()
+        if len(results) == len(range(start, end)):
+            return []
+        else:
+            block_nums = [r.block_num for r in results]
+            if len(block_nums) == 0:
+                return []
+
             low = block_nums[0]
             high = block_nums[-1]
             correct = set(range(low, high + 1))
             missing = correct.difference(block_nums)
-            yield (low, high, missing)
+            return missing
 
     @classmethod
-    def find_missing(cls, session, chunksize=1000):
+    def get_missing_block_num_iterator(cls, session, last_chain_block,
+                                        chunksize=100000):
+        highest_block = cls.highest_block(session)
+        # handle empty db case efficiently
+        if highest_block == 0:
+            num_chunks = (last_chain_block // chunksize) + 1
+            chunks = []
+            for i in range(1, num_chunks + 1):
+                start = (i - 1) * chunksize
+                end = i * chunksize
+                if end >= last_chain_block:
+                    end = last_chain_block
+                chunks.append(partial(range, start, end))
+            return chunks
+
+        num_chunks = (last_chain_block // chunksize) + 1
+        chunks = []
+        for i in range(1, num_chunks + 1):
+            start = (i - 1) * chunksize
+            end = i * chunksize
+            if end >= last_chain_block:
+                end = last_chain_block
+            chunks.append(partial(cls.find_missing_range, session, start, end))
+        return chunks
+
+
+    @classmethod
+    def find_missing(cls, session, last_chain_block, chunksize=1000):
+        missing_block_num_gen = cls.get_missing_block_num_iterator(session,
+                                                        last_chain_block,
+                                                   chunksize=chunksize)
         all_missing = []
-        for low, high, missing in cls.find_missing_iter(
-                session, chunksize=chunksize):
-            logger.debug('%s-%s: %s', low, high, len(missing))
-            if not missing:
-                continue
-            old_len = len(all_missing)
-            all_missing.extend(missing)
-            new_len = len(all_missing)
-            logger.debug('extended missing from %s to %s', old_len, new_len)
+        for missing_query in missing_block_num_gen:
+            all_missing.extend(missing_query())
         return all_missing
 
 
@@ -298,14 +356,14 @@ def prepare_raw_block(raw_block):
     if isinstance(raw_block, dict):
         block = deepcopy(raw_block)
         block_dict.update(**block)
-        block_dict['raw'] = json.dumps(block, ensure_ascii=True)
+        block_dict['raw'] = sbds.json.dumps(block, ensure_ascii=True)
     elif isinstance(raw_block, str):
-        block_dict.update(**json.loads(raw_block))
+        block_dict.update(**sbds.json.loads(raw_block))
         block_dict['raw'] = copy(raw_block)
     elif isinstance(raw_block, bytes):
         block = deepcopy(raw_block)
         raw = block.decode('utf8')
-        block_dict.update(**json.loads(raw))
+        block_dict.update(**sbds.json.loads(raw))
         block_dict['raw'] = copy(raw)
     else:
         raise TypeError('Unsupported raw block type')

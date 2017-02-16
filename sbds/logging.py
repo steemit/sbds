@@ -18,21 +18,21 @@ _log_level = log_level_map.get(LOG_LEVEL, logging.INFO)
 supported_keys = [
     'levelname',
     # 'asctime',
-    # 'created',
+    'created',
     # 'filename',
     # 'levelno',
     'module',
     'funcName',
     'lineno',
-    # 'msecs',
+    'msecs',
     'message',
     # 'name',
     # 'pathname',
-    # 'process',
-    # 'processName',
+    'process',
+    'processName',
     # 'relativeCreated',
-    # 'thread',
-    # 'threadName'
+    'thread',
+    'threadName'
 ]
 
 

@@ -14,7 +14,11 @@ class ToStringJSONEncoder(json.JSONEncoder):
             return str(obj)
         except:
             return super(ToStringJSONEncoder, self).default(obj)
+
     # pylint: enable=method-hidden
+
 
 dump = partial(json.dump, cls=ToStringJSONEncoder)
 dumps = partial(json.dumps, cls=ToStringJSONEncoder)
+load = json.load
+loads = json.loads

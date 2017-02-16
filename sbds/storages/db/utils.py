@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 from contextlib import contextmanager
+from collections import namedtuple
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.pool import NullPool
 
 import sbds.logging
 
@@ -212,6 +214,14 @@ def session_scope(session=None,
             session.rollback()
 
 
+def row_to_json(row):
+    return sbds.json.dumps(dict(row.items()))
+
+
+EngineConfig = namedtuple('EngineConfig',
+                          ['database_url', 'url', 'engine_kwargs', 'engine'])
+
+
 def configure_engine(database_url, **kwargs):
     if kwargs:
         base_engine_kwargs = kwargs
@@ -239,5 +249,53 @@ def configure_engine(database_url, **kwargs):
     logger.debug('engine_kwargs: %s', engine_kwargs)
 
     engine = create_engine(url, **engine_kwargs)
+    return EngineConfig(database_url, url, engine_kwargs, engine)
 
-    return database_url, url, engine_kwargs, engine
+
+def configure_isolated_engine(database_url, **kwargs):
+    if kwargs:
+        kwargs.pop('poolclass', None)
+    return configure_engine(database_url, poolclass=NullPool, **kwargs)
+
+
+@contextmanager
+def isolated_engine(database_url, **kwargs):
+    engine_config = configure_isolated_engine(database_url, **kwargs)
+    engine = engine_config.engine
+    try:
+        yield engine
+    except Exception as e:
+        logger.info(e)
+    finally:
+        del engine_config
+        engine.dispose()
+
+
+def get_db_processes(database_url, **kwargs):
+    with isolated_engine(database_url, **kwargs) as engine:
+        if engine.url.get_backend_name() != 'mysql':
+            raise TypeError('unsupported function for %s database' %
+                            engine.url.get_backend_name())
+        return engine.execute('SHOW PROCESSLIST')
+
+
+def kill_db_processes(database_url, db_name=None, db_user_name=None):
+    processes = get_db_processes(database_url)
+
+    all_procs = []
+    killed_procs = []
+    with isolated_engine(database_url) as engine:
+        for process in processes:
+            logger.debug(
+                'process: Id:%s User:%s db:%s Command:%s State:%s Info:%s',
+                process.Id, process.User, process.db, process.Command,
+                process.State, process.Info)
+            all_procs.append(process)
+            if process.db == db_name and process.User == db_user_name:
+                if process.Info != 'SHOW PROCESSLIST':
+                    logger.debug('killing process %s on db %s owned by %s',
+                                 process.Id, process.db, process.User)
+
+                    engine.execute('KILL %s' % process.Id)
+                    killed_procs.append(process)
+        return all_procs, killed_procs
