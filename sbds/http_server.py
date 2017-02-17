@@ -5,6 +5,7 @@ import logging
 
 import click
 import bottle
+from bottle.ext import sqlalchemy
 from bottle import request
 
 import maya

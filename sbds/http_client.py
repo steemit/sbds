@@ -47,6 +47,7 @@ class SimpleSteemAPIClient(object):
     Returns:
 
     """
+
     def __init__(self, url=None, log_level=logging.INFO, **kwargs):
         url = url or os.environ.get('STEEMD_HTTP_URL')
         self.url = url
@@ -54,8 +55,8 @@ class SimpleSteemAPIClient(object):
         self.return_with_args = kwargs.get('return_with_args', False)
         self.re_raise = kwargs.get('re_raise', False)
 
-        maxsize = kwargs.get('maxsize', 20)
-        timeout = kwargs.get('timeout', 10)
+        maxsize = kwargs.get('maxsize', 10)
+        timeout = kwargs.get('timeout', 30)
         retries = kwargs.get('retries', 10)
 
         pool_block = kwargs.get('pool_block', False)
@@ -89,7 +90,8 @@ class SimpleSteemAPIClient(object):
             self.http.urlopen, 'POST', url, retries=2, body=body)
 
         _logger = sbds.logging.getLogger('urllib3')
-        sbds.logging.configure_existing_logger(_logger)
+
+        sbds.logging.configure_existing_logger(_logger, level=log_level)
 
     def exec(self, name, *args, re_raise=None, return_with_args=None):
 
@@ -109,20 +111,26 @@ class SimpleSteemAPIClient(object):
             else:
                 extra = dict(err=e, request=self.request)
                 logger.info('Request error', extra=extra)
-                self._return(response=None, args=args, return_with_args=return_with_args)
+                self._return(
+                    response=None,
+                    args=args,
+                    return_with_args=return_with_args)
         else:
-            if response.status not in tuple([*response.REDIRECT_STATUSES, 200]):
+            if response.status not in tuple(
+                    [*response.REDIRECT_STATUSES, 200]):
                 logger.info('non 200 response:%s', response.status)
 
-            return self._return(response=response, args=args,
-                         return_with_args=return_with_args)
+            return self._return(
+                response=response,
+                args=args,
+                return_with_args=return_with_args)
 
     def _return(self, response=None, args=None, return_with_args=None):
         return_with_args = return_with_args or self.return_with_args
         try:
             response_json = json.loads(response.data.decode('utf-8'))
         except Exception as e:
-            extra = dict(response=response, args=args, err=e)
+            extra = dict(response=response, request_args=args, err=e)
             logger.info('failed to load response', extra=extra)
         else:
             if 'error' in response_json:

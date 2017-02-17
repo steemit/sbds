@@ -20,7 +20,7 @@ metadata = Base.metadata
 logger = getLogger(__name__)
 
 
-# pylint: disable=bare-except,too-many-branches,too-many-arguments
+# pylint: disable=bare-except,too-many-branches,too-many-arguments, unused-argument
 def safe_merge_insert(objects, session, load=True, **kwargs):
     # pylint: disable=bare-except
     try:
@@ -70,7 +70,9 @@ def adaptive_insert(objects,
                     bulk=False,
                     insert_many=True,
                     merge_insert=True,
-                    insert=True, **kwargs):
+                    insert=True,
+                    **kwargs):
+    # pylint: disable=too-many-return-statements
     if not objects:
         logger.debug('adaptive_insert called with empty objects list')
         return True
@@ -151,10 +153,11 @@ def filter_existing_blocks(block_objects, session):
         results = [r[0] for r in results]
 
         logger.debug('found existing blocks: %s', len(results))
-        filtered_block_objs = [b for b in block_objects if
-                               b.block_num not in results]
+        filtered_block_objs = [
+            b for b in block_objects if b.block_num not in results
+        ]
         logger.debug('removed %s existing objects from list',
-                    len(block_objects) - len(filtered_block_objs))
+                     len(block_objects) - len(filtered_block_objs))
         return filtered_block_objs
     return block_objects
 
@@ -196,6 +199,7 @@ def bulk_add(raw_blocks, session):
     results = adaptive_insert(objs_to_add, session, bulk=True)
     success_count = [r[1] for r in results if r[1]]
     fail_count = [r[1] for r in results if not r[1]]
-    logger.debug('adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
-                 len(raw_blocks), len(tx_objs), success_count, fail_count)
+    logger.debug(
+        'adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
+        len(raw_blocks), len(tx_objs), success_count, fail_count)
     return results

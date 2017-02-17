@@ -21,7 +21,8 @@ pylint-test:
 
 fmt:
 	yapf --recursive --in-place --style pep8 .
-	
+	autopep8 --recursive --in-place .
+
 README.rst: docs/src/README.rst 
 	cd docs
 	$(MAKE) README

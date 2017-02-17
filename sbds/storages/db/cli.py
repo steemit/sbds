@@ -16,6 +16,7 @@ from sbds.storages.db.utils import configure_engine
 from sbds.storages.db.utils import get_db_processes
 from sbds.storages.db.utils import kill_db_processes
 from sbds.storages.db.utils import row_to_json
+from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
 logger = sbds.logging.getLogger(__name__)
@@ -187,49 +188,19 @@ def last_block(ctx):
 
 
 @db.command(name='find-missing-blocks')
+@click.option(
+    '--url',
+    metavar='STEEMD_HTTP_URL',
+    envvar='STEEMD_HTTP_URL',
+    help='Steemd HTTP server URL')
 @click.pass_context
-def find_missing_blocks(ctx):
+def find_missing_blocks(ctx, url):
     """Return JSON array of block_nums from missing blocks"""
-    engine = ctx.obj['engine']
-    database_url = ctx.obj['database_url']
-    metadata = ctx.obj['metadata']
-
-    # init tables first
-    init_tables(database_url, metadata)
-
-    # configure session
-    Session.configure(bind=engine)
-    session = Session()
-
     from sbds.storages.db.tables import Block
-    #click.echo(json.dumps(Block.find_missing(session)))
-
-
-@db.command(name='add-missing-posts-and-comments')
-@click.pass_context
-def add_missing_posts_and_comments(ctx):
-    """Add missing posts and comments from txcomments"""
     engine = ctx.obj['engine']
     database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
-
-    # init tables first
-    init_tables(database_url, metadata)
-
-    # configure session
-    Session.configure(bind=engine)
-
-    from sbds.storages.db.tables import PostAndComment
-    PostAndComment.add_missing(Session)
-
-
-@db.command(name='find-missing-posts-and-comments')
-@click.pass_context
-def find_missing_posts_and_comments(ctx):
-    """Return JSON array of block_nums from missing post and comment blocks"""
-    engine = ctx.obj['engine']
-    database_url = ctx.obj['database_url']
-    metadata = ctx.obj['metadata']
+    rpc = SimpleSteemAPIClient(url)
 
     # init tables first
     init_tables(database_url, metadata)
@@ -238,6 +209,8 @@ def find_missing_posts_and_comments(ctx):
     Session.configure(bind=engine)
     session = Session()
 
-    from sbds.storages.db.tables import PostAndComment
-    block_nums = PostAndComment.find_missing_block_nums(session)
-    click.echo(json.dumps(block_nums))
+    last_chain_block = rpc.last_irreversible_block_num()
+
+    click.echo(
+        json.dumps(
+            Block.find_missing(session, last_chain_block=last_chain_block)))

@@ -1,3 +1,8 @@
 #!/bin/bash
 
-exec setuidgid nobody bash populate
+POPULATE_CMD="$(which populate)"
+
+exec setuidgid nobody python3.5 "${POPULATE_CMD}" \
+  --database_url "${DATABASE_URL:-sqlite:///}" \
+  --steemd_http_url "${STEEMD_HTTP_URL:-https://steemd.steemitdev.com}" \
+  --steemd_websocket_url "${WEBSOCKET_URL:-wss://steemd.steemitdev.com:443}"

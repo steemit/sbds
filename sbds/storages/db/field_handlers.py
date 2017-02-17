@@ -28,7 +28,7 @@ def example_field_handler(value=None, context=None, **kwargs):
 
 
 def author_field(context=None, author_name=None, session=None):
-    from .tables import Account
+    from .tables.synthesized import Account
     account = Account.as_unique(
         session, name=author_name, created=context.get('timestamp'))
     return account.name
