@@ -63,8 +63,10 @@ def test_connection(database_url):
         except Exception as e:
             return False, e
 
+
 def get_table_count(database_url):
     return len(get_tables(database_url))
+
 
 def get_tables(database_url):
     with isolated_engine(database_url) as engine:

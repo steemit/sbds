@@ -20,7 +20,6 @@ from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
 
-
 logger = sbds.logging.getLogger(__name__)
 
 
@@ -267,7 +266,7 @@ class Block(Base, UniqueMixin):
         high = last_chain_block or cls.highest_block(session)
         num_chunks = (high // chunksize) + 1
         chunks = []
-        for i in range(1, num_chunks +1):
+        for i in range(1, num_chunks + 1):
             start = (i - 1) * chunksize
             end = i * chunksize
             chunks.append(partial(cls.count, session, start, end))
@@ -296,8 +295,10 @@ class Block(Base, UniqueMixin):
                 return missing
 
     @classmethod
-    def get_missing_block_num_iterator(cls, session, last_chain_block,
-                                        chunksize=100000):
+    def get_missing_block_num_iterator(cls,
+                                       session,
+                                       last_chain_block,
+                                       chunksize=100000):
         highest_block = cls.highest_block(session)
         # handle empty db case efficiently
         if highest_block == 0:
@@ -305,6 +306,8 @@ class Block(Base, UniqueMixin):
             chunks = []
             for i in range(1, num_chunks + 1):
                 start = (i - 1) * chunksize
+                if start == 0:
+                    start = 1
                 end = i * chunksize
                 if end >= last_chain_block:
                     end = last_chain_block
@@ -318,15 +321,14 @@ class Block(Base, UniqueMixin):
                 end = i * chunksize
                 if end >= last_chain_block:
                     end = last_chain_block
-                chunks.append(partial(cls.find_missing_range, session, start, end))
+                chunks.append(
+                    partial(cls.find_missing_range, session, start, end))
             return chunks
-
 
     @classmethod
     def find_missing(cls, session, last_chain_block, chunksize=1000):
-        missing_block_num_gen = cls.get_missing_block_num_iterator(session,
-                                                        last_chain_block,
-                                                   chunksize=chunksize)
+        missing_block_num_gen = cls.get_missing_block_num_iterator(
+            session, last_chain_block, chunksize=chunksize)
         all_missing = []
         for missing_query in missing_block_num_gen:
             all_missing.extend(missing_query())
@@ -334,6 +336,16 @@ class Block(Base, UniqueMixin):
 
 
 def from_raw_block(raw_block, session=None):
+    """
+
+    Args:
+        raw_block (Dict[str, str]):
+        session (sqlalchemy.orm.session.Session):
+
+    Returns:
+
+    """
+    # pylint: disable=redefined-variable-type
     from .tx import TxBase
     if session:
         block = Block.get_or_create_from_raw_block(raw_block, session=session)
@@ -377,6 +389,14 @@ def prepare_raw_block(raw_block):
 
 
 def extract_transactions_from_blocks(blocks):
+    """
+
+    Args:
+        blocks ():
+
+    Returns:
+
+    """
     transactions = chain.from_iterable(
         map(extract_transactions_from_block, blocks))
     return transactions
@@ -413,7 +433,6 @@ def extract_operations_from_block(raw_block):
         raw_block (Dict[str, str]):
 
     Returns:
-
     """
     block = prepare_raw_block(raw_block)
     transactions = extract_transactions_from_block(block)

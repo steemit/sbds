@@ -43,7 +43,7 @@ class TxBase(UniqueMixin):
                                          'mysql_engine': 'InnoDB',
                                          'mysql_charset': 'utf8mb4',
                                          'mysql_collate': 'utf8mb4_general_ci'
-                                     })
+        })
         return getattr(cls, '__extra_table_args__', tuple()) + args
 
     # pylint: enable=no-self-argument

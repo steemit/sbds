@@ -273,7 +273,7 @@ def parse_checkpoint_filename(filename_or_path):
         is_s3=False,
         available_block_space=calculate_available_block_space(start, end))
     if not any(
-        [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
+            [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
         raise ValueError('Bad values for CheckpointFile: %s' % cp)
     return cp
 
@@ -304,7 +304,7 @@ def parse_checkpoint_s3_path(path):
         is_s3=True,
         available_block_space=calculate_available_block_space(start, end))
     if not any(
-        [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
+            [cp.start, cp.end, cp.path, cp.total, cp.available_block_space]):
         raise ValueError('Bad values for CheckpointFile: %s' % cp)
     return cp
 

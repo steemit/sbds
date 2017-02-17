@@ -15,7 +15,6 @@ def get_current_log_level():
 
 
 def configure_root_logger():
-    import logging
     root_logger = logging.getLogger()
 
     # remove all other handlers from root logger
@@ -23,26 +22,25 @@ def configure_root_logger():
         root_logger.removeHandler(hdlr)
 
 
-def configure_log_handler(supported_log_message_keys,
-                          log_datetime_format):
+def configure_log_handler(supported_log_message_keys, log_datetime_format):
     log_format = ' '.join(make_log_format(supported_log_message_keys))
-    formatter = jsonlogger.JsonFormatter(fmt=log_format,
-                                         datefmt=log_datetime_format)
+    formatter = jsonlogger.JsonFormatter(
+        fmt=log_format, datefmt=log_datetime_format)
     # set all datetimes to utc
     formatter.converter = time.gmtime
 
-    logHandler = logging.StreamHandler()
-    logHandler.setFormatter(formatter)
-    return logHandler
+    log_handler = logging.StreamHandler()
+    log_handler.setFormatter(formatter)
+    return log_handler
 
 
 def log_level_from_str(log_level_str):
-    import logging
     level = SBDS_DEFAULT_LOG_LEVEL
+    # pylint: disable=bare-except, lost-exception
     try:
-       level = getattr(logging, log_level_str.upper())
-    except Exception as e:
-        logging.WARNING('bad log level %s caused error %s', log_level_str, e)
+        level = getattr(logging, log_level_str.upper())
+    except:
+        pass
     finally:
         return level
 
@@ -53,8 +51,8 @@ SBDS_DEFAULT_LOG_LEVEL = logging.INFO
 SBDS_LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'levelname',
-    # 'asctime',
-    'created',
+     'asctime',
+    #'created',
     # 'filename',
     # 'levelno',
     'module',
@@ -67,9 +65,8 @@ SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'process',
     'processName',
     # 'relativeCreated',
-    'thread',
-    'threadName'
-)
+    #'thread',
+    'threadName')
 SBDS_LOG_HANDLER = configure_log_handler(SBDS_SUPPORTED_LOG_MESSAGE_KEYS,
                                          SBDS_LOG_DATETIME_FORMAT)
 SBDS_LOG_LEVEL = get_current_log_level()

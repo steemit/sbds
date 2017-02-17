@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
+import math
 import concurrent.futures
 from functools import partial
 
-
 import click
-import click_spinner
-import emoji
 from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.logging
@@ -27,33 +25,28 @@ logger = sbds.logging.getLogger(__name__)
 TOTAL_TASKS = 7
 MAX_CHUNKSIZE = 1000000
 
+
 def fmt_success_message(msg, *args):
     base_msg = msg % (args)
     return '{success} {msg}'.format(
-       success=click.style('success', fg='green'),
-       msg=base_msg)
+        success=click.style('success', fg='green'), msg=base_msg)
 
 
-def fmt_task_message(task_msg, emoji_name=None, emoji_code_point=None,
-                     show_emoji=None, counter=None):
-
+def fmt_task_message(task_msg,
+                     emoji_code_point=None,
+                     show_emoji=None,
+                     counter=None):
 
     show_emoji = show_emoji or os.sys.platform == 'darwin'
+    _emoji = ''
     if show_emoji:
-        if emoji_code_point:
-            _emoji = emoji_code_point
-        elif emoji_name:
-            _emoji = emoji.emojize(emoji_name)
-    else:
-        _emoji = ''
-
+        _emoji = emoji_code_point
 
     return '[{counter}/{total_tasks}] {task_emoji}  {task_msg}...'.format(
         counter=counter,
         total_tasks=TOTAL_TASKS,
         task_emoji=_emoji,
-        task_msg=task_msg
-    )
+        task_msg=task_msg)
 
 
 @click.command()
@@ -75,13 +68,15 @@ def fmt_task_message(task_msg, emoji_name=None, emoji_code_point=None,
     help='Steemd websocket server URL')
 @click.option('--max_procs', type=click.INT, default=None)
 @click.option('--max_threads', type=click.INT, default=5)
-def populate(database_url, steemd_http_url, steemd_websocket_url,
-             max_procs, max_threads):
-    _populate(database_url, steemd_http_url, steemd_websocket_url,
-              max_procs, max_threads)
+def populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
+             max_threads):
+    _populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
+              max_threads)
 
-def _populate(database_url, steemd_http_url, steemd_websocket_url,
-              max_procs, max_threads):
+
+def _populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
+              max_threads):
+    # pylint: disable=too-many-locals, too-many-statements
     rpc = SimpleSteemAPIClient(steemd_http_url)
     engine_config = configure_engine(database_url)
 
@@ -92,108 +87,118 @@ def _populate(database_url, steemd_http_url, steemd_websocket_url,
     session = Session()
 
     # [1/7] confirm db connectivity
-
-    task_message = fmt_task_message('Confirm database connectivity',
-                                    emoji_name=':telephone_receiver:',
-                                    counter=1)
+    task_message = fmt_task_message(
+        'Confirm database connectivity',
+        emoji_code_point=u'\U0001F4DE',
+        counter=1)
     click.echo(task_message)
-
 
     url, table_count = test_connection(database_url)
     if url:
-        success_msg = fmt_success_message('connected to %s and found %s tables',
-            url.__repr__(), table_count)
+        success_msg = fmt_success_message(
+            'connected to %s and found %s tables', url.__repr__(), table_count)
         click.echo(success_msg)
+
     if not url:
-        click.fail('Unable to connect to database')
+        raise Exception('Unable to connect to database')
+    del url
+    del table_count
 
     # [2/7] kill existing db threads
-
-    task_message = fmt_task_message('Killing active db threads',
-                                    emoji_code_point='\U0001F4A5', counter=2)
+    task_message = fmt_task_message(
+        'Killing active db threads', emoji_code_point='\U0001F4A5', counter=2)
     click.echo(task_message)
-    all_procs, killed_procs = kill_db_processes(database_url, db_name, db_user_name)
+    all_procs, killed_procs = kill_db_processes(database_url, db_name,
+                                                db_user_name)
     if len(killed_procs) > 0:
-        success_msg = fmt_success_message('killed %s processes', len(killed_procs))
+        success_msg = fmt_success_message('killed %s processes',
+                                          len(killed_procs))
         click.echo(success_msg)
-
+    del all_procs
+    del killed_procs
 
     # [3/7] init db if required
-    task_message = fmt_task_message('Initialising db if required',
-                                    emoji_name=':electric_plug:', counter=3)
+    task_message = fmt_task_message(
+        'Initialising db if required',
+        emoji_code_point=u'\U0001F50C',
+        counter=3)
     click.echo(task_message)
     init_tables(database_url, Base.metadata)
 
-
-
     # [4/7] find last irreversible block
     last_chain_block = rpc.last_irreversible_block_num()
-    task_message = fmt_task_message('Finding highest blockchain block',
-                                    emoji_code_point='\U0001F50E', counter=4)
+    task_message = fmt_task_message(
+        'Finding highest blockchain block',
+        emoji_code_point='\U0001F50E',
+        counter=4)
     click.echo(task_message)
 
-
-
-    success_msg = fmt_success_message('learned highest irreversible block is %s',
-                                      last_chain_block)
+    success_msg = fmt_success_message(
+        'learned highest irreversible block is %s', last_chain_block)
     click.echo(success_msg)
 
-
     # [5/7] get missing block_nums
-
-    _chunksize = 100000
-    missing_block_nums_gen = Block.get_missing_block_num_iterator(
-        session, last_chain_block, chunksize=_chunksize)
-
-    task_message = fmt_task_message('Finding blocks missing from db',
-                                    emoji_name=':telescope:', counter=5)
+    task_message = fmt_task_message(
+        'Finding blocks missing from db',
+        emoji_code_point=u'\U0001F52D',
+        counter=5)
     click.echo(task_message)
+    missing_block_nums_gen = Block.get_missing_block_num_iterator(
+        session, last_chain_block, chunksize=100000)
 
-    with click.progressbar(missing_block_nums_gen,
-                           label='Finding missing block_nums',
-                           color=True,
-                           show_eta=False,
-                           show_percent=False,
-                           empty_char='░',
-                           fill_char='█',
-                           show_pos=True,
-                           bar_template='%(bar)s  %(info)s') as bar:
+    with click.progressbar(
+            missing_block_nums_gen,
+            label='Finding missing block_nums',
+            color=True,
+            show_eta=False,
+            show_percent=False,
+            empty_char='░',
+            fill_char='█',
+            show_pos=True,
+            bar_template='%(bar)s  %(info)s') as pbar:
         all_missing_block_nums = []
-        for missing_gen in bar:
+        for missing_gen in pbar:
             all_missing_block_nums.extend(missing_gen())
 
     success_msg = fmt_success_message('found %s missing blocks',
-        len(all_missing_block_nums))
+                                      len(all_missing_block_nums))
     click.echo(success_msg)
+    del missing_block_nums_gen
+    del pbar
+    session.invalidate()
 
     # [6/7] adding missing blocks
-
-    task_message = fmt_task_message('Adding missing blocks to db, this may take a while',
-                                    emoji_name=':memo:', counter=6)
+    task_message = fmt_task_message(
+        'Adding missing blocks to db, this may take a while',
+        emoji_code_point=u'\U0001F4DD',
+        counter=6)
     click.echo(task_message)
 
     max_workers = max_procs or os.cpu_count() or 1
-    num_chunks = max_workers
-    chunksize = len(all_missing_block_nums) // num_chunks
+
+    chunksize = len(all_missing_block_nums) // max_workers
     if chunksize <= 0:
         chunksize = 1
-    if chunksize > MAX_CHUNKSIZE:
-        chunksize = MAX_CHUNKSIZE
 
-    map_func = partial(block_adder_process_worker, database_url,
-                       steemd_http_url, max_threads=max_threads)
+    map_func = partial(
+        block_adder_process_worker,
+        database_url,
+        steemd_http_url,
+        max_threads=max_threads)
 
-    block_chunks = chunkify(all_missing_block_nums, chunksize)
-    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(map_func, block_chunks, chunksize=chunksize)
+    chunks = chunkify(all_missing_block_nums, 10000)
+
+    with concurrent.futures.ProcessPoolExecutor(
+            max_workers=max_workers) as executor:
+        executor.map(map_func, chunks , chunksize=1)
 
     success_msg = fmt_success_message('added missing blocks')
     click.echo(success_msg)
+    del all_missing_block_nums
 
     # [7/7] stream blocks
-    task_message = fmt_task_message('Streaming blocks',
-                                    emoji_name=':memo:',
-                                    counter=7)
+    task_message = fmt_task_message(
+        'Streaming blocks', emoji_code_point=u'\U0001F4DD', counter=7)
     click.echo(task_message)
 
     highest_db_block = Block.highest_block(session)
@@ -202,33 +207,48 @@ def _populate(database_url, steemd_http_url, steemd_websocket_url,
     add_blocks(blocks, session)
 
 
+# pylint: disable=redefined-outer-name
 def block_fetcher_thread_worker(rpc_url, block_nums, max_threads=None):
     rpc = SimpleSteemAPIClient(rpc_url, return_with_args=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+    # pylint: disable=unused-variable
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_threads) as executor:
         for result, args in executor.map(rpc.get_block, block_nums):
-                # dont yield anything when we encounter a null output
-                # from an HTTP 503 error
-                if result:
-                    yield result
+            # dont yield anything when we encounter a null output
+            # from an HTTP 503 error
+            if result:
+                yield result
 
 
-def block_adder_process_worker(database_url, rpc_url, block_nums, max_threads=5):
+def block_adder_process_worker(database_url,
+                               rpc_url,
+                               block_nums,
+                               max_threads=5):
     try:
         engine_config = configure_engine(database_url)
         session = Session(bind=engine_config.engine)
-        raw_blocks = block_fetcher_thread_worker(rpc_url, block_nums,
-                                                 max_threads=max_threads)
+        raw_blocks = block_fetcher_thread_worker(
+            rpc_url, block_nums, max_threads=max_threads)
         for raw_blocks_chunk in chunkify(raw_blocks, 1000):
-            result = bulk_add(raw_blocks_chunk, session)
-            # we could do something here with results like retry or queue failures
+            # pylint: disable=unused-variable
+            # we could do something here with results, like retry failures
+            results = bulk_add(raw_blocks_chunk, session)
+
     except Exception as e:
         logger.exception(e)
     finally:
         Session.close_all()
 
-# included only for debugging with pdb
+
+# included only for debugging with pdb, all the above code should be called
+# using the click framework
 if __name__ == '__main__':
     db_url = os.environ['DATABASE_URL']
     rpc_url = os.environ['STEEMD_HTTP_URL']
     ws_rpc_url = os.environ['WEBSOCKET_URL']
-    _populate(db_url, rpc_url, steemd_websocket_url=ws_rpc_url, max_procs=1, max_threads=1)
+    _populate(
+        db_url,
+        rpc_url,
+        steemd_websocket_url=ws_rpc_url,
+        max_procs=4,
+        max_threads=2)

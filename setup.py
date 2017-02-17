@@ -37,7 +37,6 @@ setup(
         'langdetect',
         'yapf'
     ],
-    scripts=['sbds/storages/db/scripts/populate.sh'],
     entry_points={
         'console_scripts': [
             'sbds=sbds.cli:sbds',
