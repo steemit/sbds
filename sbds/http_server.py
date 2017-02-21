@@ -205,7 +205,6 @@ def get_custom_json_by_tid(tid, db):
 
         query = cls.from_to_filter(
             query, _from=parsed_fields.get('from'), to=parsed_fields.get('to'))
-    result = query.limit(20).all()
     return return_query_response(result)
 
 
