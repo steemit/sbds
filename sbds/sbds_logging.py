@@ -51,7 +51,7 @@ SBDS_DEFAULT_LOG_LEVEL = logging.INFO
 SBDS_LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'levelname',
-     'asctime',
+    'asctime',
     #'created',
     # 'filename',
     # 'levelno',
@@ -60,7 +60,7 @@ SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'lineno',
     'msecs',
     'message',
-    # 'name',
+    'name',
     # 'pathname',
     'process',
     'processName',
@@ -91,6 +91,15 @@ def configure_existing_logger(logger, log_handler=None, level=None):
     logger.addHandler(log_handler)
     logger.setLevel(level)
     return logger
+
+
+def session_to_dict(session):
+    return dict(
+        session_info=session.info,
+        session_dirty_count=len(session.dirty),
+        session_new_count=len(session.new),
+        session_is_active=session.is_active,
+        session_transaction_parent=session.transaction.parent)
 
 
 # handle logging of specific messages

@@ -5,6 +5,7 @@ from sbds.chain.cli import chain
 from sbds.checkpoints.cli import checkpoints
 from sbds.storages.db.cli import db
 from sbds.storages.s3.cli import s3
+from sbds.server.cli import server
 
 
 @click.group(
@@ -26,3 +27,4 @@ sbds.add_command(chain)
 sbds.add_command(checkpoints)
 sbds.add_command(db)
 sbds.add_command(s3)
+sbds.add_command(server)

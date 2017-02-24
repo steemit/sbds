@@ -5,11 +5,11 @@ import json
 import click
 from steemapi.steemnoderpc import SteemNodeRPC
 
-import sbds.logging
+import sbds.sbds_logging
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 @click.group()

@@ -14,13 +14,13 @@ from sqlalchemy import UnicodeText
 from sqlalchemy import func
 from toolz.dicttoolz import dissoc
 
-import sbds.logging
-import sbds.json
+import sbds.sbds_logging
+import sbds.sbds_json
 from sbds.storages.db.tables import Base
 from sbds.storages.db.utils import UniqueMixin
 from sbds.utils import block_num_from_previous
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 # pylint: disable=line-too-long
@@ -181,18 +181,18 @@ class Block(Base, UniqueMixin):
             return data
 
     def to_json(self):
-        return sbds.json.dumps(self.to_dict())
+        return sbds.sbds_json.dumps(self.to_dict())
 
     @classmethod
     def _prepare_for_storage(cls, raw_block):
         """
+        Convert raw block tp dict formatted for storage.
 
         Args:
-          raw_block: type raw_block: Dict[str, str]
+            raw_block (Union[Dict[str, str], Dict[str, List]]):
 
         Returns:
-          rtype:
-
+            Union[Dict[str, str], Dict[str, int]]:
         """
         block = prepare_raw_block(raw_block)
         return dict(
@@ -207,14 +207,14 @@ class Block(Base, UniqueMixin):
     @classmethod
     def get_or_create_from_raw_block(cls, raw_block, session=None):
         """
+        Return Block instance from raw block, creating if necessary.
 
         Args:
-          raw_block: type raw_block: Dict[str, str]
-          session: type session: sqlalchemy.orm.session.Session (Default value = None)
+            raw_block (Dict[str, str]):
+            session (sqlalchemy.orm.session.Session):
 
         Returns:
-          rtype:
-
+            sbds.storages.db.tables.core.Block:
         """
         prepared = cls._prepare_for_storage(raw_block)
         return cls.as_unique(session, **prepared)
@@ -222,13 +222,13 @@ class Block(Base, UniqueMixin):
     @classmethod
     def from_raw_block(cls, raw_block):
         """
+        Instantiate Block from raw block.
 
         Args:
-          raw_block: type raw_block:
+            raw_block (Union[Dict[str, str], Dict[str, List]]):
 
         Returns:
-          rtype: Block
-
+            sbds.storages.db.tables.core.Block:
         """
         prepared = cls._prepare_for_storage(raw_block)
         return cls(**prepared)
@@ -246,6 +246,19 @@ class Block(Base, UniqueMixin):
 
     @classmethod
     def highest_block(cls, session):
+        """
+        Return integer result of MAX(block_num) db query.
+
+        This does not have the same meaning as last irreversible block, ie, it
+        makes no claim that the all blocks lower than the MAX(block_num) exist
+        in the database.
+
+        Args:
+            session (sqlalchemy.orm.session.Session):
+
+        Returns:
+            int:
+        """
         highest = session.query(func.max(cls.block_num)).scalar()
         if not highest:
             return 0
@@ -337,13 +350,14 @@ class Block(Base, UniqueMixin):
 
 def from_raw_block(raw_block, session=None):
     """
+    Extract and instantiate Block and Txs from raw block.
 
     Args:
         raw_block (Dict[str, str]):
         session (sqlalchemy.orm.session.Session):
 
     Returns:
-
+        Tuple[Block, List[TxBase,None])
     """
     # pylint: disable=redefined-variable-type
     from .tx import TxBase
@@ -357,9 +371,10 @@ def from_raw_block(raw_block, session=None):
 
 def prepare_raw_block(raw_block):
     """
+    Convert raw block to dict, adding block_num.
 
     Args:
-        raw_block (Union[Dict[str, List], Dict[str, str], Dict[str, str]]):
+        raw_block (Union[Dict[str, List], Dict[str, str]]):
 
     Returns:
         Union[Dict[str, List], None]:
@@ -368,14 +383,14 @@ def prepare_raw_block(raw_block):
     if isinstance(raw_block, dict):
         block = deepcopy(raw_block)
         block_dict.update(**block)
-        block_dict['raw'] = sbds.json.dumps(block, ensure_ascii=True)
+        block_dict['raw'] = sbds.sbds_json.dumps(block, ensure_ascii=True)
     elif isinstance(raw_block, str):
-        block_dict.update(**sbds.json.loads(raw_block))
+        block_dict.update(**sbds.sbds_json.loads(raw_block))
         block_dict['raw'] = copy(raw_block)
     elif isinstance(raw_block, bytes):
         block = deepcopy(raw_block)
         raw = block.decode('utf8')
-        block_dict.update(**sbds.json.loads(raw))
+        block_dict.update(**sbds.sbds_json.loads(raw))
         block_dict['raw'] = copy(raw)
     else:
         raise TypeError('Unsupported raw block type')
