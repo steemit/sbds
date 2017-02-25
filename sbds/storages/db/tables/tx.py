@@ -13,6 +13,7 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
+from sqlalchemy import func
 from toolz.dicttoolz import get_in
 from toolz.dicttoolz import dissoc
 
@@ -23,11 +24,9 @@ from .core import extract_operations_from_block
 from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
-from ..query_helpers import past_24_hours, past_48_hours, past_72_hours
-from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
-from ..utils import UniqueMixin
+from ..query_helpers import standard_trailing_windows
 
-# from .core import Transaction
+from ..utils import UniqueMixin
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class TxBase(UniqueMixin):
 
     # pylint: enable=no-self-argument
 
-    block_num = Column(Integer, nullable=False)
+    block_num = Column(Integer, nullable=False, index=True)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
@@ -160,39 +159,23 @@ class TxBase(UniqueMixin):
         return query
 
     @classmethod
-    def past_24(cls, session):
-        q = session.query(cls)
-        past_24 = past_24_hours()
-        q = cls.datetime_window_filter(q, _from=past_24)
-        return q
+    def standard_trailing_windowed_queries(cls, query):
+        """
+
+        Args:
+            query (sqlalchemy.orm.query.Query):
+
+        Yields:
+            sqlalchemy.orm.query.Query
+        """
+        for window in standard_trailing_windows():
+            yield cls.datetime_window_filter(query, **window)
 
     @classmethod
-    def past_48(cls, session):
-        q = session.query(cls)
-        past_48 = past_48_hours()
-        q = cls.datetime_window_filter(q, _from=past_48)
-        return q
-
-    @classmethod
-    def past_72(cls, session):
-        q = session.query(cls)
-        past_72 = past_72_hours()
-        q = cls.datetime_window_filter(q, _from=past_72)
-        return q
-
-    @classmethod
-    def past_24_to_48(cls, session):
-        q = session.query(cls)
-        past_24, past_48 = past_24_to_48_hours()
-        q = cls.datetime_window_filter(q, _from=past_24, to=past_48)
-        return q
-
-    @classmethod
-    def past_48_to_72(cls, session):
-        q = session.query(cls)
-        past_48, past_72 = past_48_to_72_hours()
-        q = cls.datetime_window_filter(q, _from=past_48, to=past_72)
-        return q
+    def standard_windowed_count(cls, session):
+        base_query = session.query(func.count(cls.block_num))
+        for window_query in cls.standard_trailing_windowed_queries(base_query):
+            yield window_query.scalar()
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')
@@ -655,7 +638,7 @@ class TxComment(Base, TxBase):
 
     author = Column(Unicode(50), nullable=False, index=True)
     permlink = Column(Unicode(512), nullable=False, index=True)
-    parent_author = Column(Unicode(50))
+    parent_author = Column(Unicode(50), index=True)
     parent_permlink = Column(Unicode(512))
     title = Column(Unicode(512))
     body = Column(UnicodeText)
@@ -677,6 +660,28 @@ class TxComment(Base, TxBase):
         return session.query(cls).filter(
             cls.parent_permlink == prepared['parent_permlink'],
             cls.parent_author == prepared['parent_author']).one_or_none()
+
+    @classmethod
+    def post_filter(cls, query):
+        return query.filter(cls.parent_author == '')
+
+    @classmethod
+    def comment_filter(cls, query):
+        return query.filter(cls.parent_author != '')
+
+    @classmethod
+    def count_query(cls, session):
+        return session.query(func.count(cls.block_num))
+
+    @classmethod
+    def post_count_query(cls, session):
+        count_query = cls.count_query(session)
+        return cls.post_filter(count_query)
+
+    @classmethod
+    def comment_count_query(cls, session):
+        count_query = cls.count_query(session)
+        return cls.comment_filter(count_query)
 
     @property
     def type(self):

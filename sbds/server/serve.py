@@ -18,6 +18,7 @@ from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables.core import Block
 from sbds.storages.db.tables.tx import tx_class_map
+from sbds.storages.db.query_helpers import blockchain_stats_query
 from sbds.storages.db.utils import configure_engine
 from sbds.sbds_json import ToStringJSONEncoder
 
@@ -59,7 +60,6 @@ def get_db_plugin(database_url):
         # If it is true and keyword is not defined, plugin uses **kwargs argument to inject session database (default False).
         use_kwargs=False,
         create_session=Session)
-
 
 
 app = bottle.Bottle()
@@ -104,6 +104,12 @@ def count_operation(operation, db):
             to = parsed_fields.get('to')
             query = operation.from_to_filter(query, _from=_from, to=to)
     return dict(count=query.count())
+
+
+@app.get('/api/v1/blockchainStats')
+def stats(db):
+    results = blockchain_stats_query(db)
+    return results
 
 
 # '/api/v1/ops/custom/:tid?from=<iso8601-or-block_num>&to=<iso8601-or-blocknum>'
