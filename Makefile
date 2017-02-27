@@ -5,24 +5,27 @@ DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
 default: build
 
-.PHONY: test run
+.PHONY: test run test-without-lint test-pylint fmt test-without-build
 
-build: test README.rst
+build: test-without-build README.rst
 	docker build -t steemit/sbds .
 
 run:
 	docker run steemit/sbds
 
-test:
-	python setup.py test
+test: test-without-build build
 
-pylint-test:
-	py.test --pyline -m pylint
+test-without-build: test-without-lint test-pylint
+
+test-without-lint:
+	py.test tests
+
+test-pylint:
+	py.test --pylint -m pylint sbds
 
 fmt:
 	yapf --recursive --in-place --style pep8 .
 	autopep8 --recursive --in-place .
 
 README.rst: docs/src/README.rst 
-	cd docs
-	$(MAKE) README
+	cd $(DOCS_DIR) && $(MAKE) README

@@ -6,10 +6,10 @@ import click
 import toolz
 
 import sbds.checkpoints
-import sbds.logging
+import sbds.sbds_logging
 from sbds.checkpoints import checkpoint_opener_wrapper
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 @click.group()

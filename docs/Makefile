@@ -18,7 +18,7 @@ help:
 README:
 	$(MAKE) clean
 	$(MAKE) rst
-	cp "$(BUILDDIR)"/rst/src/README.rst ..
+	cp $(BUILDDIR)/rst/src/README.rst $(_README)
 
 
 # Catch-all target: route all unknown targets to Sphinx using the new

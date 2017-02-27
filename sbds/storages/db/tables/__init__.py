@@ -9,6 +9,7 @@ Session = sessionmaker()
 
 # pylint: disable=wrong-import-position
 from ..utils import isolated_engine
+from ..utils import configure_engine
 from .core import Block
 
 from .tx import TxBase
