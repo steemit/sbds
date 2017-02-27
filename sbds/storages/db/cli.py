@@ -4,9 +4,9 @@ import json
 
 import click
 
-import sbds.logging
-from sbds.storages.db import Base
-from sbds.storages.db import Session
+import sbds.sbds_logging
+from sbds.storages.db.tables import Base
+from sbds.storages.db.tables import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
 from sbds.storages.db.tables import init_tables
@@ -19,7 +19,7 @@ from sbds.storages.db.utils import row_to_json
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 @click.group(short_help='Interact with an SQL storage backend')
@@ -27,6 +27,7 @@ logger = sbds.logging.getLogger(__name__)
     '--database_url',
     type=str,
     envvar='DATABASE_URL',
+    required=True,
     help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
 )
 @click.option('--echo', is_flag=True)
@@ -133,7 +134,7 @@ def init_db_tables(ctx):
 
 @db.command(name='reset')
 @click.confirmation_option(
-    prompt='Are you sure you want to drop and then create the db?')
+    prompt='Are you sure you want to drop and then create all db tables?')
 @click.pass_context
 def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
@@ -192,6 +193,7 @@ def last_block(ctx):
     '--url',
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
+    required=True,
     help='Steemd HTTP server URL')
 @click.pass_context
 def find_missing_blocks(ctx, url):

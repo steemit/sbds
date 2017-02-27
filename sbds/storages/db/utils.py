@@ -2,14 +2,16 @@
 from contextlib import contextmanager
 from collections import namedtuple
 
+import sqlalchemy.orm.exc
+import sqlalchemy.exc
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import NullPool
 
-import sbds.logging
+import sbds.sbds_logging
+import sbds.sbds_json
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 # pylint: disable=too-many-arguments, broad-except, protected-access
@@ -37,16 +39,16 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, args, kwargs):
 
                 # prevent race condition by using savepoint (begin_nested)
                 session.begin(subtransactions=True)
-                logger.debug('_unique beginning nested transaction')
+                logger.debug('_unique beginning subtransaction')
                 try:
                     logger.debug(
-                        '_unique while in nested transaction: attempting to create %s',
+                        '_unique while in subtransaction: attempting to create %s',
                         obj)
                     session.add(obj)
                     session.commit()
-                    logger.debug(
-                        '_unique while in nested transaction: created %s', obj)
-                except IntegrityError as e:
+                    logger.debug('_unique while in subtransaction: created %s',
+                                 obj)
+                except sqlalchemy.exc.IntegrityError as e:
                     logger.debug(
                         '_unique IntegrityError while creating %s instance',
                         cls_name)
@@ -89,59 +91,13 @@ class UniqueMixin(object):
                        arg, kw)
 
 
-def dump_tags(tree, tag):
-    return tree.findall('.//%s' % tag)
-
-
-# Testing / Dev helper funtions
-def gzblocks_gen(filename):
-    import gzip
-    with gzip.open(filename, mode='rt', encoding='utf8') as f:
-        for block in f.readlines():
-            yield block
-
-
-def gzblocks(filename):
-    import gzip
-    with gzip.open(filename, mode='rt', encoding='utf8') as f:
-        return f.readlines()
-
-
-def random_blocks(blocks, size=1000):
-    import random
-    return random.sample(blocks, size)
-
-
-def new_session(session=None, session_factory=None):
-    session = session or session_factory()
-    session.rollback()
-    session.close_all()
-    return session_factory()
-
-
-def filter_tables(metadata, table_names):
-    filtered = [t for t in metadata.sorted_tables if t.name not in table_names]
-    return filtered
-
-
-def reset_tables(engine, metadata, exclude_tables=None):
-    exclude_tables = exclude_tables or tuple()
-    for table in exclude_tables:
-        if table not in [tbl.name for tbl in metadata.tables]:
-            raise ValueError(
-                'excluding non-existent table %s, is this a typo?', table)
-    drop_tables = filter_tables(metadata, exclude_tables)
-    try:
-        metadata.drop_all(bind=engine, tables=drop_tables)
-    except Exception as e:
-        logger.error(e)
-    metadata.create_all(bind=engine)
-
-
 def is_duplicate_entry_error(error):
-    code, msg = error.orig.args
-    msg = msg.lower()
-    return all([code == 1062, "duplicate entry" in msg])
+    if isinstance(error, sqlalchemy.orm.exc.FlushError):
+        return 'conflicts with persistent instance' in str(error)
+    elif isinstance(error, sqlalchemy.exc.IntegrityError):
+        code, msg = error.orig.args
+        msg = msg.lower()
+        return all([code == 1062, "duplicate entry" in msg])
 
 
 # pylint: disable=too-many-branches, too-many-statements
@@ -155,36 +111,26 @@ def session_scope(session=None,
     """Provide a transactional scope around a series of db operations."""
 
     # configure and create new session if none exists
-
     if not session:
         if bind:
             logger.debug(
                 'configuring session factory before creating new session')
-            session_factory.configure(bind)
-        logger.debug('creating new session')
-        session = session_factory()
-
-    logger.debug('initial session.info: %s', session.info)
-    logger.debug('initial session.dirty count: %s', len(session.dirty))
-    logger.debug('initial session.new count: %s', len(session.new))
-    logger.debug('initial session.is_active: %s', session.is_active)
-    logger.debug('initial sesssion.transaction.parent: %s',
-                 session.transaction.parent)
+            session = session_factory(bind=bind)
+        else:
+            logger.debug('creating new session')
+            session = session_factory()
     # rollback passed session if required
     if not session.is_active:
         logger.debug('rolling back passed session')
         session.rollback()
-        logger.debug('after rollback session.dirty count: %s',
-                     len(session.dirty))
-        logger.debug('after rollback session.new count: %s', len(session.new))
     try:
         session.info['err'] = None
         session.begin(subtransactions=True)
         yield session
-        logger.debug('after yield session.dirty count: %s', len(session.dirty))
-        logger.debug('after yield session.new count: %s', len(session.new))
+
         session.commit()
-    except IntegrityError as e:
+        session.commit()
+    except (sqlalchemy.exc.IntegrityError, sqlalchemy.orm.exc.FlushError) as e:
         session.rollback()
         session.info['err'] = e
         if is_duplicate_entry_error(e):
@@ -200,10 +146,6 @@ def session_scope(session=None,
         if _raise:
             raise e
     finally:
-        logger.debug('final session.info: %s', session.info)
-        logger.debug('final session.dirty count: %s', len(session.dirty))
-        logger.debug('final session.new count: %s', len(session.new))
-        logger.debug('final session.is_active: %s', session.is_active)
         if close:
             logger.debug('calling session.close')
             session.close()
@@ -211,12 +153,15 @@ def session_scope(session=None,
             logger.debug('calling session.expunge_all')
             session.expunge_all()
         if not session.is_active:
-            logger.debug('second session.rollback required')
+            logger.debug('second session.rollback required...rolling back')
             session.rollback()
 
 
 def row_to_json(row):
-    return sbds.json.dumps(dict(row.items()))
+    if getattr(row, 'to_json'):
+        return row.to_json()
+    else:
+        return sbds.sbds_json.dumps(dict(row.items()))
 
 
 EngineConfig = namedtuple('EngineConfig',
@@ -250,13 +195,17 @@ def configure_engine(database_url, **kwargs):
     logger.debug('engine_kwargs: %s', engine_kwargs)
 
     engine = create_engine(url, **engine_kwargs)
+    if backend == 'sqlite':
+        from .tables import Base
+        Base.metadata.create_all(bind=engine, checkfirst=True)
+
     return EngineConfig(database_url, url, engine_kwargs, engine)
 
 
-def configure_isolated_engine(database_url, **kwargs):
+def configure_isolated_engine(database_url, poolclass=NullPool, **kwargs):
     if kwargs:
         kwargs.pop('poolclass', None)
-    return configure_engine(database_url, poolclass=NullPool, **kwargs)
+    return configure_engine(database_url, poolclass=poolclass, **kwargs)
 
 
 @contextmanager
@@ -281,6 +230,9 @@ def get_db_processes(database_url, **kwargs):
 
 
 def kill_db_processes(database_url, db_name=None, db_user_name=None):
+    url = make_url(database_url)
+    if url.get_backend_name() == 'sqlite':
+        return [], []
     processes = get_db_processes(database_url)
 
     all_procs = []

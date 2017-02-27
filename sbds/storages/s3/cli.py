@@ -5,9 +5,9 @@ import json
 import boto3
 import click
 
-import sbds.logging
+import sbds.sbds_logging
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 @click.group(name='s3')

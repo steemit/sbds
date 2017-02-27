@@ -8,9 +8,9 @@ import w3lib.url
 import langdetect
 from langdetect import DetectorFactory
 
-import sbds.logging
+import sbds.sbds_logging
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 # https://github.com/matiasb/python-unidiff/blob/master/unidiff/constants.py#L37
 # @@ (source offset, length) (target offset, length) @@ (section header)
