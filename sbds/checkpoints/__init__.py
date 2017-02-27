@@ -4,9 +4,9 @@ import os
 import re
 from collections import namedtuple
 
-import sbds.logging
+import sbds.sbds_logging
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 # shell/glob patterns
 CHECKPOINT_FILENAME_PATTERN = 'blocks_*-*.json*'

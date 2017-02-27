@@ -2,16 +2,19 @@
 import json
 import os
 import logging
+import socket
+import concurrent.futures
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
 
 import certifi
 import urllib3
+from urllib3.connection import HTTPConnection
 
-import sbds.logging
+import sbds.sbds_logging
 
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 class RPCError(Exception):
@@ -54,55 +57,52 @@ class SimpleSteemAPIClient(object):
         self.hostname = urlparse(url).hostname
         self.return_with_args = kwargs.get('return_with_args', False)
         self.re_raise = kwargs.get('re_raise', False)
+        self.max_workers = kwargs.get('max_workers', None)
 
+        num_pools = kwargs.get('num_pools', 10)
         maxsize = kwargs.get('maxsize', 10)
         timeout = kwargs.get('timeout', 30)
         retries = kwargs.get('retries', 10)
-
         pool_block = kwargs.get('pool_block', False)
+        tcp_keepalive = kwargs.get('tcp_keepalive', True)
+
+        if tcp_keepalive:
+            socket_options = HTTPConnection.default_socket_options + \
+                [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1), ]
+        else:
+            socket_options = HTTPConnection.default_socket_options
 
         self.http = urllib3.poolmanager.PoolManager(
-            num_pools=50,
-            headers={'Content-Type': 'application/json'},
+            num_pools=num_pools,
             maxsize=maxsize,
             block=pool_block,
             timeout=timeout,
             retries=retries,
+            socket_options=socket_options,
+            headers={'Content-Type': 'application/json'},
             cert_reqs='CERT_REQUIRED',
             ca_certs=certifi.where())
         '''
-        urlopen(method, url, body=None, headers=None, retries=None,
-        redirect=True, assert_same_host=True, timeout=<object object>,
-        pool_timeout=None, release_conn=None, chunked=False, body_pos=None,
-        **response_kw)
+            urlopen(method, url, body=None, headers=None, retries=None,
+            redirect=True, assert_same_host=True, timeout=<object object>,
+            pool_timeout=None, release_conn=None, chunked=False, body_pos=None,
+            **response_kw)
         '''
+        self.request = partial(self.http.urlopen, 'POST', url)
 
-        body = json.dumps(
-            {
-                "method": 'get_dynamic_global_properties',
-                "params": [],
-                "jsonrpc": "2.0",
-                "id": 0
-            },
-            ensure_ascii=False).encode('utf8')
+        _logger = sbds.sbds_logging.getLogger('urllib3')
+        sbds.sbds_logging.configure_existing_logger(_logger, level=log_level)
 
-        self.request = partial(
-            self.http.urlopen, 'POST', url, retries=2, body=body)
-
-        _logger = sbds.logging.getLogger('urllib3')
-
-        sbds.logging.configure_existing_logger(_logger, level=log_level)
+    @staticmethod
+    def json_rpc_body(name, *args, as_json=True):
+        body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": 0}
+        if as_json:
+            return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
+        else:
+            return body_dict
 
     def exec(self, name, *args, re_raise=None, return_with_args=None):
-
-        body = json.dumps(
-            {
-                "method": name,
-                "params": args,
-                "jsonrpc": "2.0",
-                "id": 0
-            },
-            ensure_ascii=False).encode('utf8')
+        body = SimpleSteemAPIClient.json_rpc_body(name, *args)
         try:
             response = self.request(body=body)
         except Exception as e:
@@ -127,36 +127,51 @@ class SimpleSteemAPIClient(object):
 
     def _return(self, response=None, args=None, return_with_args=None):
         return_with_args = return_with_args or self.return_with_args
-        try:
-            response_json = json.loads(response.data.decode('utf-8'))
-        except Exception as e:
-            extra = dict(response=response, request_args=args, err=e)
-            logger.info('failed to load response', extra=extra)
-        else:
-            if 'error' in response_json:
-                error = response_json['error']
-                error_message = error.get('detail',
-                                          response_json['error']['message'])
-                raise RPCError(error_message)
 
-            result = response_json["result"]
-            if return_with_args:
-                return result, args
+        if not response:
+            result = None
+        else:
+            try:
+                response_json = json.loads(response.data.decode('utf-8'))
+            except Exception as e:
+                extra = dict(response=response, request_args=args, err=e)
+                logger.info('failed to load response', extra=extra)
+                result = None
             else:
-                return result
+                if 'error' in response_json:
+                    error = response_json['error']
+                    error_message = error.get(
+                        'detail', response_json['error']['message'])
+                    raise RPCError(error_message)
+
+                result = response_json.get('result', None)
+        if return_with_args:
+            return result, args
+        else:
+            return result
 
     def exec_multi(self, name, params):
-        body_gen = (json.dumps(
-            {
-                "method": name,
-                "params": [i],
-                "jsonrpc": "2.0",
-                "id": 0
-            },
-            ensure_ascii=False).encode('utf8') for i in params)
+        body_gen = ({
+            "method": name,
+            "params": [i],
+            "jsonrpc": "2.0",
+            "id": 0
+        } for i in params)
         for body in body_gen:
-            yield json.loads(
-                self.request(body=body).data.decode('utf-8'))['result']
+            json_body = json.dumps(body, ensure_ascii=False).encode('utf8')
+            yield self._return(
+                response=self.request(body=json_body),
+                args=body['params'],
+                return_with_args=True)
+
+    def exec_multi_with_futures(self, name, params, max_workers=None):
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers) as executor:
+            # Start the load operations and mark each future with its URL
+            futures = (executor.submit(self.exec, name, param)
+                       for param in params)
+            for future in concurrent.futures.as_completed(futures):
+                yield future.result()
 
     get_dynamic_global_properties = partialmethod(
         exec, 'get_dynamic_global_properties')

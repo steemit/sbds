@@ -13,23 +13,22 @@ from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
+from sqlalchemy import func
 from toolz.dicttoolz import get_in
 from toolz.dicttoolz import dissoc
 
-import sbds.logging
-import sbds.json
+import sbds.sbds_logging
+import sbds.sbds_json
 from .core import Base
 from .core import extract_operations_from_block
 from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
-from ..query_helpers import past_24_hours, past_48_hours, past_72_hours
-from ..query_helpers import past_24_to_48_hours, past_48_to_72_hours
+from ..query_helpers import standard_trailing_windows
+
 from ..utils import UniqueMixin
 
-# from .core import Transaction
-
-logger = sbds.logging.getLogger(__name__)
+logger = sbds.sbds_logging.getLogger(__name__)
 
 
 # noinspection PyMethodParameters
@@ -48,7 +47,7 @@ class TxBase(UniqueMixin):
 
     # pylint: enable=no-self-argument
 
-    block_num = Column(Integer, nullable=False)
+    block_num = Column(Integer, nullable=False, index=True)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
@@ -160,48 +159,37 @@ class TxBase(UniqueMixin):
         return query
 
     @classmethod
-    def past_24(cls, session):
-        q = session.query(cls)
-        past_24 = past_24_hours()
-        q = cls.datetime_window_filter(q, _from=past_24)
-        return q
+    def standard_trailing_windowed_queries(cls, query):
+        """
+
+        Args:
+            query (sqlalchemy.orm.query.Query):
+
+        Yields:
+            sqlalchemy.orm.query.Query
+        """
+        for window in standard_trailing_windows():
+            yield cls.datetime_window_filter(query, **window)
 
     @classmethod
-    def past_48(cls, session):
-        q = session.query(cls)
-        past_48 = past_48_hours()
-        q = cls.datetime_window_filter(q, _from=past_48)
-        return q
-
-    @classmethod
-    def past_72(cls, session):
-        q = session.query(cls)
-        past_72 = past_72_hours()
-        q = cls.datetime_window_filter(q, _from=past_72)
-        return q
-
-    @classmethod
-    def past_24_to_48(cls, session):
-        q = session.query(cls)
-        past_24, past_48 = past_24_to_48_hours()
-        q = cls.datetime_window_filter(q, _from=past_24, to=past_48)
-        return q
-
-    @classmethod
-    def past_48_to_72(cls, session):
-        q = session.query(cls)
-        past_48, past_72 = past_48_to_72_hours()
-        q = cls.datetime_window_filter(q, _from=past_48, to=past_72)
-        return q
+    def standard_windowed_count(cls, session):
+        base_query = session.query(func.count(cls.block_num))
+        for window_query in cls.standard_trailing_windowed_queries(base_query):
+            yield window_query.scalar()
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')
 
-    def to_dict(self):
-        return self.dump()
+    def to_dict(self, decode_json=True):
+        data_dict = self.dump()
+        if isinstance(data_dict.get('json_metadata'), str) and decode_json:
+            data_dict['json_metadata'] = sbds.sbds_json.loads(
+                data_dict['json_metadata'])
+        return data_dict
 
     def to_json(self):
-        return sbds.json.dumps(self.to_dict())
+        data_dict = self.to_dict()
+        return sbds.sbds_json.dumps(data_dict)
 
     def __repr__(self):
         return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
@@ -290,7 +278,7 @@ class TxAccountCreate(Base, TxBase):
 
     __tablename__ = 'sbds_tx_account_creates'
 
-    fee = Column(Numeric(15, 4), nullable=False)
+    fee = Column(Numeric(15, 6), nullable=False)
     creator = Column(Unicode(50), nullable=False, index=True)
     new_account_name = Column(Unicode(50))
     owner_key = Column(Unicode(80), nullable=False)
@@ -650,7 +638,7 @@ class TxComment(Base, TxBase):
 
     author = Column(Unicode(50), nullable=False, index=True)
     permlink = Column(Unicode(512), nullable=False, index=True)
-    parent_author = Column(Unicode(50))
+    parent_author = Column(Unicode(50), index=True)
     parent_permlink = Column(Unicode(512))
     title = Column(Unicode(512))
     body = Column(UnicodeText)
@@ -672,6 +660,28 @@ class TxComment(Base, TxBase):
         return session.query(cls).filter(
             cls.parent_permlink == prepared['parent_permlink'],
             cls.parent_author == prepared['parent_author']).one_or_none()
+
+    @classmethod
+    def post_filter(cls, query):
+        return query.filter(cls.parent_author == '')
+
+    @classmethod
+    def comment_filter(cls, query):
+        return query.filter(cls.parent_author != '')
+
+    @classmethod
+    def count_query(cls, session):
+        return session.query(func.count(cls.block_num))
+
+    @classmethod
+    def post_count_query(cls, session):
+        count_query = cls.count_query(session)
+        return cls.post_filter(count_query)
+
+    @classmethod
+    def comment_count_query(cls, session):
+        count_query = cls.count_query(session)
+        return cls.comment_filter(count_query)
 
     @property
     def type(self):
@@ -740,7 +750,7 @@ class TxCommentsOption(Base, TxBase):
 
     author = Column(Unicode(50), nullable=False)
     permlink = Column(Unicode(512), nullable=False)
-    max_accepted_payout = Column(Numeric(15, 4), nullable=False)
+    max_accepted_payout = Column(Numeric(15, 6), nullable=False)
     percent_steem_dollars = Column(SmallInteger, default=0)
     allow_votes = Column(Boolean, nullable=False)
     allow_curation_rewards = Column(Boolean, nullable=False)
@@ -793,7 +803,7 @@ class TxConvert(Base, TxBase):
 
     owner = Column(Unicode(50), nullable=False)
     requestid = Column(BigInteger, nullable=False)
-    amount = Column(Numeric(15, 4), nullable=False)
+    amount = Column(Numeric(15, 6), nullable=False)
 
     _fields = dict(convert=dict(
         owner=lambda x: x.get('owner'),
@@ -952,8 +962,8 @@ class TxFeed(Base, TxBase):
     __tablename__ = 'sbds_tx_feeds'
 
     publisher = Column(Unicode(50), nullable=False)
-    exchange_rate_base = Column(Numeric(15, 4), nullable=False)
-    exchange_rate_quote = Column(Numeric(15, 4), nullable=False)
+    exchange_rate_base = Column(Numeric(15, 6), nullable=False)
+    exchange_rate_quote = Column(Numeric(15, 6), nullable=False)
 
     _fields = dict(feed_publish=dict(
         publisher=lambda x: x.get('publisher'),
@@ -1018,9 +1028,9 @@ class TxLimitOrder(Base, TxBase):
     owner = Column(Unicode(50), nullable=False)
     orderid = Column(BigInteger, nullable=False)
     cancel = Column(Boolean, default=False)
-    amount_to_sell = Column(Numeric(15, 4))
+    amount_to_sell = Column(Numeric(15, 6))
     # sell_symbol = Column(Unicode(5))
-    min_to_receive = Column(Numeric(15, 4))
+    min_to_receive = Column(Numeric(15, 6))
     # receive_symbol = Column(Unicode(5))
     fill_or_kill = Column(Boolean, default=False)
     expiration = Column(DateTime)
@@ -1376,7 +1386,7 @@ class TxTransfer(Base, TxBase):
     type = Column(Unicode(50), nullable=False, index=True)
     _from = Column('from', Unicode(50), index=True)
     to = Column(Unicode(50), index=True)
-    amount = Column(Numeric(15, 4))
+    amount = Column(Numeric(15, 6))
     amount_symbol = Column(Unicode(5))
     memo = Column(Unicode(250))
     request_id = Column(Integer)
@@ -1559,7 +1569,7 @@ class TxWithdraw(Base, TxBase):
     __tablename__ = 'sbds_tx_withdraws'
 
     account = Column(Unicode(50), nullable=False)
-    vesting_shares = Column(Numeric(25, 4), nullable=False, default=0.0)
+    vesting_shares = Column(Numeric(25, 6), nullable=False, default=0.0)
 
     _fields = dict(withdraw_vesting=dict(
         account=lambda x: x.get('account'),
@@ -1625,10 +1635,10 @@ class TxWitnessUpdate(Base, TxBase):
     owner = Column(Unicode(50), nullable=False)
     url = Column(Unicode(250), nullable=False)
     block_signing_key = Column(Unicode(64), nullable=False)
-    props_account_creation_fee = Column(Numeric(15, 4), nullable=False)
+    props_account_creation_fee = Column(Numeric(15, 6), nullable=False)
     props_maximum_block_size = Column(Integer, nullable=False)
     props_sbd_interest_rate = Column(Integer, nullable=False)
-    fee = Column(Numeric(15, 4), nullable=False, default=0.0)
+    fee = Column(Numeric(15, 6), nullable=False, default=0.0)
 
     _fields = dict(witness_update=dict(
         owner=lambda x: x.get('owner'),

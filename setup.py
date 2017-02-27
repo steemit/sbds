@@ -15,7 +15,9 @@ setup(
                    'sphinx',
                    'recommonmark',
                    'sphinxcontrib-restbuilder',
-                   'sphinxcontrib-programoutput'],
+                   'sphinxcontrib-programoutput',
+                   'pytest-console-scripts'],
+
     install_requires=[
         'Click',
         'click-spinner',
@@ -35,12 +37,12 @@ setup(
         'toolz',
         'w3lib',
         'langdetect',
-        'yapf'
+        'yapf',
+        'bottle_errorsrest'
     ],
     entry_points={
         'console_scripts': [
             'sbds=sbds.cli:sbds',
-            'dev-server=sbds.http_server:dev_server',
             'populate=sbds.storages.db.scripts.populate:populate'
         ]
     })

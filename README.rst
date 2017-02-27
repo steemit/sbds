@@ -39,12 +39,12 @@ Architecture
 
 The system has three conceptual functions:
 
-1. Interface with a *steemd* instance to provide access to blocks,
+1. Interfacing with a *steemd* instance to provide access to blocks,
 ranges of blocks, or the continual stream of blocks as they are
 published on the blockchain.
 
 1. Ingest, prepare, store, and index blocks in one of two storage
-   backends (S3, SQL Database).
+   backends (S3, SQL Database, and/or Elasticsearch).
 
 2. Querying indexed blocks.
 
@@ -84,11 +84,11 @@ receives it.  This daemon **does not** implement any consensus rules.
 
 
 CLI
-====
+===
 
 The **sbds** package installs the ``sbds`` CLI.
 
-More information:
+More information
 
 ::
 
@@ -111,7 +111,7 @@ More information:
      checkpoints  retrieve blocks from blockchain checkpoints
      db           Interact with an SQL storage backend
      s3           Interact with an S3 storage backend
-
+     server       HTTP server for answering DB queries
 
 Checkpoints
 ===========
@@ -133,3 +133,4 @@ Stream blocks 8000000 to the last block from your local copy of our S3 bucket
 Stream all blocks from your local copy of our S3 bucket
 ::   
    sbds checkpoints get-blocks /home/ubuntu/checkpoints/gzipped
+=======

@@ -1,27 +1,35 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
 from itertools import zip_longest
+from typing import Dict, Tuple, List, Union
 
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
 
-from sbds.logging import generate_fail_log_from_obj
-from sbds.logging import generate_fail_log_from_raw_block
-from sbds.logging import getLogger
-from .tables import Base
-from .tables import Session
+from sbds.sbds_logging import generate_fail_log_from_obj
+from sbds.sbds_logging import getLogger
+
 from .tables.core import from_raw_block
 from .utils import is_duplicate_entry_error
-from .utils import new_session
 from .utils import session_scope
-
-metadata = Base.metadata
 
 logger = getLogger(__name__)
 
 
 # pylint: disable=bare-except,too-many-branches,too-many-arguments, unused-argument
 def safe_merge_insert(objects, session, load=True, **kwargs):
+    """
+    Merge objects into session and commit session.
+
+    Args:
+        objects (List[TxBase, Block]):
+        session (sqlalchemy.orm.session.Session):
+        load (bool):
+        **kwargs (dict):
+
+    Returns:
+        bool:
+    """
     # pylint: disable=bare-except
     try:
         with session_scope(session, _raise=True) as s:
@@ -33,15 +41,36 @@ def safe_merge_insert(objects, session, load=True, **kwargs):
         return True
 
 
-def safe_insert(obj, session, log_fail=False, **kwargs):
+def safe_insert(obj, session, **kwargs):
+    """
+    Add single object to session and commit session.
+
+    Args:
+        obj (Union[TxBase,Block]):
+        session (sqlalchemy.orm.session.Session):
+        **kwargs (dict):
+
+    Returns:
+        bool:
+    """
     with session_scope(session, **kwargs) as s:
         s.add(obj)
     result = getattr(object_state(obj), 'persistent', False)
-    if not result and log_fail:
-        generate_fail_log_from_obj(logger, obj)
+    return result
 
 
 def safe_insert_many(objects, session, **kwargs):
+    """
+    Add all objects to session and commit session.
+
+    Args:
+        objects (List[TxBase, Block]):
+        session (sqlalchemy.orm.session.Session):
+        **kwargs (dict):
+
+    Returns:
+        bool:
+    """
     # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
@@ -53,6 +82,17 @@ def safe_insert_many(objects, session, **kwargs):
 
 
 def safe_bulk_save(objects, session, **kwargs):
+    """
+    Bulk save objects.
+
+    Args:
+        objects (List[TxBase, Block]):
+        session (sqlalchemy.orm.session.Session):
+        **kwargs (dict):
+
+    Returns:
+        bool:
+    """
     # noinspection PyBroadException
     try:
         with session_scope(session, _raise=True) as s:
@@ -72,69 +112,95 @@ def adaptive_insert(objects,
                     merge_insert=True,
                     insert=True,
                     **kwargs):
+    """
+    Add Blocks and Txs using succesion of different insert methods.
+
+    Args:
+        objects (List[TxBase, Block]):
+        session (sqlalchemy.orm.session.Session):
+        bulk (bool):
+        insert_many (bool):
+        merge_insert (bool):
+        insert (bool):
+        **kwargs (dict):
+
+    Returns:
+        results (list[bool]):
+
+    """
     # pylint: disable=too-many-return-statements
     if not objects:
         logger.debug('adaptive_insert called with empty objects list')
         return True
+
+    results = list(zip_longest(objects, list(), fillvalue=False))
+
     if bulk:
-        # attempt bulk save if
         logger.debug('attempting bulk_save')
         if safe_bulk_save(objects, session, **kwargs):
             logger.debug('bulk_save success')
             return list(zip_longest(objects, list(), fillvalue=True))
         else:
-            logger.info('bulk_save failed')
+            fail_reason = session.info.get('err', '')
+            logger.info('bulk_save failed %s', fail_reason)
+            results = list(zip_longest(objects, list(), fillvalue=False))
 
     if insert_many:
-        # attempt insert_many
+        logger.debug('attempting safe_insert_many')
         if safe_insert_many(objects, session, **kwargs):
-            logger.debug('attempting safe_insert_many')
+            logger.debug('safe_insert_many success')
             return list(zip_longest(objects, list(), fillvalue=True))
         else:
-            logger.info('safe_insert_many failed')
+            fail_reason = session.info.get('err', '')
+            logger.info('safe_insert_many failed %s', fail_reason)
+            results = list(zip_longest(objects, list(), fillvalue=False))
 
     if merge_insert:
-        # attempt safe_merge_insert
         logger.debug('attempting safe_merge_insert')
         if safe_merge_insert(objects, session, **kwargs):
             logger.debug('safe_merge_insert success')
             return list(zip_longest(objects, list(), fillvalue=True))
         else:
-            logger.info('safe_merge_insert failed')
+            fail_reason = session.info.get('err', '')
+            logger.info('safe_merge_insert failed %s', fail_reason)
+            results = list(zip_longest(objects, list(), fillvalue=False))
 
-    # fallback to safe_insert each object
-    logger.debug('attempting individual safe_insert')
     if insert:
-        results = [safe_insert(obj, session, **kwargs) for obj in objects]
-        if all(r for r in results):
+        logger.debug('attempting individual safe_insert')
+        sub_results = [safe_insert(obj, session, **kwargs) for obj in objects]
+        results = list(zip_longest(objects, sub_results))
+        if all(r[1] for r in results):
             logger.debug('individual safe_insert success')
             return results
 
-        # log failed objects
-        failed = [obj for obj, r in zip(objects, results) if not r]
         logger.debug(
             'individual safe_insert results: failed to insert %s of %s objects',
-            len(failed), len(objects))
-        objects = failed
+            list(r[1] for r in results).count(False), len(objects))
 
     # log failed objects
-    for obj in objects:
-        generate_fail_log_from_obj(logger, obj)
+    for obj, result in zip(objects, results):
+        if not result:
+            generate_fail_log_from_obj(logger, obj)
 
-    logger.debug('adaptive_insert failed partially or completely')
-    if insert:
-        return results
-    else:
-        return list(zip_longest(objects, list(), fillvalue=False))
+    logger.debug('adaptive_insert failed to persist %s out of %s objects',
+                 list(r[1] for r in results).count(False), len(objects))
+    return results
 
 
 def add_block(raw_block, session, insert=False, **kwargs):
     """
-    :param raw_block: str
-    :param session:
-    :return: boolean
-    """
-    block_obj, txtransactions = from_raw_block(raw_block, session)
+    Add a Block and its Txs.
+
+    Args:
+        raw_block (Union[Dict[str, str],str,bytes]):
+        session (sqlalchemy.orm.session.Session):
+        insert (bool):
+        **kwargs (dict):
+
+    Returns:
+        results (List[bool]):
+   """
+    block_obj, txtransactions = from_raw_block(raw_block)
     results = adaptive_insert(
         list([block_obj, *txtransactions]), session, insert=insert, **kwargs)
     return results
@@ -142,10 +208,16 @@ def add_block(raw_block, session, insert=False, **kwargs):
 
 def filter_existing_blocks(block_objects, session):
     """
-    :param block_objects: list
-    :param session:
-    :return:
+    Remove existing Blocks from a list of Blocks.
+
+    Args:
+        block_objects (List[Block]):
+        session (sqlalchemy.orm.session.Session):
+
+    Returns:
+        block_objects (List[Block]):
     """
+
     from .tables import Block
     results = session.query(Block.block_num) \
         .filter(Block.block_num.in_([b.block_num for b in block_objects])).all()
@@ -162,25 +234,36 @@ def filter_existing_blocks(block_objects, session):
     return block_objects
 
 
-def add_blocks(raw_blocks, session, offset=0):
+def add_blocks(raw_blocks, session, offset=0, **kwargs):
     """
-    :param raw_blocks: list
-    :param session:
-    :param offset: int
+    Add Blocks and Txs.
+
+    Args:
+        raw_blocks (Union[dict,str,bytes]):
+        session (sqlalchemy.orm.session.Session):
+        offset (int):
+
+    Returns:
+        results (List[bool]):
     """
     if offset != 0:
         raw_blocks = toolz.itertoolz.drop(offset, raw_blocks)
-
+    results = []
     for raw_block in raw_blocks:
-        result = add_block(raw_block, session)
-        if not result:
-            generate_fail_log_from_raw_block(logger, raw_block)
+        results.extend(add_block(raw_block, session, **kwargs))
+    return results
 
 
 def bulk_add(raw_blocks, session):
     """
-    :param raw_blocks: list
-    :param session:
+    Add Blocks and Txs as quickly as possible.
+
+    Args:
+        raw_blocks (Union[Dict[str, str],str,bytes]):
+        session (sqlalchemy.orm.session.Session):
+
+    Returns:
+        results (List[bool]):
     """
     from .tables import Block
     from .tables import TxBase
@@ -197,8 +280,8 @@ def bulk_add(raw_blocks, session):
     # add blocks (only if we havent removed them all)
     objs_to_add = [*block_objs, *tx_objs]
     results = adaptive_insert(objs_to_add, session, bulk=True)
-    success_count = [r[1] for r in results if r[1]]
-    fail_count = [r[1] for r in results if not r[1]]
+    success_count = list(r[1] for r in results).count(True)
+    fail_count = list(r[1] for r in results).count(False)
     logger.debug(
         'adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
         len(raw_blocks), len(tx_objs), success_count, fail_count)
