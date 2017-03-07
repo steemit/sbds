@@ -183,7 +183,7 @@ def task_stream_blocks(database_url, steemd_http_url, task_num=6):
         for block in blocks:
             try:
                 blocks_to_add.append(block)
-                add_blocks(blocks_to_add, session)
+                add_blocks(blocks_to_add, session, insert=True)
             except Exception as e:
                 logger.exception('failed to add block')
             else:

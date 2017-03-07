@@ -328,7 +328,7 @@ class Block(Base, UniqueMixin):
             return chunks
 
     @classmethod
-    def find_missing(cls, session, last_chain_block, chunksize=1000):
+    def find_missing(cls, session, last_chain_block, chunksize=1000000):
         missing_block_num_gen = cls.get_missing_block_num_iterator(
             session, last_chain_block, chunksize=chunksize)
         all_missing = []

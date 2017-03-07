@@ -201,10 +201,17 @@ class SimpleSteemAPIClient(object):
         interval = self.block_interval()
         block_num = start
         while True:
-            block = self.get_block(block_num)
-            yield block
-            block_num += 1
-            if stop:
-                if block_num > stop:
-                    break
-            time.sleep(interval)
+            current_height = self.block_height()
+            if block_num > current_height:
+                block_num = current_height
+            try:
+                block = self.get_block(block_num)
+                yield block
+            except:
+                pass
+            else:
+                block_num += 1
+                if stop:
+                    if block_num > stop:
+                        break
+            time.sleep(interval/2)
