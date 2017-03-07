@@ -3,7 +3,6 @@ import concurrent.futures
 import json
 
 import click
-from steemapi.steemnoderpc import SteemNodeRPC
 
 import sbds.sbds_logging
 from sbds.http_client import SimpleSteemAPIClient
@@ -19,11 +18,11 @@ def chain():
 
 @chain.command(name='stream-blocks')
 @click.option(
-    '--server',
-    metavar='WEBSOCKET_URL',
-    envvar='WEBSOCKET_URL',
-    help='Steemd server URL',
-    default='wss://steemd.steemitdev.com:443')
+    '--url',
+    metavar='STEEMD_HTTP_URL',
+    envvar='STEEMD_HTTP_URL',
+    default='https://steemd.steemitdev.com',
+    help='Steemd HTTP server URL')
 @click.option('--block_nums', type=click.File('r'))
 @click.option(
     '--start',
@@ -37,15 +36,15 @@ def chain():
     metavar="INTEGER BLOCK_NUM",
     type=click.IntRange(min=0),
     default=None)
-def stream_blocks(server, block_nums, start, end):
+def stream_blocks(url, block_nums, start, end):
     """Stream blocks from steemd in JSON format
 
     \b
     Which Steemd:
     \b
-    1. CLI "--server" option if provided
-    2. ENV var "WEBSOCKET_URL" if provided
-    3. Default: "wss://steemit.com/wspa"
+    1. CLI "--url" option if provided
+    2. ENV var "STEEMD_HTTP_URL" if provided
+    3. Default: "https://steemd.steemitdev.com"
 
     \b
     Which Blocks To Output:
@@ -61,7 +60,7 @@ def stream_blocks(server, block_nums, start, end):
     3. Default: STDOUT
     """
     # Setup steemd source
-    rpc = SteemNodeRPC(server)
+    rpc = SimpleSteemAPIClient(url)
     with click.open_file('-', 'w', encoding='utf8') as f:
         if block_nums:
             block_nums = json.load(block_nums)
@@ -69,7 +68,7 @@ def stream_blocks(server, block_nums, start, end):
         elif start and end:
             blocks = _stream_blocks(rpc, range(start, end))
         else:
-            blocks = rpc.block_stream(start)
+            blocks = rpc.stream(start)
 
         json_blocks = map(json.dumps, blocks)
 
