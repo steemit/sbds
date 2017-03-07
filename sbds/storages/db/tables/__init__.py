@@ -21,6 +21,7 @@ from .tx import TxComment
 from .tx import TxCommentsOption
 from .tx import TxConvert
 from .tx import TxCustom
+from .tx import TxCustomJSON
 from .tx import TxDeleteComment
 from .tx import TxFeed
 from .tx import TxLimitOrder

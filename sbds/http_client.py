@@ -61,8 +61,8 @@ class SimpleSteemAPIClient(object):
 
         num_pools = kwargs.get('num_pools', 10)
         maxsize = kwargs.get('maxsize', 10)
-        timeout = kwargs.get('timeout', 30)
-        retries = kwargs.get('retries', 10)
+        timeout = kwargs.get('timeout', 60)
+        retries = kwargs.get('retries', 30)
         pool_block = kwargs.get('pool_block', False)
         tcp_keepalive = kwargs.get('tcp_keepalive', True)
 

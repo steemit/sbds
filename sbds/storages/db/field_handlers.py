@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from sbds import sbds_json
 import sbds.sbds_logging
 
 logger = sbds.sbds_logging.getLogger(__name__)
@@ -33,3 +33,11 @@ def comment_body_field(value):
         return value.decode('utf8')
     else:
         return value
+
+def json_string_field(value):
+    if value:
+        try:
+            return sbds_json.dumps(value)
+        except Exception as e:
+            logger.exception(e)
+            return None

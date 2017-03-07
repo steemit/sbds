@@ -1,49 +1,48 @@
 # coding=utf-8
 from setuptools import find_packages
 from setuptools import setup
-
+# yapf: disable
 dev_requires = [
-    'pytest',
     'pep8',
+    'pytest',
+    'pytest-console-scripts',
     'pytest-pylint',
-    'yapf',
-    'sphinx',
     'recommonmark',
-    'sphinxcontrib-restbuilder',
+    'sphinx',
     'sphinxcontrib-programoutput',
-    'pytest-console-scripts'
+    'sphinxcontrib-restbuilder',
+    'yapf'
 ]
 
 tests_require = [
-    'pytest-runner',
     'pep8',
     'pytest-pylint',
-
+    'pytest-runner',
 ]
 
 install_requires = [
-        'Click',
-        'click-spinner',
-        'steem-piston==0.4.1',
-        'boto3',
-        'python-json-logger',
-        'requests==2.11.1',
-        'mysqlclient',
-        'sqlalchemy',
-        'ujson',
-        'bottle',
-        'bottle-sqlalchemy',
-        'urllib3',
-        'certifi',
-        'maya',
-        'toolz',
-        'w3lib',
-        'langdetect',
-        'bottle_errorsrest',
-        'rollbar'
-    ]
+    'boto3',
+    'bottle',
+    'bottle-sqlalchemy',
+    'bottle_errorsrest',
+    'certifi',
+    'Click',
+    'click-spinner',
+    'langdetect',
+    'maya',
+    'mysqlclient',
+    'python-json-logger',
+    'requests==2.10.0',
+    'rollbar',
+    'sqlalchemy',
+    'steem-piston==0.4.1',
+    'toolz',
+    'ujson',
+    'urllib3',
+    'w3lib'
+]
 
-# yapf: disable
+
 setup(
     name='sbds',
     version='0.1',
