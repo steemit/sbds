@@ -93,7 +93,7 @@ def health(db):
 
 @app.get('/api/v1/ops/<operation:operations>/count')
 def count_operation(operation, db):
-    query = db.query(operation)
+    query = operation.count_query(db)
     if request.query:
         try:
             parsed_fields = parse_query_fields(request.query)
@@ -103,7 +103,7 @@ def count_operation(operation, db):
             _from = parsed_fields.get('from')
             to = parsed_fields.get('to')
             query = operation.from_to_filter(query, _from=_from, to=to)
-    return dict(count=query.count())
+    return dict(count=query.scalar())
 
 
 @app.get('/api/v1/blockchainStats')
@@ -113,9 +113,9 @@ def stats(db):
 
 
 # '/api/v1/ops/custom/:tid?from=<iso8601-or-block_num>&to=<iso8601-or-blocknum>'
-@app.get('/api/v1/ops/custom/:tid')
+@app.get('/api/v1/ops/custom_json/:tid')
 def get_custom_json_by_tid(tid, db):
-    cls = tx_class_map['custom']
+    cls = tx_class_map['custom_json']
     query = db.query(cls).filter_by(tid=tid)
     if request.query:
         try:
