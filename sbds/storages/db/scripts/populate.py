@@ -9,7 +9,7 @@ from collections import namedtuple
 
 import click
 from sqlalchemy.engine.url import make_url
-from steemapi.steemnoderpc import SteemNodeRPC
+
 
 import sbds.sbds_json
 import sbds.sbds_logging
@@ -170,15 +170,15 @@ def task_add_missing_blocks(missing_block_nums,
     click.echo(success_msg)
 
 
-def task_stream_blocks(database_url, steemd_websocket_url, task_num=6):
+def task_stream_blocks(database_url, steemd_http_url, task_num=6):
     task_message = fmt_task_message(
         'Streaming blocks', emoji_code_point=u'\U0001F4DD', task_num=task_num)
     click.echo(task_message)
     with isolated_engine(database_url, pool_recycle=3600) as engine:
         session = Session(bind=engine)
         highest_db_block = Block.highest_block(session)
-        ws_rpc = SteemNodeRPC(steemd_websocket_url)
-        blocks = ws_rpc.block_stream(highest_db_block)
+        rpc = SimpleSteemAPIClient(steemd_http_url)
+        blocks = rpc.stream(highest_db_block)
         blocks_to_add = []
         for block in blocks:
             try:
@@ -202,23 +202,13 @@ def task_stream_blocks(database_url, steemd_websocket_url, task_num=6):
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
-@click.option(
-    '--steemd_websocket_url',
-    metavar='WEBSOCKET_URL',
-    envvar='WEBSOCKET_URL',
-    help='Steemd websocket server URL')
 @click.option('--max_procs', type=click.INT, default=None)
 @click.option('--max_threads', type=click.INT, default=5)
-def populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
-             max_threads):
-    _populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
-              max_threads)
+def populate(database_url, steemd_http_url,  max_procs, max_threads):
+    _populate(database_url, steemd_http_url, max_procs, max_threads)
 
 
-def _populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
-              max_threads):
-
-    logger.error('test71')
+def _populate(database_url, steemd_http_url,  max_procs, max_threads):
 
     # [1/6] confirm db connectivity
     task_confirm_db_connectivity(database_url, task_num=1)
@@ -244,7 +234,7 @@ def _populate(database_url, steemd_http_url, steemd_websocket_url, max_procs,
         task_num=5)
 
     # [6/6] stream blocks
-    task_stream_blocks(database_url, steemd_websocket_url, task_num=6)
+    task_stream_blocks(database_url, steemd_http_url, task_num=6)
 
 
 # pylint: disable=redefined-outer-name
@@ -277,13 +267,10 @@ def block_adder_process_worker(database_url,
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
 if __name__ == '__main__':
-
     db_url = os.environ['DATABASE_URL']
     rpc_url = os.environ['STEEMD_HTTP_URL']
-    ws_rpc_url = os.environ['WEBSOCKET_URL']
     _populate(
         db_url,
         rpc_url,
-        steemd_websocket_url=ws_rpc_url,
         max_procs=4,
         max_threads=2)
