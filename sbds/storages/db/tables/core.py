@@ -267,23 +267,13 @@ class Block(Base, UniqueMixin):
 
     @classmethod
     def count(cls, session, start=None, end=None):
-        query = session.query(func.count(cls.block_num))
+        query = session.query(func.count(cls.timestamp)).with_hint(
+            cls, 'USE INDEX(ix_sbds_core_blocks_timestamp)')
         if start is not None:
             query = query.filter(cls.block_num >= start)
         if end:
             query = query.filter(cls.block_num <= end)
         return query.scalar()
-
-    @classmethod
-    def count_iter(cls, session, last_chain_block=None, chunksize=10000):
-        high = last_chain_block or cls.highest_block(session)
-        num_chunks = (high // chunksize) + 1
-        chunks = []
-        for i in range(1, num_chunks + 1):
-            start = (i - 1) * chunksize
-            end = i * chunksize
-            chunks.append(partial(cls.count, session, start, end))
-        return chunks
 
     @classmethod
     def count_missing(cls, session, last_chain_block):
@@ -292,20 +282,19 @@ class Block(Base, UniqueMixin):
 
     @classmethod
     def find_missing_range(cls, session, start, end):
+        start = start or 1
+        correct_range = range(start, end + 1)
+        correct_block_count = (end + 1) - start
+        actual_block_count = cls.count(session, start, end)
+        if correct_block_count == actual_block_count:
+            return []
         query = session.query(cls.block_num)
         query = query.filter(cls.block_num >= start, cls.block_num <= end)
         results = query.all()
-        correct_range = range(start, end + 1)
-        if len(results) == len(correct_range):
-            return []
-        else:
-            block_nums = [r.block_num for r in results]
-            if len(block_nums) == 0:
-                return correct_range
-            else:
-                correct = set(correct_range)
-                missing = correct.difference(block_nums)
-                return missing
+        block_nums = (r.block_num for r in results)
+        correct = set(correct_range)
+        missing = correct.difference(block_nums)
+        return missing
 
     @classmethod
     def get_missing_block_num_iterator(cls,

@@ -4,7 +4,6 @@ from itertools import chain
 from itertools import starmap
 
 import maya
-
 '''
 24h 7d 30d with two trailing periods
 '''

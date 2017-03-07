@@ -8,8 +8,7 @@ Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
 
 # pylint: disable=wrong-import-position
-from ..utils import isolated_engine
-from ..utils import configure_engine
+from ..utils import isolated_nullpool_engine
 from .core import Block
 
 from .tx import TxBase
@@ -22,6 +21,7 @@ from .tx import TxComment
 from .tx import TxCommentsOption
 from .tx import TxConvert
 from .tx import TxCustom
+from .tx import TxCustomJSON
 from .tx import TxDeleteComment
 from .tx import TxFeed
 from .tx import TxLimitOrder
@@ -35,7 +35,7 @@ from .tx import TxWitnessUpdate
 
 def init_tables(database_url, _metadata, checkfirst=True):
     """Create any missing tables on the database"""
-    with isolated_engine(database_url) as engine:
+    with isolated_nullpool_engine(database_url) as engine:
         _metadata.create_all(bind=engine, checkfirst=checkfirst)
 
 
@@ -44,7 +44,7 @@ def reset_tables(database_url, _metadata):
 
     # use reflected MetaData to avoid errors due to ORM classes
     # being inconsistent with existing tables
-    with isolated_engine(database_url) as engine:
+    with isolated_nullpool_engine(database_url) as engine:
         seperate_metadata = MetaData()
         seperate_metadata.reflect(bind=engine)
         seperate_metadata.drop_all(bind=engine)
@@ -55,7 +55,7 @@ def reset_tables(database_url, _metadata):
 
 def test_connection(database_url):
     _metadata = MetaData()
-    with isolated_engine(database_url) as engine:
+    with isolated_nullpool_engine(database_url) as engine:
         try:
             _metadata.reflect(bind=engine)
             table_count = len(_metadata.tables)
@@ -70,6 +70,6 @@ def get_table_count(database_url):
 
 
 def get_tables(database_url):
-    with isolated_engine(database_url) as engine:
+    with isolated_nullpool_engine(database_url) as engine:
         tables = engine.table_names()
     return tables

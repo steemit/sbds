@@ -103,22 +103,16 @@ def is_duplicate_entry_error(error):
 # pylint: disable=too-many-branches, too-many-statements
 @contextmanager
 def session_scope(session=None,
-                  session_factory=None,
-                  bind=None,
                   close=False,
                   expunge=False,
-                  _raise=False):
+                  _raise_unknown=False,
+                  _raise_known=False,
+                  _raise_all=False):
     """Provide a transactional scope around a series of db operations."""
+    if _raise_all:
+        _raise_known = True
+        _raise_unknown = True
 
-    # configure and create new session if none exists
-    if not session:
-        if bind:
-            logger.debug(
-                'configuring session factory before creating new session')
-            session = session_factory(bind=bind)
-        else:
-            logger.debug('creating new session')
-            session = session_factory()
     # rollback passed session if required
     if not session.is_active:
         logger.debug('rolling back passed session')
@@ -127,7 +121,6 @@ def session_scope(session=None,
         session.info['err'] = None
         session.begin(subtransactions=True)
         yield session
-
         session.commit()
         session.commit()
     except (sqlalchemy.exc.IntegrityError, sqlalchemy.orm.exc.FlushError) as e:
@@ -137,13 +130,19 @@ def session_scope(session=None,
             logger.debug('duplicate entry error caught')
         else:
             logger.exception('non-duplicate IntegrityError, unable to commit')
-        if _raise:
+        if _raise_known:
+            raise e
+    except sqlalchemy.exc.DBAPIError as e:
+        session.rollback()
+        session.info['err'] = e
+        logger.exception('Caught DBAPI error')
+        if _raise_known:
             raise e
     except Exception as e:
         session.rollback()
         session.info['err'] = e
         logger.exception('unable to commit')
-        if _raise:
+        if _raise_unknown:
             raise e
     finally:
         if close:
@@ -195,22 +194,24 @@ def configure_engine(database_url, **kwargs):
     logger.debug('engine_kwargs: %s', engine_kwargs)
 
     engine = create_engine(url, **engine_kwargs)
-    if backend == 'sqlite':
+
+    # create tables for in-memory db
+    if backend == 'sqlite' and url.database is None:
         from .tables import Base
         Base.metadata.create_all(bind=engine, checkfirst=True)
 
     return EngineConfig(database_url, url, engine_kwargs, engine)
 
 
-def configure_isolated_engine(database_url, poolclass=NullPool, **kwargs):
+def configure_nullpool_engine(database_url, poolclass=NullPool, **kwargs):
     if kwargs:
         kwargs.pop('poolclass', None)
     return configure_engine(database_url, poolclass=poolclass, **kwargs)
 
 
 @contextmanager
-def isolated_engine(database_url, **kwargs):
-    engine_config = configure_isolated_engine(database_url, **kwargs)
+def isolated_nullpool_engine(database_url, **kwargs):
+    engine_config = configure_nullpool_engine(database_url, **kwargs)
     engine = engine_config.engine
     try:
         yield engine
@@ -219,14 +220,41 @@ def isolated_engine(database_url, **kwargs):
     finally:
         del engine_config
         engine.dispose()
+        del engine
+
+
+@contextmanager
+def isolated_engine(database_url, **kwargs):
+    engine_config = configure_engine(database_url, **kwargs)
+    engine = engine_config.engine
+    try:
+        yield engine
+    except Exception as e:
+        logger.info(e)
+    finally:
+        del engine_config
+        engine.dispose()
+        del engine
+
+
+@contextmanager
+def isolated_engine_config(database_url, **kwargs):
+    engine_config = configure_engine(database_url, **kwargs)
+    try:
+        yield engine_config
+    except Exception as e:
+        logger.info(e)
+    finally:
+        engine_config.engine.dispose()
+        del engine_config
 
 
 def get_db_processes(database_url, **kwargs):
-    with isolated_engine(database_url, **kwargs) as engine:
+    with isolated_nullpool_engine(database_url, **kwargs) as engine:
         if engine.url.get_backend_name() != 'mysql':
             raise TypeError('unsupported function for %s database' %
                             engine.url.get_backend_name())
-        return engine.execute('SHOW PROCESSLIST')
+        return engine.execute('SHOW PROCESSLIST').all()
 
 
 def kill_db_processes(database_url, db_name=None, db_user_name=None):
@@ -237,7 +265,7 @@ def kill_db_processes(database_url, db_name=None, db_user_name=None):
 
     all_procs = []
     killed_procs = []
-    with isolated_engine(database_url) as engine:
+    with isolated_nullpool_engine(database_url) as engine:
         for process in processes:
             logger.debug(
                 'process: Id:%s User:%s db:%s Command:%s State:%s Info:%s',
