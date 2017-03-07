@@ -87,6 +87,7 @@ sum of STEEM payment amounts in each period
     comment_counts = tuple(query.scalar()
                            for query in windowed_comment_queries)
     return dict(
+        labels=STANDARD_WINDOW_LABELS,
         account_creates=tuple(account_creates),
         votes=tuple(votes),
         payments=tuple(payments),
