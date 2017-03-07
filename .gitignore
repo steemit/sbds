@@ -96,7 +96,7 @@ Session.vim
 .idea
 
 # sqlite db for testing
-local.db
+*.db
 /tests/fast-test.sh
 /tests/fastest-test.sh
 /tests/sbds-install.sh

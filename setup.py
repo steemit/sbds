@@ -2,30 +2,32 @@
 from setuptools import find_packages
 from setuptools import setup
 
-# yapf: disable
-setup(
-    name='sbds',
-    version='0.1',
-    packages=find_packages(),
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest',
-                   'pep8',
-                   'pytest-pylint',
-                   'yapf',
-                   'sphinx',
-                   'recommonmark',
-                   'sphinxcontrib-restbuilder',
-                   'sphinxcontrib-programoutput',
-                   'pytest-console-scripts'],
+dev_requires = [
+    'pytest',
+    'pep8',
+    'pytest-pylint',
+    'yapf',
+    'sphinx',
+    'recommonmark',
+    'sphinxcontrib-restbuilder',
+    'sphinxcontrib-programoutput',
+    'pytest-console-scripts'
+]
 
-    install_requires=[
+tests_require = [
+    'pytest-runner',
+    'pep8',
+    'pytest-pylint',
+
+]
+
+install_requires = [
         'Click',
         'click-spinner',
-        'emoji',
         'steem-piston==0.4.1',
         'boto3',
         'python-json-logger',
-        'requests==2.10.0',
+        'requests==2.11.1',
         'mysqlclient',
         'sqlalchemy',
         'ujson',
@@ -37,9 +39,22 @@ setup(
         'toolz',
         'w3lib',
         'langdetect',
-        'yapf',
-        'bottle_errorsrest'
-    ],
+        'bottle_errorsrest',
+        'rollbar'
+    ]
+
+# yapf: disable
+setup(
+    name='sbds',
+    version='0.1',
+    packages=find_packages(),
+    setup_requires=['pytest-runner'],
+    tests_require=tests_require,
+    install_requires=install_requires,
+    extras_require={
+        'dev': dev_requires,
+        'ext_tests': tests_require
+    },
     entry_points={
         'console_scripts': [
             'sbds=sbds.cli:sbds',

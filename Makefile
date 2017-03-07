@@ -5,9 +5,9 @@ DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
 default: build
 
-.PHONY: test run test-without-lint test-pylint fmt test-without-build
+.PHONY: test run test-without-lint test-pylint fmt test-without-build build
 
-build: test-without-build README.rst
+build:
 	docker build -t steemit/sbds .
 
 run:

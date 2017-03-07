@@ -12,14 +12,7 @@ ENV HTTP_SERVER_PORT 8080
 ENV HTTP_SERVER_PROCESSES 4
 ENV HTTP_SERVER_THREADS  4
 ENV HTTP_SERVER_STATS_PORT 9191
-
-ADD . /app
-
-RUN \
-    mv /app/service/* /etc/service && \
-    chmod +x /etc/service/*/run
-
-WORKDIR /app
+ENV SBDS_ENVIRONMENT DEV
 
 RUN \
     apt-get update && \
@@ -40,8 +33,19 @@ RUN \
 
 RUN \
     pip3 install --upgrade pip && \
-    pip3 install uwsgi && \
-    pip3 install . && \
+    pip3 install uwsgi
+
+ADD . /app
+
+RUN \
+    mv /app/service/* /etc/service && \
+    chmod +x /etc/service/*/run
+
+WORKDIR /app
+
+RUN \
+
+    pip3 install  . && \
     apt-get remove -y \
         build-essential \
         libffi-dev \

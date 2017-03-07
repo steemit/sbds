@@ -12,7 +12,7 @@ from sbds.storages.db import bulk_add
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
-from sbds.storages.db.utils import configure_engine
+from sbds.storages.db.utils import isolated_engine_config
 from sbds.storages.db.utils import get_db_processes
 from sbds.storages.db.utils import kill_db_processes
 from sbds.storages.db.utils import row_to_json
@@ -48,17 +48,15 @@ def db(ctx, database_url, echo):
         db --database_url 'dialect[+driver]://user:password@host/dbname[?key=value..]' tests
 
     """
-
-    engine_config = configure_engine(database_url, echo=echo)
-
-    ctx.obj = dict(
-        database_url=engine_config.database_url,
-        url=engine_config.url,
-        engine_kwargs=engine_config.engine_kwargs,
-        engine=engine_config.engine,
-        base=Base,
-        metadata=Base.metadata,
-        Session=Session)
+    with isolated_engine_config(database_url, echo=echo) as engine_config:
+        ctx.obj = dict(
+            database_url=database_url,
+            url=engine_config.url,
+            engine_kwargs=engine_config.engine_kwargs,
+            engine=engine_config.engine,
+            base=Base,
+            metadata=Base.metadata,
+            Session=Session)
 
 
 @db.command()
@@ -140,7 +138,6 @@ def reset_db_tables(ctx):
     """Drop and then create tables on the database"""
     database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
-
     reset_tables(database_url, metadata)
 
 

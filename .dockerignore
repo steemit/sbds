@@ -48,6 +48,9 @@ local.db
 /tests/fast-test.sh
 /tests/sync.sh
 /tests/failed_blocks/
-/envdir/
+/envd
 !/sbds.egg-info/
 /tests/envdir-to-envfile.sh
+*.db
+envfile
+/deploy

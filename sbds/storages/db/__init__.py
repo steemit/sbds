@@ -32,7 +32,7 @@ def safe_merge_insert(objects, session, load=True, **kwargs):
     """
     # pylint: disable=bare-except
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             for obj in objects:
                 s.merge(obj, load=load)
     except:
@@ -73,7 +73,7 @@ def safe_insert_many(objects, session, **kwargs):
     """
     # noinspection PyBroadException
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             s.add_all(objects)
     except:
         return False
@@ -95,7 +95,7 @@ def safe_bulk_save(objects, session, **kwargs):
     """
     # noinspection PyBroadException
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             s.bulk_save_objects(objects)
             s.commit()
     except:
