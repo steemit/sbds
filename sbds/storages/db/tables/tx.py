@@ -186,9 +186,19 @@ class TxBase(UniqueMixin):
 
     @classmethod
     def standard_windowed_count(cls, session):
-        base_query = session.query(func.count(cls.block_num))
-        for window_query in cls.standard_trailing_windowed_queries(base_query):
+        count_query = cls.count_query(session)
+        for window_query in cls.standard_trailing_windowed_queries(count_query):
             yield window_query.scalar()
+
+    @classmethod
+    def _count_index_name(cls):
+        return 'ix_%s_timestamp' % cls.__tablename__
+
+    @classmethod
+    def count_query(cls, session):
+        ix = cls._count_index_name()
+        ix_stmt = 'USE INDEX(%s)' % ix
+        return session.query(func.count(cls.timestamp)).with_hint(cls, ix_stmt)
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')
