@@ -89,7 +89,7 @@ def insert_blocks(ctx, blocks):
     Session.configure(bind=engine)
     session = Session()
 
-    add_blocks(blocks, session)
+    add_blocks(blocks, session, insert=True, merge_insert=False, insert_many=False)
 
 
 @db.command(name='bulk-add')
