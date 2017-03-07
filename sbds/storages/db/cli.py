@@ -212,4 +212,22 @@ def find_missing_blocks(ctx, url):
 
     click.echo(
         json.dumps(
-            Block.find_missing(session, last_chain_block=last_chain_block)))
+            Block.find_missing(session, last_chain_block=last_chain_block))
+    )
+
+@db.command(name='raw-sql')
+@click.argument('sql')
+@click.pass_context
+def raw_sql(ctx, sql):
+    """Execute raw sql query"""
+    engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
+    metadata = ctx.obj['metadata']
+    from sqlalchemy.sql import text
+    # init tables first
+    init_tables(database_url, metadata)
+    stmt = text(sql)
+    with engine.connect() as conn:
+        results = conn.execute(stmt).fetchall()
+
+    click.echo(json.dumps(results))

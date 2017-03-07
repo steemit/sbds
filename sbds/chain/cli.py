@@ -24,7 +24,7 @@ def chain():
     envvar='WEBSOCKET_URL',
     help='Steemd server URL',
     default='wss://steemd.steemitdev.com:443')
-@click.option('--block_nums', type=click.File('r'), required=False)
+@click.option('--block_nums', type=click.File('r'))
 @click.option(
     '--start',
     help='Starting block_num, default is 1',
@@ -64,6 +64,7 @@ def stream_blocks(server, block_nums, start, end):
     rpc = SteemNodeRPC(server)
     with click.open_file('-', 'w', encoding='utf8') as f:
         if block_nums:
+            block_nums = json.load(block_nums)
             blocks = _stream_blocks(rpc, block_nums)
         elif start and end:
             blocks = _stream_blocks(rpc, range(start, end))
