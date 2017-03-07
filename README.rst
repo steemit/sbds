@@ -112,3 +112,25 @@ More information
      db           Interact with an SQL storage backend
      s3           Interact with an S3 storage backend
      server       HTTP server for answering DB queries
+
+Checkpoints
+===========
+
+The preferred method for checkpoints interaction at the moment is using the checkpoints in the gzipped folder ``s3://steemit-dev-sbds-checkpoints/gzipped``. The idea is to have the access to the gzipped checkpoints dir either locally or on s3, and then you can use the ``sbds checkpoints get-blocks`` command, specifying at start and end blocknum and it will figure out which files to use and spit out the blocks.
+
+Some Examples
+-------------
+::
+   
+Stream blocks 1 to 3450000 from our dev S3 bucket
+::
+   sbds checkpoints get-blocks s3://steemit-dev-sbds-checkpoints/gzipped --start 1 --end 3450000
+   
+Stream blocks 8000000 to the last block from your local copy of our S3 bucket
+::
+   sbds checkpoints get-blocks /home/ubuntu/checkpoints/gzipped --start 8000000
+ 
+Stream all blocks from your local copy of our S3 bucket
+::   
+   sbds checkpoints get-blocks /home/ubuntu/checkpoints/gzipped
+=======
