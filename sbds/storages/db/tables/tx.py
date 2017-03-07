@@ -24,6 +24,7 @@ from .core import extract_operations_from_block
 from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
+from ..field_handlers import json_string_field
 from ..query_helpers import standard_trailing_windows
 
 from ..utils import UniqueMixin
@@ -829,54 +830,103 @@ class TxCustom(Base, TxBase):
     """Raw Format
     ==========
     {
-        "ref_block_prefix": 1654024379,
-        "expiration": "2016-06-03T18:37:24",
+        "ref_block_prefix": 449600556,
+        "ref_block_num": 54561,
         "operations": [
             [
-                "custom_json",
+                "custom",
                 {
-                    "required_posting_auths": [
-                        "steemit"
-                    ],
-                    "required_auths": [],
-                    "id": "follow",
-                    "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}"
+                    "id": 777,
+                    "data": "066e6f69737932056c656e6b61032e0640ec51dbcfb761bd927a732e134deff42dbed04bc42300f27f3048b8b44802be956c36eef2e0d3594b794b428a21b48fe41874d41cf12feb8e421e11b3702f24e94b559f4505006dbafb90208bf88f7bb550f6db0713cbb4be6c214c50c16aa62413383f26f9efbb4fe5bf3f",
+                    "required_auths": [
+                        "noisy2"
+                    ]
                 }
             ]
         ],
+        "expiration": "2017-01-09T01:32:36",
         "signatures": [
-            "1f6019603d73f8c26b92cbdf1c224bf48fb0e600ff9e1689a09e8e4cb1234aeeb92b5eb6f8b8d148bbd3e62a4eb2bc94d1ff2293ec9b957d17d46e9dc11f41735d"
+            "1f38daabe10814c20f78bba5cbeed5f9115eb9d420278540bddf9e3c6e84fe3ca33da6b32127faf0d30cc0d618711edd294b95fa92787398cb7f0dfb7280509db3"
         ],
-        "ref_block_num": 56232,
         "extensions": []
     }
-
-
-    Prepared Format
-    ===============
-    {
-        "id": 1,
-        "tx_id": 294602,
-        "tid": "follow",
-        "json_metadata": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}"
-    }
-
-    Args:
-
-    Returns:
-
     """
 
     __tablename__ = 'sbds_tx_customs'
 
     tid = Column(Unicode(50), nullable=False)
-    json_metadata = Column(UnicodeText)
+    required_auths = Column(Unicode(250))
+    data = Column(UnicodeText)
 
     common = dict(
-        tid=lambda x: x.get('id'), json_metadata=lambda x: x.get('json'))
-    _fields = dict(custom=common, custom_json=common)
+        tid=lambda x: x.get('id'),
+        data=lambda x: x.get('data'),
+        required_auths=lambda x: x.get('required_auths'),
+    )
+    _fields = dict(custom=common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+    def to_dict(self, decode_json=True):
+        data_dict = self.dump()
+        if isinstance(data_dict.get('required_auths'), str) and decode_json:
+            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
+        return data_dict
+
+
+class TxCustomJSON(Base, TxBase):
+    """Raw Format
+    ==========
+    {
+        "ref_block_prefix": 1629956753,
+        "ref_block_num": 10739,
+        "operations": [
+            [
+                "custom_json",
+                {
+                    "id": "follow",
+                    "json": "[\"follow\",{\"follower\":\"joanaltres\",\"following\":\"str8jackitjake\",\"what\":[\"blog\"]}]",
+                    "required_posting_auths": [
+                        "joanaltres"
+                    ],
+                    "required_auths": []
+                }
+            ]
+        ],
+        "expiration": "2017-02-26T15:54:57",
+        "signatures": [
+            "200d43fadd4a11d02d2dca36d0092b4439b674db406c024d9ef0eef08041a9500b45e5807a69d9e8ed9457ee675ba76ccdaee1587bef9902a680da7fd7f498e620"
+        ],
+        "extensions": []
+    }
+    """
+
+    __tablename__ = 'sbds_tx_custom_jsons'
+
+    tid = Column(Unicode(50), nullable=False)
+    required_auths = Column(Unicode(250))
+    required_posting_auths = Column(Unicode(250))
+    json = Column(UnicodeText)
+
+    common = dict(
+        tid=lambda x: x.get('id'),
+        json=lambda x: x.get('json'),
+        required_auths=lambda x: json_string_field(x.get('required_auths')),
+        required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')),
+    )
+    _fields = dict(custom_json=common)
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+    def to_dict(self, decode_json=True):
+        data_dict = self.dump()
+        if isinstance(data_dict.get('required_auths'), str) and decode_json:
+            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
+        if isinstance(data_dict.get('required_posting_auths'), str) and decode_json:
+            data_dict['required_posting_auths'] = sbds.sbds_json.loads(data_dict['required_posting_auths'])
+        if isinstance(data_dict.get('json'), str) and decode_json:
+            data_dict['json'] = sbds.sbds_json.loads(data_dict['json'])
+        return data_dict
 
 
 class TxDeleteComment(Base, TxBase):
@@ -1849,7 +1899,7 @@ tx_class_map = {
     'comment_options': TxCommentsOption,
     'convert': TxConvert,
     'custom': TxCustom,
-    'custom_json': TxCustom,
+    'custom_json': TxCustomJSON,
     'delete_comment': TxDeleteComment,
     'escrow_approve': TxEscrowApprove,
     'escrow_dispute': TxEscrowDispute,
