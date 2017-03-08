@@ -1,13 +1,14 @@
-ROOT_DIR := .
+SHELL := /bin/bash
+ROOT_DIR := $(shell pwd)
 DOCS_DIR := $(ROOT_DIR)/docs
 DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
 
 default: build
 
-.PHONY: test run test-without-lint test-pylint fmt test-without-build
+.PHONY: test run test-without-lint test-pylint fmt test-without-build build test-in-venv
 
-build: test-without-build README.rst
+build:
 	docker build -t steemit/sbds .
 
 run:

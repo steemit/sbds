@@ -1,45 +1,58 @@
 # coding=utf-8
 from setuptools import find_packages
 from setuptools import setup
-
 # yapf: disable
+dev_requires = [
+    'pep8',
+    'pytest',
+    'pytest-console-scripts',
+    'pytest-pylint',
+    'recommonmark',
+    'sphinx',
+    'sphinxcontrib-programoutput',
+    'sphinxcontrib-restbuilder',
+    'yapf'
+]
+
+tests_require = [
+    'pep8',
+    'pytest-pylint',
+    'pytest-runner',
+]
+
+install_requires = [
+    'boto3',
+    'bottle',
+    'bottle-sqlalchemy',
+    'bottle_errorsrest',
+    'certifi',
+    'click',
+    'click-spinner',
+    'funcy',
+    'langdetect',
+    'maya',
+    'mysqlclient',
+    'python-json-logger',
+    'rollbar',
+    'sqlalchemy',
+    'toolz',
+    'ujson',
+    'urllib3',
+    'w3lib'
+]
+
+
 setup(
     name='sbds',
     version='0.1',
     packages=find_packages(),
     setup_requires=['pytest-runner'],
-    tests_require=['pytest',
-                   'pep8',
-                   'pytest-pylint',
-                   'yapf',
-                   'sphinx',
-                   'recommonmark',
-                   'sphinxcontrib-restbuilder',
-                   'sphinxcontrib-programoutput',
-                   'pytest-console-scripts'],
-
-    install_requires=[
-        'Click',
-        'click-spinner',
-        'emoji',
-        'steem-piston==0.4.1',
-        'boto3',
-        'python-json-logger',
-        'requests==2.10.0',
-        'mysqlclient',
-        'sqlalchemy',
-        'ujson',
-        'bottle',
-        'bottle-sqlalchemy',
-        'urllib3',
-        'certifi',
-        'maya',
-        'toolz',
-        'w3lib',
-        'langdetect',
-        'yapf',
-        'bottle_errorsrest'
-    ],
+    tests_require=tests_require,
+    install_requires=install_requires,
+    extras_require={
+        'dev': dev_requires,
+        'ext_tests': tests_require
+    },
     entry_points={
         'console_scripts': [
             'sbds=sbds.cli:sbds',

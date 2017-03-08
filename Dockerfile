@@ -1,7 +1,6 @@
 FROM phusion/baseimage:0.9.19
 
 ENV DATABASE_URL sqlite:////tmp/sqlite.db
-ENV WEBSOCKET_URL wss://steemd.steemitdev.com:443
 ENV STEEMD_HTTP_URL https://steemd.steemitdev.com
 ENV SBDS_LOG_LEVEL INFO
 ENV LANG en_US.UTF-8
@@ -10,14 +9,7 @@ ENV APP_ROOT /app
 ENV WSGI_APP ${APP_ROOT}/sbds/server/serve.py
 ENV HTTP_SERVER_PORT 8080
 ENV HTTP_SERVER_STATS_PORT 9191
-
-ADD . /app
-
-RUN \
-    mv /app/service/* /etc/service && \
-    chmod +x /etc/service/*/run
-
-WORKDIR /app
+ENV SBDS_ENVIRONMENT DEV
 
 RUN \
     apt-get update && \
@@ -38,8 +30,18 @@ RUN \
 
 RUN \
     pip3 install --upgrade pip && \
-    pip3 install uwsgi && \
-    pip3 install . && \
+    pip3 install uwsgi
+
+ADD . /app
+
+RUN \
+    mv /app/service/* /etc/service && \
+    chmod +x /etc/service/*/run
+
+WORKDIR /app
+
+RUN \
+    pip3 install  . && \
     apt-get remove -y \
         build-essential \
         libffi-dev \

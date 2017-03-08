@@ -24,11 +24,16 @@ from .core import extract_operations_from_block
 from ..field_handlers import amount_field
 from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
+from ..field_handlers import json_string_field
 from ..query_helpers import standard_trailing_windows
 
 from ..utils import UniqueMixin
 
 logger = sbds.sbds_logging.getLogger(__name__)
+
+
+class UndefinedTransactionType(Exception):
+    """Exception raised when undefined transction is encountered"""
 
 
 # noinspection PyMethodParameters
@@ -56,11 +61,11 @@ class TxBase(UniqueMixin):
 
     @classmethod
     def _prepare_for_storage(cls, **kwargs):
-        data_dict = kwargs['data_dict']
-        op_type = data_dict['type']
-        tx_cls = cls.tx_class_for_type(op_type)
-        _fields = tx_cls._fields.get(op_type)
         try:
+            data_dict = kwargs['data_dict']
+            op_type = data_dict['type']
+            tx_cls = cls.tx_class_for_type(op_type)
+            _fields = tx_cls._fields.get(op_type)
             prepared = {k: v(data_dict) for k, v in _fields.items()}
             prepared['block_num'] = data_dict['block_num']
             prepared['transaction_num'] = data_dict['transaction_num']
@@ -99,17 +104,25 @@ class TxBase(UniqueMixin):
         objs = []
         for i, prepared_tx in enumerate(prepared):
             op_type = operations[i]['type']
-            tx_cls = cls.tx_class_for_type(op_type)
-            logger.debug('operation type %s mapped to class %s', op_type,
-                         tx_cls.__name__)
-            objs.append(tx_cls(**prepared_tx))
-            logger.debug('instantiated: %s',
-                         [o.__class__.__name__ for o in objs])
+            try:
+                tx_cls = cls.tx_class_for_type(op_type)
+            except UndefinedTransactionType as e:
+                logger.error(e)
+                continue
+            else:
+                logger.debug('operation type %s mapped to class %s', op_type,
+                             tx_cls.__name__)
+                objs.append(tx_cls(**prepared_tx))
+                logger.debug('instantiated: %s',
+                             [o.__class__.__name__ for o in objs])
         return objs
 
     @classmethod
     def tx_class_for_type(cls, tx_type):
-        return tx_class_map[tx_type]
+        try:
+            return tx_class_map[tx_type]
+        except KeyError:
+            raise UndefinedTransactionType(tx_type)
 
     # pylint: disable=unused-argument
     @classmethod
@@ -173,9 +186,19 @@ class TxBase(UniqueMixin):
 
     @classmethod
     def standard_windowed_count(cls, session):
-        base_query = session.query(func.count(cls.block_num))
-        for window_query in cls.standard_trailing_windowed_queries(base_query):
+        count_query = cls.count_query(session)
+        for window_query in cls.standard_trailing_windowed_queries(count_query):
             yield window_query.scalar()
+
+    @classmethod
+    def _count_index_name(cls):
+        return 'ix_%s_timestamp' % cls.__tablename__
+
+    @classmethod
+    def count_query(cls, session):
+        ix = cls._count_index_name()
+        ix_stmt = 'USE INDEX(%s)' % ix
+        return session.query(func.count(cls.timestamp)).with_hint(cls, ix_stmt)
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')
@@ -651,7 +674,7 @@ class TxComment(Base, TxBase):
         parent_permlink=lambda x: x.get('parent_permlink'),
         title=lambda x: x.get('title'),
         body=lambda x: comment_body_field(x['body']),
-        json_metadata=lambda x: x.get('json_metadata'), ))
+        json_metadata=lambda x: x.get('json_metadata')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -817,54 +840,103 @@ class TxCustom(Base, TxBase):
     """Raw Format
     ==========
     {
-        "ref_block_prefix": 1654024379,
-        "expiration": "2016-06-03T18:37:24",
+        "ref_block_prefix": 449600556,
+        "ref_block_num": 54561,
         "operations": [
             [
-                "custom_json",
+                "custom",
                 {
-                    "required_posting_auths": [
-                        "steemit"
-                    ],
-                    "required_auths": [],
-                    "id": "follow",
-                    "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}"
+                    "id": 777,
+                    "data": "066e6f69737932056c656e6b61032e0640ec51dbcfb761bd927a732e134deff42dbed04bc42300f27f3048b8b44802be956c36eef2e0d3594b794b428a21b48fe41874d41cf12feb8e421e11b3702f24e94b559f4505006dbafb90208bf88f7bb550f6db0713cbb4be6c214c50c16aa62413383f26f9efbb4fe5bf3f",
+                    "required_auths": [
+                        "noisy2"
+                    ]
                 }
             ]
         ],
+        "expiration": "2017-01-09T01:32:36",
         "signatures": [
-            "1f6019603d73f8c26b92cbdf1c224bf48fb0e600ff9e1689a09e8e4cb1234aeeb92b5eb6f8b8d148bbd3e62a4eb2bc94d1ff2293ec9b957d17d46e9dc11f41735d"
+            "1f38daabe10814c20f78bba5cbeed5f9115eb9d420278540bddf9e3c6e84fe3ca33da6b32127faf0d30cc0d618711edd294b95fa92787398cb7f0dfb7280509db3"
         ],
-        "ref_block_num": 56232,
         "extensions": []
     }
-
-
-    Prepared Format
-    ===============
-    {
-        "id": 1,
-        "tx_id": 294602,
-        "tid": "follow",
-        "json_metadata": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}"
-    }
-
-    Args:
-
-    Returns:
-
     """
 
     __tablename__ = 'sbds_tx_customs'
 
     tid = Column(Unicode(50), nullable=False)
-    json_metadata = Column(UnicodeText)
+    required_auths = Column(Unicode(250))
+    data = Column(UnicodeText)
 
     common = dict(
-        tid=lambda x: x.get('id'), json_metadata=lambda x: x.get('json'))
-    _fields = dict(custom=common, custom_json=common)
+        tid=lambda x: x.get('id'),
+        data=lambda x: x.get('data'),
+        required_auths=lambda x: x.get('required_auths'),
+    )
+    _fields = dict(custom=common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+    def to_dict(self, decode_json=True):
+        data_dict = self.dump()
+        if isinstance(data_dict.get('required_auths'), str) and decode_json:
+            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
+        return data_dict
+
+
+class TxCustomJSON(Base, TxBase):
+    """Raw Format
+    ==========
+    {
+        "ref_block_prefix": 1629956753,
+        "ref_block_num": 10739,
+        "operations": [
+            [
+                "custom_json",
+                {
+                    "id": "follow",
+                    "json": "[\"follow\",{\"follower\":\"joanaltres\",\"following\":\"str8jackitjake\",\"what\":[\"blog\"]}]",
+                    "required_posting_auths": [
+                        "joanaltres"
+                    ],
+                    "required_auths": []
+                }
+            ]
+        ],
+        "expiration": "2017-02-26T15:54:57",
+        "signatures": [
+            "200d43fadd4a11d02d2dca36d0092b4439b674db406c024d9ef0eef08041a9500b45e5807a69d9e8ed9457ee675ba76ccdaee1587bef9902a680da7fd7f498e620"
+        ],
+        "extensions": []
+    }
+    """
+
+    __tablename__ = 'sbds_tx_custom_jsons'
+
+    tid = Column(Unicode(50), nullable=False)
+    required_auths = Column(Unicode(250))
+    required_posting_auths = Column(Unicode(250))
+    json = Column(UnicodeText)
+
+    common = dict(
+        tid=lambda x: x.get('id'),
+        json=lambda x: x.get('json'),
+        required_auths=lambda x: json_string_field(x.get('required_auths')),
+        required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')),
+    )
+    _fields = dict(custom_json=common)
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+    def to_dict(self, decode_json=True):
+        data_dict = self.dump()
+        if isinstance(data_dict.get('required_auths'), str) and decode_json:
+            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
+        if isinstance(data_dict.get('required_posting_auths'), str) and decode_json:
+            data_dict['required_posting_auths'] = sbds.sbds_json.loads(data_dict['required_posting_auths'])
+        if isinstance(data_dict.get('json'), str) and decode_json:
+            data_dict['json'] = sbds.sbds_json.loads(data_dict['json'])
+        return data_dict
 
 
 class TxDeleteComment(Base, TxBase):
@@ -913,6 +985,172 @@ class TxDeleteComment(Base, TxBase):
     _fields = dict(delete_comment=dict(
         author=lambda x: x.get('author'),
         permlink=lambda x: x.get('permlink')))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxEscrowApprove(Base, TxBase):
+    """
+    Raw Format
+    ==========
+    {
+        "from": "xtar",
+        "agent": "on0tole",
+        "to": "testz",
+        "escrow_id": 59102208,
+        "approve": true,
+        "who": "on0tole"
+    }
+    """
+
+    __tablename__ = 'sbds_tx_escrow_approves'
+
+    _from = Column('from', Unicode(50), index=True)
+    agent = Column(Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    who = Column(Unicode(50), index=True)
+    escrow_id = Column(Integer)
+    approve = Column(Boolean)
+
+    _common = dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        agent=lambda x: x.get('agent'),
+        escrow_id=lambda x: x.get('request_id'),
+        who=lambda x: x.get('who'),
+        approve=lambda x: x.get('approve'), )
+
+    _fields = dict(escrow_approve=_common)
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxEscrowDispute(Base, TxBase):
+    """
+    Raw Format
+    ==========
+    {
+        "escrow_id": 72526562,
+        "from": "anonymtest",
+        "agent": "xtar",
+        "who": "anonymtest",
+        "to": "someguy123"
+    }
+    """
+
+    __tablename__ = 'sbds_tx_escrow_disputes'
+
+    _from = Column('from', Unicode(50), index=True)
+    agent = Column(Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    who = Column(Unicode(50), index=True)
+    escrow_id = Column(Integer)
+    approve = Column(Boolean)
+
+    _common = dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        agent=lambda x: x.get('agent'),
+        escrow_id=lambda x: x.get('request_id'),
+        who=lambda x: x.get('who'), )
+
+    _fields = dict(escrow_dispute=_common)
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxEscrowRelease(Base, TxBase):
+    """
+    Raw Format
+    ==========
+    {
+        "from": "anonymtest",
+        "agent": "xtar",
+        "to": "someguy123",
+        "escrow_id": 72526562,
+        "steem_amount": "0.000 STEEM",
+        "sbd_amount": "5.000 SBD",
+        "who": "xtar",
+        "receiver": "someguy123"
+    }
+    """
+
+    __tablename__ = 'sbds_tx_escrow_releases'
+
+    _from = Column('from', Unicode(50), index=True)
+    agent = Column(Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    escrow_id = Column(Integer)
+    steem_amount = Column(Numeric(15, 6))
+    sbd_amount = Column(Numeric(15, 6))
+    who = Column(Unicode(50), index=True)
+    receiver = Column(Unicode(50), index=True)
+
+    _common = dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        agent=lambda x: x.get('agent'),
+        who=lambda x: x.get('who'),
+        receiver=lambda x: x.get('receiver'),
+        escrow_id=lambda x: x.get('request_id'),
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
+
+    )
+
+    _fields = dict(escrow_release=_common)
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxEscrowTransfer(Base, TxBase):
+    """
+    Raw Format
+    ==========
+    {
+     "from": "siol",
+     "agent": "fabien",
+     "escrow_expiration": "2017-02-28T11:22:39",
+     "to": "james",
+     "ratification_deadline": "2017-02-26T11:22:39",
+     "escrow_id": 23456789,
+     "steem_amount": "0.000 STEEM",
+     "json_meta": "{}",
+     "sbd_amount": "1.000 SBD",
+     "fee": "0.100 SBD"
+    }
+    """
+
+    __tablename__ = 'sbds_tx_escrow_transfers'
+
+    _from = Column('from', Unicode(50), index=True)
+    agent = Column(Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    escrow_id = Column(Integer)
+    steem_amount = Column(Numeric(15, 6))
+    sbd_amount = Column(Numeric(15, 6))
+
+    json_metadata = Column(UnicodeText)
+    fee_amount = Column(Numeric(15, 6))
+    fee_amount_symbol = Column(Unicode(5))
+    escrow_expiration = Column(DateTime(timezone=False), index=True)
+    ratification_deadline = Column(DateTime(timezone=False), index=True)
+
+    _common = dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        agent=lambda x: x.get('agent'),
+        escrow_id=lambda x: x.get('request_id'),
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
+        fee_amount=lambda x: amount_field(x.get('fee'), num_func=float),
+        fee_amount_symbol=lambda x: amount_symbol_field(x.get('fee')),
+        json_metadata=lambda x: x.get('json_metadata'),
+        escrow_expiration=lambda x: x.get('escrow_expiration'),
+        ratification_deadline=lambda x: x.get('ratification_deadline')
+    )
+
+    _fields = dict(escrow_transfer=_common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1657,6 +1895,9 @@ class TxWitnessUpdate(Base, TxBase):
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
+# These are defined in the steem source code here:
+# https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/operations.hpp
+# https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_operations.hpp
 tx_class_map = {
     'account_create': TxAccountCreate,
     'account_update': TxAccountUpdate,
@@ -1668,8 +1909,12 @@ tx_class_map = {
     'comment_options': TxCommentsOption,
     'convert': TxConvert,
     'custom': TxCustom,
-    'custom_json': TxCustom,
+    'custom_json': TxCustomJSON,
     'delete_comment': TxDeleteComment,
+    'escrow_approve': TxEscrowApprove,
+    'escrow_dispute': TxEscrowDispute,
+    'escrow_release': TxEscrowRelease,
+    'escrow_transfer': TxEscrowTransfer,
     'feed_publish': TxFeed,
     'limit_order_cancel': TxLimitOrder,
     'limit_order_create': TxLimitOrder,

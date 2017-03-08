@@ -32,7 +32,7 @@ def safe_merge_insert(objects, session, load=True, **kwargs):
     """
     # pylint: disable=bare-except
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             for obj in objects:
                 s.merge(obj, load=load)
     except:
@@ -73,7 +73,7 @@ def safe_insert_many(objects, session, **kwargs):
     """
     # noinspection PyBroadException
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             s.add_all(objects)
     except:
         return False
@@ -95,7 +95,7 @@ def safe_bulk_save(objects, session, **kwargs):
     """
     # noinspection PyBroadException
     try:
-        with session_scope(session, _raise=True) as s:
+        with session_scope(session, _raise_all=True) as s:
             s.bulk_save_objects(objects)
             s.commit()
     except:
@@ -173,7 +173,7 @@ def adaptive_insert(objects,
             logger.debug('individual safe_insert success')
             return results
 
-        logger.debug(
+        logger.info(
             'individual safe_insert results: failed to insert %s of %s objects',
             list(r[1] for r in results).count(False), len(objects))
 
@@ -182,7 +182,7 @@ def adaptive_insert(objects,
         if not result:
             generate_fail_log_from_obj(logger, obj)
 
-    logger.debug('adaptive_insert failed to persist %s out of %s objects',
+    logger.info('adaptive_insert failed to persist %s out of %s objects',
                  list(r[1] for r in results).count(False), len(objects))
     return results
 
@@ -282,7 +282,7 @@ def bulk_add(raw_blocks, session):
     results = adaptive_insert(objs_to_add, session, bulk=True)
     success_count = list(r[1] for r in results).count(True)
     fail_count = list(r[1] for r in results).count(False)
-    logger.debug(
+    logger.info(
         'adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
         len(raw_blocks), len(tx_objs), success_count, fail_count)
     return results

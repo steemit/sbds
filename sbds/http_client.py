@@ -4,6 +4,7 @@ import os
 import logging
 import socket
 import concurrent.futures
+import time
 from functools import partial
 from functools import partialmethod
 from urllib.parse import urlparse
@@ -61,8 +62,8 @@ class SimpleSteemAPIClient(object):
 
         num_pools = kwargs.get('num_pools', 10)
         maxsize = kwargs.get('maxsize', 10)
-        timeout = kwargs.get('timeout', 30)
-        retries = kwargs.get('retries', 10)
+        timeout = kwargs.get('timeout', 60)
+        retries = kwargs.get('retries', 30)
         pool_block = kwargs.get('pool_block', False)
         tcp_keepalive = kwargs.get('tcp_keepalive', True)
 
@@ -175,6 +176,9 @@ class SimpleSteemAPIClient(object):
 
     get_dynamic_global_properties = partialmethod(
         exec, 'get_dynamic_global_properties')
+
+    get_config = partialmethod(exec, 'get_config')
+
     get_block = partialmethod(exec, 'get_block')
 
     def last_irreversible_block_num(self):
@@ -188,3 +192,26 @@ class SimpleSteemAPIClient(object):
     def block_height(self):
         return self.get_dynamic_global_properties()[
             'last_irreversible_block_num']
+
+    def block_interval(self):
+        return self.get_config()['STEEMIT_BLOCK_INTERVAL']
+
+    def stream(self, start=None, stop=None):
+        start = start or self.block_height()
+        interval = self.block_interval()
+        block_num = start
+        while True:
+            current_height = self.block_height()
+            if block_num > current_height:
+                block_num = current_height
+            try:
+                block = self.get_block(block_num)
+                yield block
+            except:
+                pass
+            else:
+                block_num += 1
+                if stop:
+                    if block_num > stop:
+                        break
+            time.sleep(interval/2)
