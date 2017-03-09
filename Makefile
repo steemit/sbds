@@ -26,7 +26,7 @@ test-pylint:
 
 fmt:
 	yapf --recursive --in-place --style pep8 sbds
-	autopep8 --recursive --in-place .
+	autopep8 --recursive --in-place sbds
 
 README.rst: docs/src/README.rst 
 	cd $(DOCS_DIR) && $(MAKE) README
