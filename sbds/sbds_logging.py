@@ -3,7 +3,6 @@ import logging
 import os
 import time
 
-
 from pythonjsonlogger import jsonlogger
 
 
@@ -15,12 +14,17 @@ def get_current_log_level():
     return log_level_from_str(os.environ.get(SBDS_LOG_LEVEL_ENV_VAR_NAME))
 
 
-def configure_root_logger():
+def configure_root_logger(stream=True):
     root_logger = logging.getLogger()
     # remove all other handlers from root logger
     for hdlr in root_logger.handlers:
         root_logger.removeHandler(hdlr)
-
+    if stream:
+        hdlr = logging.StreamHandler()
+        hdlr.set_name('root')
+        hdlr.setLevel(logging.DEBUG)
+        root_logger.addHandler(hdlr)
+    return root_logger
 
 
 def configure_log_handler(supported_log_message_keys, log_datetime_format):
@@ -72,7 +76,7 @@ SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
 SBDS_LOG_HANDLER = configure_log_handler(SBDS_SUPPORTED_LOG_MESSAGE_KEYS,
                                          SBDS_LOG_DATETIME_FORMAT)
 SBDS_LOG_LEVEL = get_current_log_level()
-configure_root_logger()
+SBDS_ROOT_LOGGER = configure_root_logger()
 
 ROLLBAR_HANDLER = None
 if 'SBDS_ROLLBAR_API_KEY' in os.environ:
@@ -80,9 +84,7 @@ if 'SBDS_ROLLBAR_API_KEY' in os.environ:
     from .rollbar_logger import RollbarHandler
 
     env = os.environ.get('SBDS_ENVIRONMENT', 'DEV')
-    rollbar.init(
-            os.environ.get('SBDS_ROLLBAR_API_KEY'),
-            environment=env)
+    rollbar.init(os.environ.get('SBDS_ROLLBAR_API_KEY'), environment=env)
     rollbar_handler = RollbarHandler()
     rollbar_formatter = logging.Formatter()
     rollbar_handler.setFormatter(rollbar_formatter)
@@ -91,13 +93,19 @@ if 'SBDS_ROLLBAR_API_KEY' in os.environ:
     ROLLBAR_HANDLER = rollbar_handler
 
 # functions to configure other loggers
-def getLogger(name, log_handler=SBDS_LOG_HANDLER, _rollbar_handler=ROLLBAR_HANDLER, level=None):
+
+
+def getLogger(name,
+              log_handler=SBDS_LOG_HANDLER,
+              _rollbar_handler=ROLLBAR_HANDLER,
+              level=None):
     _logger = logging.getLogger(name)
     handler_names = [h.name for h in _logger.handlers]
     if 'sbds' not in handler_names:
         level = level or get_current_log_level()
         _logger.setLevel(level)
         _logger.addHandler(log_handler)
+        _logger.propagate = False
     if _rollbar_handler and 'rollbar' not in handler_names:
         _logger.addHandler(_rollbar_handler)
     return _logger

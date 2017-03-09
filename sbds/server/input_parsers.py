@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from functools import singledispatch
+
 import maya
 import funcy
 
@@ -8,80 +10,59 @@ from sbds.storages.db.tables.tx import tx_class_map
 logger = sbds.sbds_logging.getLogger(__name__)
 
 
-# pylint: disable=unused-argument
-def operation_filter(config):
-    ''' Matches blockchain operations. '''
-    regexp = '(%s){1}' % r'|'.join(key for key in tx_class_map.keys())
-
-    def to_python(match):
-        return tx_class_map[match]
-
-    def to_url(tx):
-        return tx.operation_type
-
-    return regexp, to_python, to_url
-
-
-def match_operation(op_str):
+@funcy.log_calls(logger.debug, errors=True)
+def parse_operation(op_str):
     return tx_class_map[op_str.lower()]
 
 
-def parse_block_num(block_num):
-    return int(block_num)
-
-
-def parse_iso8601(iso_str):
-    return maya.dateparser.parse(iso_str)
-
-
 @funcy.log_calls(logger.debug, errors=True)
-def parse_to_query_field(to=None):
-    extra = dict(query_field='to', value=to, value_type=type(to))
-    if isinstance(to, tuple):
-        to = to[0]
-    elif isinstance(to, int):
-        result = parse_block_num(to)
-        logger.debug('parsed query field "to" result %s', result, extra=extra)
-        return result
-    elif isinstance(to, str):
-        try:
-            parse_block_num(to)
-        except ValueError:
-            return parse_iso8601(to)
+@singledispatch
+def parse_to_from(value):
+    if not value:
+        return
     else:
-        raise ValueError('to must be a iso8601 string or block_num')
+        raise ValueError('must be an iso8601 string or int')
 
 
-@funcy.log_calls(logger.debug, errors=True)
-def parse_from_query_field(_from=None):
-    if isinstance(_from, tuple):
-        _from = _from[0]
-    elif isinstance(_from, int):
-        return parse_block_num(_from)
-    elif isinstance(_from, str):
-        try:
-            return parse_block_num(_from)
-        except ValueError:
-            return parse_iso8601(_from)
-    else:
-        raise ValueError('from must be a iso8601 string or block_num')
+@parse_to_from.register(int)
+def parse_block_num(value):
+    return int(value)
 
 
-query_field_parser_map = {
-    'to': parse_to_query_field,
-    'from': parse_from_query_field
+@parse_to_from.register(str)
+def parse_iso8601(value):
+    return maya.dateparser.parse(value)
+
+
+param_parser_map = {
+    'to': parse_to_from,
+    'from': parse_to_from,
+    'operation': parse_operation,
+    'tid': lambda tid: tid
 }
 
 
 @funcy.log_calls(logger.debug, errors=True)
-def parse_query_fields(query_dict):
-    logger.debug('query_dict', extra=query_dict)
-    parsed_fields = dict()
-    for key, value in query_dict.items():
-        if key in query_field_parser_map:
-            parsed_fields[key] = query_field_parser_map[key](value)
-        else:
-            raise ValueError('received unknown query field: %s', key)
+@singledispatch
+def parse_params(params):
+    if not params:
+        return
+    else:
+        raise ValueError('params must be dict or list')
 
+
+@parse_params.register(dict)
+def parse_params_dict(params):
+    parsed_fields = dict()
+    for key, value in params.items():
+        if key in param_parser_map:
+            parsed_fields[key] = param_parser_map[key](value)
+        else:
+            raise ValueError('received unknown param: %s', key)
     logger.debug('parsed_fields', extra=parsed_fields)
     return parsed_fields
+
+
+@parse_params.register(list)
+def parse_params_list(value):
+    return value

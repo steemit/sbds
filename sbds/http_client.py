@@ -168,7 +168,6 @@ class SimpleSteemAPIClient(object):
     def exec_multi_with_futures(self, name, params, max_workers=None):
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers) as executor:
-            # Start the load operations and mark each future with its URL
             futures = (executor.submit(self.exec, name, param)
                        for param in params)
             for future in concurrent.futures.as_completed(futures):
@@ -196,10 +195,11 @@ class SimpleSteemAPIClient(object):
     def block_interval(self):
         return self.get_config()['STEEMIT_BLOCK_INTERVAL']
 
-    def stream(self, start=None, stop=None):
+    def stream(self, start=None, stop=None, interval=None):
         start = start or self.block_height()
-        interval = self.block_interval()
+        interval = interval or self.block_interval()
         block_num = start
+        # pylint: disable=bare-except
         while True:
             current_height = self.block_height()
             if block_num > current_height:
@@ -214,4 +214,4 @@ class SimpleSteemAPIClient(object):
                 if stop:
                     if block_num > stop:
                         break
-            time.sleep(interval/2)
+            time.sleep(interval / 2)

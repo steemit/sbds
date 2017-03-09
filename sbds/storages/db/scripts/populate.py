@@ -10,7 +10,6 @@ from collections import namedtuple
 import click
 from sqlalchemy.engine.url import make_url
 
-
 import sbds.sbds_json
 import sbds.sbds_logging
 from sbds.http_client import SimpleSteemAPIClient
@@ -33,8 +32,6 @@ TOTAL_TASKS = 6
 MAX_CHUNKSIZE = 1000000
 
 # set up for clean exit
-
-
 
 progress_bar_kwargs = dict(
     color=True,
@@ -204,11 +201,11 @@ def task_stream_blocks(database_url, steemd_http_url, task_num=6):
     help='Steemd HTTP server URL')
 @click.option('--max_procs', type=click.INT, default=None)
 @click.option('--max_threads', type=click.INT, default=5)
-def populate(database_url, steemd_http_url,  max_procs, max_threads):
+def populate(database_url, steemd_http_url, max_procs, max_threads):
     _populate(database_url, steemd_http_url, max_procs, max_threads)
 
 
-def _populate(database_url, steemd_http_url,  max_procs, max_threads):
+def _populate(database_url, steemd_http_url, max_procs, max_threads):
 
     # [1/6] confirm db connectivity
     task_confirm_db_connectivity(database_url, task_num=1)
@@ -269,8 +266,4 @@ def block_adder_process_worker(database_url,
 if __name__ == '__main__':
     db_url = os.environ['DATABASE_URL']
     rpc_url = os.environ['STEEMD_HTTP_URL']
-    _populate(
-        db_url,
-        rpc_url,
-        max_procs=4,
-        max_threads=2)
+    _populate(db_url, rpc_url, max_procs=4, max_threads=2)
