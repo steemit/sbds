@@ -8,10 +8,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.pool import NullPool
 
-import sbds.sbds_logging
+from sbds.sbds_logging import getLogger
 import sbds.sbds_json
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = getLogger(__name__)
 
 
 # pylint: disable=too-many-arguments, broad-except, protected-access

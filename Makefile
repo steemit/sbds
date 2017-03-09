@@ -25,7 +25,7 @@ test-pylint:
 	py.test --pylint -m pylint sbds
 
 fmt:
-	yapf --recursive --in-place --style pep8 .
+	yapf --recursive --in-place --style pep8 sbds
 	autopep8 --recursive --in-place .
 
 README.rst: docs/src/README.rst 

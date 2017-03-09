@@ -34,6 +34,7 @@ def comment_body_field(value):
     else:
         return value
 
+
 def json_string_field(value):
     if value:
         try:

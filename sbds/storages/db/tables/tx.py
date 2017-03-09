@@ -187,11 +187,13 @@ class TxBase(UniqueMixin):
     @classmethod
     def standard_windowed_count(cls, session):
         count_query = cls.count_query(session)
-        for window_query in cls.standard_trailing_windowed_queries(count_query):
+        for window_query in cls.standard_trailing_windowed_queries(
+                count_query):
             yield window_query.scalar()
 
     @classmethod
     def _count_index_name(cls):
+        # pylint: disable=no-member
         return 'ix_%s_timestamp' % cls.__tablename__
 
     @classmethod
@@ -871,8 +873,7 @@ class TxCustom(Base, TxBase):
     common = dict(
         tid=lambda x: x.get('id'),
         data=lambda x: x.get('data'),
-        required_auths=lambda x: x.get('required_auths'),
-    )
+        required_auths=lambda x: x.get('required_auths'), )
     _fields = dict(custom=common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
@@ -880,7 +881,8 @@ class TxCustom(Base, TxBase):
     def to_dict(self, decode_json=True):
         data_dict = self.dump()
         if isinstance(data_dict.get('required_auths'), str) and decode_json:
-            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
+            data_dict['required_auths'] = sbds.sbds_json.loads(
+                data_dict['required_auths'])
         return data_dict
 
 
@@ -931,9 +933,12 @@ class TxCustomJSON(Base, TxBase):
     def to_dict(self, decode_json=True):
         data_dict = self.dump()
         if isinstance(data_dict.get('required_auths'), str) and decode_json:
-            data_dict['required_auths'] = sbds.sbds_json.loads(data_dict['required_auths'])
-        if isinstance(data_dict.get('required_posting_auths'), str) and decode_json:
-            data_dict['required_posting_auths'] = sbds.sbds_json.loads(data_dict['required_posting_auths'])
+            data_dict['required_auths'] = sbds.sbds_json.loads(
+                data_dict['required_auths'])
+        if isinstance(data_dict.get('required_posting_auths'),
+                      str) and decode_json:
+            data_dict['required_posting_auths'] = sbds.sbds_json.loads(
+                data_dict['required_posting_auths'])
         if isinstance(data_dict.get('json'), str) and decode_json:
             data_dict['json'] = sbds.sbds_json.loads(data_dict['json'])
         return data_dict

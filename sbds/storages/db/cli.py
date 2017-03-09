@@ -89,7 +89,8 @@ def insert_blocks(ctx, blocks):
     Session.configure(bind=engine)
     session = Session()
 
-    add_blocks(blocks, session, insert=True, merge_insert=False, insert_many=False)
+    add_blocks(
+        blocks, session, insert=True, merge_insert=False, insert_many=False)
 
 
 @db.command(name='bulk-add')
@@ -212,8 +213,8 @@ def find_missing_blocks(ctx, url):
 
     click.echo(
         json.dumps(
-            Block.find_missing(session, last_chain_block=last_chain_block))
-    )
+            Block.find_missing(session, last_chain_block=last_chain_block)))
+
 
 @db.command(name='raw-sql')
 @click.argument('sql')

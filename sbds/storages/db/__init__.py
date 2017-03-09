@@ -183,7 +183,7 @@ def adaptive_insert(objects,
             generate_fail_log_from_obj(logger, obj)
 
     logger.info('adaptive_insert failed to persist %s out of %s objects',
-                 list(r[1] for r in results).count(False), len(objects))
+                list(r[1] for r in results).count(False), len(objects))
     return results
 
 

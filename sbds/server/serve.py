@@ -3,8 +3,8 @@ import os
 import json
 from datetime import datetime
 
+# pylint: disable=import-error, unused-import
 import bottle
-# pylint: disable=import-error
 from bottle.ext import sqlalchemy
 # pylint: enable=import-error
 from bottle import request
@@ -22,19 +22,23 @@ from sbds.storages.db.query_helpers import blockchain_stats_query
 from sbds.storages.db.utils import configure_engine
 from sbds.sbds_json import ToStringJSONEncoder
 
-from sbds.server.utils import return_query_response
-from sbds.server.input_parsers import operation_filter
-from sbds.server.input_parsers import parse_query_fields
+from sbds.server.jsonrpc import register_endpoint
+from sbds.server.methods import count_operations
+from sbds.server.methods import get_custom_json_by_tid
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
-RPC_URL = os.environ.get('STEEMD_HTTP_URL', 'https://steemd.steemitdev.com')
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///')
-MAX_BLOCK_NUM_DIFF = 10
-MAX_DB_ROW_RESULTS = 100000
-DB_QUERY_LIMIT = MAX_DB_ROW_RESULTS + 1
+app = bottle.Bottle()
+app.config['sbds.RPC_URL'] = os.environ.get('STEEMD_HTTP_URL',
+                                            'https://steemd.steemitdev.com')
+app.config['sbds.DATABASE_URL'] = os.environ.get('DATABASE_URL', 'sqlite:///')
+app.config['sbds.MAX_BLOCK_NUM_DIFF'] = 10
+app.config['sbds.MAX_DB_ROW_RESULTS'] = 100000
+app.config['sbds.DB_QUERY_LIMIT'] = app.config['sbds.MAX_DB_ROW_RESULTS'] + 1
+app.config['sbds.tx_class_map'] = tx_class_map
+app.config['sbds.logger'] = logger
 
-rpc = SimpleSteemAPIClient(RPC_URL)
+rpc = SimpleSteemAPIClient(app.config['sbds.RPC_URL'])
 
 
 def get_db_plugin(database_url):
@@ -62,14 +66,15 @@ def get_db_plugin(database_url):
         create_session=Session)
 
 
-app = bottle.Bottle()
 app.install(
     bottle.JSONPlugin(
         json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
 app.install(ErrorsRestPlugin())
-app.router.add_filter('operations', operation_filter)
-db_plugin = get_db_plugin(DATABASE_URL)
+
+db_plugin = get_db_plugin(app.config['sbds.DATABASE_URL'])
 app.install(db_plugin)
+
+# Non JSON-RPC routes
 
 
 @app.get('/health')
@@ -77,12 +82,12 @@ def health(db):
     last_db_block = Block.highest_block(db)
     last_irreversible_block = rpc.last_irreversible_block_num()
     diff = last_irreversible_block - last_db_block
-    if diff > MAX_BLOCK_NUM_DIFF:
+    if diff > app.config['sbds.MAX_BLOCK_NUM_DIFF']:
         abort(
             500,
-            'difference between blockchain last irreversible block (%s) and highest db block (%s) is %s which exceeds max allowable difference of %s'
+            'last irreversible block (%s) - highest db block (%s) = %s, > max allowable difference (%s)'
             % (last_irreversible_block, last_db_block, diff,
-               MAX_BLOCK_NUM_DIFF))
+               app.config['sbds.MAX_BLOCK_NUM_DIFF']))
     else:
         return dict(
             last_db_block=last_db_block,
@@ -91,43 +96,16 @@ def health(db):
             timestamp=datetime.utcnow().isoformat())
 
 
-@app.get('/api/v1/ops/<operation:operations>/count')
-def count_operation(operation, db):
-    query = operation.count_query(db)
-    if request.query:
-        try:
-            parsed_fields = parse_query_fields(request.query)
-        except Exception as e:
-            abort(400, 'Bad query: %s' % e)
-        else:
-            _from = parsed_fields.get('from')
-            to = parsed_fields.get('to')
-            query = operation.from_to_filter(query, _from=_from, to=to)
-    return dict(count=query.scalar())
-
-
 @app.get('/api/v1/blockchainStats')
 def stats(db):
     results = blockchain_stats_query(db)
     return results
 
 
-# '/api/v1/ops/custom/:tid?from=<iso8601-or-block_num>&to=<iso8601-or-blocknum>'
-@app.get('/api/v1/ops/custom_json/:tid')
-def get_custom_json_by_tid(tid, db):
-    cls = tx_class_map['custom_json']
-    query = db.query(cls).filter_by(tid=tid)
-    if request.query:
-        try:
-            parsed_fields = parse_query_fields(request.query)
-        except Exception as e:
-            logger.error(e)
-            abort(400, 'Bad query: %s' % e)
-        query = cls.from_to_filter(
-            query, _from=parsed_fields.get('from'), to=parsed_fields.get('to'))
-
-    result = query.limit(DB_QUERY_LIMIT).all()
-    return return_query_response(result)
+# JSON-RPC route
+jsonrpc = register_endpoint('/', app, logger)
+jsonrpc.register_method(count_operations)
+jsonrpc.register_method(get_custom_json_by_tid)
 
 
 def _dev_server(port=8080, debug=True):

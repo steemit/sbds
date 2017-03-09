@@ -213,7 +213,7 @@ logging-modules=logging
 bad-functions=input
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,e,s,_,fd,fp,db,q,f,tx,to,b,bn, s3, id, op, cp, x, k, v, kv,j
+good-names=i,e,s,_,fd,fp,db,q,f,tx,to,b,bn, s3, id, op, cp, x, k, v, kv,j,ix
 
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata
@@ -223,7 +223,7 @@ bad-names=foo,bar,baz,toto,tutu,tata
 name-group=
 
 # Include a hint for the correct naming format with invalid-name
-include-naming-hint=no
+include-naming-hint=yes
 
 # Regular expression matching correct function names
 # original:
