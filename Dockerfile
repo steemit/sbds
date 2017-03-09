@@ -26,7 +26,9 @@ RUN \
         python3-pip \
         libxml2-dev \
         libxslt-dev \
-        runit
+        runit \
+        libpcre3 \
+        libpcre3-dev
 
 RUN \
     pip3 install --upgrade pip && \
