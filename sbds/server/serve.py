@@ -70,13 +70,12 @@ app.install(
     bottle.JSONPlugin(
         json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
 app.install(ErrorsRestPlugin())
-
 db_plugin = get_db_plugin(app.config['sbds.DATABASE_URL'])
 app.install(db_plugin)
 
+
 # Non JSON-RPC routes
-
-
+# -------------------
 @app.get('/health')
 def health(db):
     last_db_block = Block.highest_block(db)
@@ -103,11 +102,22 @@ def stats(db):
 
 
 # JSON-RPC route
-jsonrpc = register_endpoint('/', app, logger)
-jsonrpc.register_method(count_operations)
-jsonrpc.register_method(get_custom_json_by_tid)
+# --------------
+jsonrpc = register_endpoint(path='/', app=app, namespace='sbds')
+
+# All sbds methods registered here MUST have a name that begins with 'sbds.'
+jsonrpc.register_method(
+    method=count_operations, method_name='count_operations')
+jsonrpc.register_method(
+    method=get_custom_json_by_tid, method_name='get_custom_json_by_tid')
+
+# WSGI application
+# ----------------
+application = app
 
 
+# dev/debug server
+# ----------------
 def _dev_server(port=8080, debug=True):
     # pylint: disable=bare-except
     try:
@@ -117,9 +127,6 @@ def _dev_server(port=8080, debug=True):
     finally:
         app.close()
 
-
-# WSGI application
-application = app
 
 # For pdb debug only
 if __name__ == '__main__':
