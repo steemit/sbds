@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-from .utils import query_response
+import random
 
+from sbds.http_client import SimpleSteemAPIClient
+from sbds.storages.db.tables.core import extract_operations_from_blocks
+from .utils import query_response
 
 # pylint: disable=unused-argument
 def count_operations(db, bottle, app, params):
@@ -34,3 +37,56 @@ def get_custom_json_by_tid(db, bottle, app, params):
 
     result = query.limit(db_query_hard_limit).all()
     return query_response(result, max_db_row_results)
+
+
+def get_random_operation_block_nums(db, bottle, app, params):
+    """Return a random sample of block_nums containing specified operation.
+
+    Args:
+        db ():
+        bottle ():
+        app ():
+        params ():
+
+    Returns:
+
+    """
+    op_type = params.get('op_type')
+    op_count = params.get('count', 100)
+    op_class = app.config['sbds.tx_class_map'][op_type]
+    results = db.query(op_class.block_num).all()
+    if op_count > len(results):
+        op_count = len(results)
+    block_nums = [r[0] for r in random.sample(results, op_count)]
+    return block_nums
+
+# pylint: disable=unsubscriptable-object
+def get_random_operations(db, bottle, app, params):
+    """Return a random sample of specified operation.
+
+    Args:
+        db ():
+        bottle ():
+        app ():
+        params ():
+
+    Returns:
+
+    """
+
+    op_type = params.get('op_type')
+    op_count = params.get('count', 100)
+    op_class = app.config['sbds.tx_class_map'][op_type]
+    db_query_hard_limit = app.config['sbds.DB_QUERY_LIMIT']
+
+    results = db.query(op_class.block_num).limit(db_query_hard_limit).all()
+    if op_count > 1000:
+        op_count = 1000
+    if op_count > len(results):
+        op_count = len(results)
+    block_nums = [r[0] for r in random.sample(results, op_count)]
+    client = SimpleSteemAPIClient()
+    blocks = map(client.get_block, block_nums)
+    ops = extract_operations_from_blocks(blocks)
+    filtered_ops = filter(lambda op: op.get('type') == op_type, ops)
+    return list(filtered_ops)

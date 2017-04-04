@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
-import atexit
-
-import concurrent.futures
+from multiprocessing import Pool
 from functools import partial
 
-from collections import namedtuple
-
 import click
-from sqlalchemy.engine.url import make_url
 
-import sbds.sbds_json
 import sbds.sbds_logging
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db.tables import Base
@@ -18,11 +12,9 @@ from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import test_connection
 from sbds.storages.db.tables import Block
-from sbds.storages.db.utils import configure_engine
+
 from sbds.storages.db.utils import isolated_engine
-from sbds.storages.db.utils import kill_db_processes
 from sbds.storages.db import bulk_add
-from sbds.storages.db import add_block
 from sbds.storages.db import add_blocks
 from sbds.utils import chunkify
 
@@ -130,6 +122,8 @@ def task_find_missing_block_nums(database_url, last_chain_block, task_num=4):
         success_msg = fmt_success_message('found %s missing blocks',
                                           len(all_missing_block_nums))
         click.echo(success_msg)
+        engine.dispose()
+
     return all_missing_block_nums
 
 
@@ -151,6 +145,8 @@ def task_add_missing_blocks(missing_block_nums,
     if chunksize <= 0:
         chunksize = 1
 
+    #counter = Value('L',0)
+
     map_func = partial(
         block_adder_process_worker,
         database_url,
@@ -159,9 +155,8 @@ def task_add_missing_blocks(missing_block_nums,
 
     chunks = chunkify(missing_block_nums, 10000)
 
-    with concurrent.futures.ProcessPoolExecutor(
-            max_workers=max_workers) as executor:
-        executor.map(map_func, chunks, chunksize=1)
+    with Pool(processes=max_workers) as pool:
+        results = pool.map(map_func, chunks)
 
     success_msg = fmt_success_message('added missing blocks')
     click.echo(success_msg)
@@ -206,45 +201,48 @@ def populate(database_url, steemd_http_url, max_procs, max_threads):
 
 
 def _populate(database_url, steemd_http_url, max_procs, max_threads):
+    try:
+        # [1/6] confirm db connectivity
+        #task_confirm_db_connectivity(database_url, task_num=1)
 
-    # [1/6] confirm db connectivity
-    task_confirm_db_connectivity(database_url, task_num=1)
+        # [2/6] init db if required
+        #task_init_db_if_required(database_url=database_url, task_num=2)
 
-    # [2/6] init db if required
-    task_init_db_if_required(database_url=database_url, task_num=2)
+        # [3/6] find last irreversible block
+        last_chain_block = task_get_last_irreversible_block(
+            steemd_http_url, task_num=3)
 
-    # [3/6] find last irreversible block
-    last_chain_block = task_get_last_irreversible_block(
-        steemd_http_url, task_num=3)
+        # [4/6] get missing block_nums
+        missing_block_nums = task_find_missing_block_nums(
+            database_url, last_chain_block, task_num=4)
 
-    # [4/6] get missing block_nums
-    missing_block_nums = task_find_missing_block_nums(
-        database_url, last_chain_block, task_num=4)
+        # [5/6] adding missing blocks
+        task_add_missing_blocks(
+            missing_block_nums,
+            max_procs,
+            max_threads,
+            database_url,
+            steemd_http_url,
+            task_num=5)
 
-    # [5/6] adding missing blocks
-    task_add_missing_blocks(
-        missing_block_nums,
-        max_procs,
-        max_threads,
-        database_url,
-        steemd_http_url,
-        task_num=5)
-
-    # [6/6] stream blocks
-    task_stream_blocks(database_url, steemd_http_url, task_num=6)
+        # [6/6] stream blocks
+        task_stream_blocks(database_url, steemd_http_url, task_num=6)
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:
+        logger.exception('ERROR')
+        raise (e)
+    finally:
+        os.killpg(os.getpgrp(), 9)
 
 
 # pylint: disable=redefined-outer-name
 def block_fetcher_thread_worker(rpc_url, block_nums, max_threads=None):
     rpc = SimpleSteemAPIClient(rpc_url, return_with_args=True)
     # pylint: disable=unused-variable
-    with concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_threads) as executor:
-        for result, args in executor.map(rpc.get_block, block_nums):
-            # dont yield anything when we encounter a null output
-            # from an HTTP 503 error
-            if result:
-                yield result
+    for block in rpc.exec_multi_with_futures(
+            'get_block', block_nums, max_workers=max_threads):
+        yield block
 
 
 def block_adder_process_worker(database_url,
