@@ -16,6 +16,14 @@ def parse_operation(op_str):
 
 
 @funcy.log_calls(logger.debug, errors=True)
+def parse_op_type(op_str):
+    if op_str in tx_class_map:
+        return op_str
+    else:
+        raise ValueError('"op_type" must be a valid steem operation')
+
+
+@funcy.log_calls(logger.debug, errors=True)
 @singledispatch
 def parse_to_from(value):
     if not value:
@@ -33,11 +41,13 @@ def parse_block_num(value):
 def parse_iso8601(value):
     return maya.dateparser.parse(value)
 
-
+# pylint: disable=unnecessary-lambda
 param_parser_map = {
     'to': parse_to_from,
     'from': parse_to_from,
     'operation': parse_operation,
+    'op_type': parse_op_type,
+    'count': lambda count: int(count),
     'tid': lambda tid: tid
 }
 

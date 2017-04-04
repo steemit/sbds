@@ -11,14 +11,14 @@ from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import SmallInteger
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.types import Enum
-from sqlalchemy import func
-from toolz.dicttoolz import get_in
 from toolz.dicttoolz import dissoc
+from toolz.dicttoolz import get_in
 
-import sbds.sbds_logging
 import sbds.sbds_json
+import sbds.sbds_logging
 from .core import Base
 from .core import extract_operations_from_block
 from ..field_handlers import amount_field
@@ -26,7 +26,6 @@ from ..field_handlers import amount_symbol_field
 from ..field_handlers import comment_body_field
 from ..field_handlers import json_string_field
 from ..query_helpers import standard_trailing_windows
-
 from ..utils import UniqueMixin
 
 logger = sbds.sbds_logging.getLogger(__name__)
@@ -325,7 +324,43 @@ class TxAccountCreate(Base, TxBase):
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
-class TxAccountRecover(Base, TxBase):
+class TxAccountCreateWithDelegation(Base, TxBase):
+    """
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_account_create_with_delegations'
+
+    fee = Column(Numeric(15, 6), nullable=False)
+    delegation = Column(Numeric(15, 6), nullable=False)
+    creator = Column(Unicode(50), nullable=False, index=True)
+    new_account_name = Column(Unicode(50))
+    owner_key = Column(Unicode(80), nullable=False)
+    active_key = Column(Unicode(80), nullable=False)
+    posting_key = Column(Unicode(80), nullable=False)
+    memo_key = Column(Unicode(250), nullable=False)
+    json_metadata = Column(UnicodeText)
+
+    _fields = dict(account_create_with_delegation=dict(
+        fee=lambda x: amount_field(x.get('fee'), num_func=float),
+        delegation=lambda x: amount_field(x.get('delegation'), num_func=float),
+        creator=lambda x: x.get('creator'),
+        new_account_name=lambda x: x.get('new_account_name'),
+        owner_key=lambda x: get_in(['owner', 'key_auths', 0, 0], x),
+        active_key=lambda x: get_in(['active', 'key_auths', 0, 0], x),
+        posting_key=lambda x: get_in(['posting', 'key_auths', 0, 0], x),
+        memo_key=lambda x: x.get('memo_key'),
+        json_metadata=lambda x: x.get('json_metadata')))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxRequestAccountRecovery(Base, TxBase):
     """Raw Format
     ==========
     {
@@ -358,8 +393,33 @@ class TxAccountRecover(Base, TxBase):
     "extensions": []
     }
 
-    op_type==recover_account
-    ========================
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_request_account_recoveries'
+
+    recovery_account = Column(Unicode(50))
+    account_to_recover = Column(Unicode(50), nullable=False)
+    recovered = Column(Boolean, default=False)
+
+    _fields = dict(request_account_recovery=dict(
+        # FIXME
+        operation_num=lambda x: x.get('operation_num'),
+        recovery_account=lambda x: x.get('recovery_account'),
+        account_to_recover=lambda x: x.get('account_to_recover'),
+        recovered=lambda x: False))
+
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxRecoverAccount(Base, TxBase):
+    """
     {
         "operations": [
             [
@@ -401,45 +461,28 @@ class TxAccountRecover(Base, TxBase):
     }
 
 
-    Prepared Format
-    ===============
-    {
-        "tx_id": 1069359,
-        "recovery_account": "steem",
-        "account_to_recover": "gandalf",
-        "recovered": False
-    }
-
     Args:
 
     Returns:
 
     """
 
-    __tablename__ = 'sbds_tx_account_recovers'
+    __tablename__ = 'sbds_tx_recover_accounts'
 
     recovery_account = Column(Unicode(50))
     account_to_recover = Column(Unicode(50), nullable=False)
     recovered = Column(Boolean, default=False)
 
-    _fields = dict(
-        recover_account=dict(
-            recovery_account=lambda x: x.get('recovery_account'),
-            account_to_recover=lambda x: x.get('account_to_recover'),
-            recovered=lambda x: True),
-        request_account_recovery=dict(
-            operation_num=lambda x: x.get('operation_num'),
-            recovery_account=lambda x: x.get('recovery_account'),
-            account_to_recover=lambda x: x.get('account_to_recover'),
-            recovered=lambda x: False))
+    _fields = dict(recover_account=dict(
+        recovery_account=lambda x: x.get('recovery_account'),
+        account_to_recover=lambda x: x.get('account_to_recover'),
+        recovered=lambda x: True))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
 class TxAccountUpdate(Base, TxBase):
     """Raw Format
-    ==========
-    op_type==account_update
     {
         "memo_key": "STM6FATHLohxTN8RWWkU9ZZwVywXo6MEDjHHui1jEBYkG2tTdvMYo",
         "active": {
@@ -459,25 +502,6 @@ class TxAccountUpdate(Base, TxBase):
         "account": "theoretical",
         "json_metadata": ""
     }
-    op_type==change_recovery_account
-    {
-        "account_to_recover": "barrie",
-        "extensions": [],
-        "new_recovery_account": "boombastic"
-    }
-
-
-    Prepared Format
-    ===============
-    {
-        "id": 4,
-        "tx_id": 44188,
-        "account": "theoretical",
-        "key_auth1": null,
-        "key_auth2": null,
-        "memo_key": "STM6FATHLohxTN8RWWkU9ZZwVywXo6MEDjHHui1jEBYkG2tTdvMYo",
-        "json_metadata": ""
-    }
 
     Args:
 
@@ -490,21 +514,44 @@ class TxAccountUpdate(Base, TxBase):
     account = Column(Unicode(50))
     key_auth1 = Column(Unicode(80))
     key_auth2 = Column(Unicode(80))
-    account_to_recover = Column(Unicode(50))
-    new_recovery_account = Column(Unicode(50))
     memo_key = Column(Unicode(250))
     json_metadata = Column(UnicodeText)
 
-    _fields = dict(
-        account_update=dict(
-            account=lambda x: x.get('account'),
-            key_auth1=lambda x: None,  # TODO fix null
-            key_auth2=lambda x: None,  # TODO fix null
-            memo_key=lambda x: x.get('memo_key'),
-            json_metadata=lambda x: x.get('json_metadata'), ),
-        change_recovery_account=dict(
-            account_to_recover=lambda x: x.get('account_to_recover'),
-            new_recovery_account=lambda x: x.get('new_recovery_account')))
+    _fields = dict(account_update=dict(
+        account=lambda x: x.get('account'),
+        key_auth1=lambda x: None,  # TODO fix null
+        key_auth2=lambda x: None,  # TODO fix null
+        memo_key=lambda x: x.get('memo_key'),
+        json_metadata=lambda x: x.get('json_metadata'), ))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxChangeRecoveryAccount(Base, TxBase):
+    """Raw Format
+    ==========
+
+    {
+        "account_to_recover": "barrie",
+        "extensions": [],
+        "new_recovery_account": "boombastic"
+    }
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_change_recovery_accounts'
+
+    account_to_recover = Column(Unicode(50))
+    new_recovery_account = Column(Unicode(50))
+
+    _fields = dict(change_recovery_account=dict(
+        account_to_recover=lambda x: x.get('account_to_recover'),
+        new_recovery_account=lambda x: x.get('new_recovery_account')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -608,6 +655,60 @@ class TxAccountWitnessVote(Base, TxBase):
         account=lambda x: x.get('account'),
         approve=lambda x: x.get('appove'),
         witness=lambda x: x.get('witness')))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxClaimRewardBalance(Base, TxBase):
+    """
+
+
+    Args:
+
+    Returns:
+
+    {
+      "ref_block_num": 18849,
+      "ref_block_prefix": 3618600471,
+      "expiration": "2017-03-30T20:15:54",
+      "operations": [
+        [
+          "claim_reward_balance",
+          {
+            "account": "ocrdu",
+            "reward_steem": "0.017 STEEM",
+            "reward_sbd": "0.011 SBD",
+            "reward_vests": "185.025103 VESTS"
+          }
+        ]
+      ],
+      "extensions": [],
+      "signatures": [
+        "2074300e7bc9064b7aa47fe14be844d53737e0981daa7c2b5a3a1c3ffe884ea1866d62bc5d16230495536492ab62493c483f484d67422d25a7d18078d10ca740fb"
+      ]
+    }
+
+
+    """
+
+    __tablename__ = 'sbds_tx_claim_reward_balances'
+
+    account = Column(Unicode(50), index=True)
+    reward_steem = Column(Numeric(15, 6))
+    reward_sbd = Column(Numeric(15, 6))
+    reward_vests = Column(Numeric(15, 6))
+
+    _fields = dict(
+        claim_reward_balance=dict(
+            account=lambda x: x.get('to'),
+            reward_steem=lambda x: amount_field(x.get('reward_steem'),
+                                                num_func=float),
+            reward_sbd=lambda x: amount_field(x.get('reward_sbd'),
+                                              num_func=float),
+            reward_vests=lambda x: amount_field(x.get('reward_vests'),
+                                                num_func=float),
+
+        ))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -924,7 +1025,8 @@ class TxCustomJSON(Base, TxBase):
         tid=lambda x: x.get('id'),
         json=lambda x: x.get('json'),
         required_auths=lambda x: json_string_field(x.get('required_auths')),
-        required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')),
+        required_posting_auths=lambda x: json_string_field(
+            x.get('required_posting_auths')),
     )
     _fields = dict(custom_json=common)
     op_types = tuple(_fields.keys())
@@ -942,6 +1044,44 @@ class TxCustomJSON(Base, TxBase):
         if isinstance(data_dict.get('json'), str) and decode_json:
             data_dict['json'] = sbds.sbds_json.loads(data_dict['json'])
         return data_dict
+
+
+class TxDelegateVestingShares(Base, TxBase):
+    """
+    {
+      "ref_block_num": 13361,
+      "ref_block_prefix": 1969744882,
+      "expiration": "2017-03-30T15:39:45",
+      "operations": [
+        [
+          "delegate_vesting_shares",
+          {
+            "delegator": "liberosist",
+            "delegatee": "dunia",
+            "vesting_shares": "94599167.138276 VESTS"
+          }
+        ]
+      ],
+      "extensions": [],
+      "signatures": [
+        "2058ca7ba73a5787be2b5cf62595251279de63344709240f6300a8625f0f26cc550fa5b3ce740220b085c7b539f6b822047d4136cafc8245f60bcca5822d929f8a"
+      ]
+    }
+    """
+
+    __tablename__ = 'sbds_tx_delegate_vesting_shares'
+
+    delgator = Column(Unicode(50), index=True)
+    delgatee = Column(Unicode(50), index=True)
+    vesting_shares = Column(Numeric(15, 6))
+
+    _fields = dict(delegate_vesting_shares=dict(
+        delgator=lambda x: x.get('delgator'),
+        delgatee=lambda x: x.get('delgatee'),
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'),
+                                              num_func=float),
+    ))
+    op_types = tuple(_fields.keys())
 
 
 class TxDeleteComment(Base, TxBase):
@@ -1017,15 +1157,14 @@ class TxEscrowApprove(Base, TxBase):
     escrow_id = Column(Integer)
     approve = Column(Boolean)
 
-    _common = dict(
+    _fields = dict(escrow_approve=dict(
         _from=lambda x: x.get('from'),
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         escrow_id=lambda x: x.get('request_id'),
         who=lambda x: x.get('who'),
-        approve=lambda x: x.get('approve'), )
+        approve=lambda x: x.get('approve'), ))
 
-    _fields = dict(escrow_approve=_common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1052,14 +1191,12 @@ class TxEscrowDispute(Base, TxBase):
     escrow_id = Column(Integer)
     approve = Column(Boolean)
 
-    _common = dict(
+    _fields = dict(escrow_dispute=dict(
         _from=lambda x: x.get('from'),
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         escrow_id=lambda x: x.get('request_id'),
-        who=lambda x: x.get('who'), )
-
-    _fields = dict(escrow_dispute=_common)
+        who=lambda x: x.get('who'), ))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1091,19 +1228,18 @@ class TxEscrowRelease(Base, TxBase):
     who = Column(Unicode(50), index=True)
     receiver = Column(Unicode(50), index=True)
 
-    _common = dict(
+    _fields = dict(escrow_release=dict(
         _from=lambda x: x.get('from'),
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         who=lambda x: x.get('who'),
         receiver=lambda x: x.get('receiver'),
         escrow_id=lambda x: x.get('request_id'),
-        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
-        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'),
+                                          num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'),
+                                            num_func=float)))
 
-    )
-
-    _fields = dict(escrow_release=_common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1141,26 +1277,26 @@ class TxEscrowTransfer(Base, TxBase):
     escrow_expiration = Column(DateTime(timezone=False), index=True)
     ratification_deadline = Column(DateTime(timezone=False), index=True)
 
-    _common = dict(
+    _fields = dict(escrow_transfer=dict(
         _from=lambda x: x.get('from'),
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         escrow_id=lambda x: x.get('request_id'),
-        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
-        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'),
+                                          num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'),
+                                            num_func=float),
         fee_amount=lambda x: amount_field(x.get('fee'), num_func=float),
         fee_amount_symbol=lambda x: amount_symbol_field(x.get('fee')),
         json_metadata=lambda x: x.get('json_metadata'),
         escrow_expiration=lambda x: x.get('escrow_expiration'),
         ratification_deadline=lambda x: x.get('ratification_deadline')
-    )
-
-    _fields = dict(escrow_transfer=_common)
+    ))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
-class TxFeed(Base, TxBase):
+class TxFeedPublish(Base, TxBase):
     """Raw Format
     ==========
     {
@@ -1202,7 +1338,7 @@ class TxFeed(Base, TxBase):
 
     """
 
-    __tablename__ = 'sbds_tx_feeds'
+    __tablename__ = 'sbds_tx_feed_publishes'
 
     publisher = Column(Unicode(50), nullable=False)
     exchange_rate_base = Column(Numeric(15, 6), nullable=False)
@@ -1220,7 +1356,27 @@ class TxFeed(Base, TxBase):
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
-class TxLimitOrder(Base, TxBase):
+class TxLimitOrderCancel(Base, TxBase):
+    """
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_limit_order_cancels'
+
+    owner = Column(Unicode(50), nullable=False)
+    orderid = Column(BigInteger, nullable=False)
+
+    _fields = dict(limit_order_cancel=dict(
+        owner=lambda x: x.get('owner'), orderid=lambda x: x.get('orderid')))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxLimitOrderCreate(Base, TxBase):
     """Raw Format
     ==========
     {
@@ -1246,19 +1402,6 @@ class TxLimitOrder(Base, TxBase):
         "extensions": []
     }
 
-    Prepared Format
-    ===============
-    {
-        "id": 47,
-        "tx_id": 454081,
-        "owner": "adm",
-        "orderid": 9,
-        "cancel": False,
-        "amount_to_sell": 5.0000,
-        "min_to_receive": 1.5420,
-        "fill_or_kill": False,
-        "expiration": "2016-07-01 13:34:03.000"
-    }
 
     Args:
 
@@ -1266,7 +1409,7 @@ class TxLimitOrder(Base, TxBase):
 
     """
 
-    __tablename__ = 'sbds_tx_limit_orders'
+    __tablename__ = 'sbds_tx_limit_order_creates'
 
     owner = Column(Unicode(50), nullable=False)
     orderid = Column(BigInteger, nullable=False)
@@ -1278,65 +1421,31 @@ class TxLimitOrder(Base, TxBase):
     fill_or_kill = Column(Boolean, default=False)
     expiration = Column(DateTime)
 
-    common = dict(
-        owner=lambda x: x.get('owner'),
-        orderid=lambda x: x.get('orderid'),
-        cancel=lambda x: x.get('cancel'),
-        amount_to_sell=lambda x: amount_field(x.get('amount_to_sell'),
-                                              num_func=float),
-        # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
-        min_to_receive=lambda x: amount_field(x.get('min_to_receive'),
-                                              num_func=float),
-        # receive_symbol=lambda x: x['min_to_receive'].split()[1],
-        fill_or_kill=lambda x: x.get('fill_or_kill'),
-        expiration=lambda x: x.get('expiration')
-    )
     _fields = dict(
-        limit_order_create=common,
-        limit_order_cancel=dict(
+        limit_order_create=dict(
             owner=lambda x: x.get('owner'),
-            orderid=lambda x: x.get('orderid')))
+            orderid=lambda x: x.get('orderid'),
+            cancel=lambda x: x.get('cancel'),
+            amount_to_sell=lambda x: amount_field(
+                x.get('amount_to_sell'),
+                num_func=float),
+            # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
+            min_to_receive=lambda x: amount_field(
+                x.get('min_to_receive'),
+                num_func=float),
+            # receive_symbol=lambda x: x['min_to_receive'].split()[1],
+            fill_or_kill=lambda x: x.get('fill_or_kill'),
+            expiration=lambda x: x.get('expiration')
+        )
+    )
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
-class TxPow(Base, TxBase):
+class TxPow2(Base, TxBase):
     """Raw Format
     ==========
 
-    op_type=='pow'
-    ==============
-    {
-        "ref_block_prefix": 2181793527,
-        "expiration": "2016-03-24T18:00:21",
-        "operations": [
-            [
-                "pow",
-                {
-                    "props": {
-                        "account_creation_fee": "100.000 STEEM",
-                        "sbd_interest_rate": 1000,
-                        "maximum_block_size": 131072
-                    },
-                    "work": {
-                        "signature": "202f30b355f4bfe501292d3c3d650de105a1d7053fcefe875a286e79d3e886e7b005e97255b81f4c35e0ca1ad8e9acc4a57d694828231e57ae7e408e8a2f858a99",
-                        "work": "0031b16c3007c425f72c1c32359511fb89ede9980ac807b81f5ab8e5edcce345",
-                        "input": "8a023b6abb7e241ad41594fb0a22afb6832e4c4d68bae99707e20bfc8679b8e6",
-                        "worker": "STM5gzvDurFRmVUUs38TDtTtGVAEz8TcWMt4xLVbxwP2PP8b9q7P4"
-                    },
-                    "nonce": 326,
-                    "block_id": "00000449f7860b82b4fbe2f317c670e9f01d6d9a",
-                    "worker_account": "nxt6"
-                }
-            ]
-        ],
-        "signatures": [],
-        "ref_block_num": 1097,
-        "extensions": []
-    }
-
-    op_type=='pow2'
-    ==============
     {
         "ref_block_prefix": 2030100032,
         "expiration": "2017-01-20T17:43:24",
@@ -1442,26 +1551,60 @@ class TxPow(Base, TxBase):
         "extensions": []
     }
 
-    Prepared Format
-    ===============
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_pow2s'
+
+    worker_account = Column(Unicode(50), nullable=False, index=True)
+    block_id = Column(Unicode(40), nullable=False)
+
+    _fields = dict(pow2=dict(
+        worker_account=lambda x: get_in(['work', 1, 'input', 'worker_account'], x),
+        block_id=lambda x: get_in(['work', 1, 'input', 'prev_block'], x)))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxPow(Base, TxBase):
+    """Raw Format
+    ==========
 
     op_type=='pow'
     ==============
     {
-        "id": 1,
-        "tx_id": 1,
-        "worker_account": "admin",
-        "block_id": "000004433bd4602cf5f74dbb564183837df9cef8"
+        "ref_block_prefix": 2181793527,
+        "expiration": "2016-03-24T18:00:21",
+        "operations": [
+            [
+                "pow",
+                {
+                    "props": {
+                        "account_creation_fee": "100.000 STEEM",
+                        "sbd_interest_rate": 1000,
+                        "maximum_block_size": 131072
+                    },
+                    "work": {
+                        "signature": "202f30b355f4bfe501292d3c3d650de105a1d7053fcefe875a286e79d3e886e7b005e97255b81f4c35e0ca1ad8e9acc4a57d694828231e57ae7e408e8a2f858a99",
+                        "work": "0031b16c3007c425f72c1c32359511fb89ede9980ac807b81f5ab8e5edcce345",
+                        "input": "8a023b6abb7e241ad41594fb0a22afb6832e4c4d68bae99707e20bfc8679b8e6",
+                        "worker": "STM5gzvDurFRmVUUs38TDtTtGVAEz8TcWMt4xLVbxwP2PP8b9q7P4"
+                    },
+                    "nonce": 326,
+                    "block_id": "00000449f7860b82b4fbe2f317c670e9f01d6d9a",
+                    "worker_account": "nxt6"
+                }
+            ]
+        ],
+        "signatures": [],
+        "ref_block_num": 1097,
+        "extensions": []
     }
 
-    op_type=='pow2'
-    ==============
-    {
-        "id": 412175,
-        "tx_id": 19098700,
-        "worker_account": "nori",
-        "block_id": "8646730"
-    }
 
     Args:
 
@@ -1474,13 +1617,9 @@ class TxPow(Base, TxBase):
     worker_account = Column(Unicode(50), nullable=False, index=True)
     block_id = Column(Unicode(40), nullable=False)
 
-    _fields = dict(pow=dict(worker_account=lambda x: x.get('worker_account'),
-                            block_id=lambda x: x.get('block_id')),
-                   pow2=dict(worker_account=lambda x: get_in(
-                       ['work', 1, 'input', 'worker_account'], x),
-        block_id=lambda x: get_in(
-                       ['work', 1, 'input', 'prev_block'], x))
-                   )
+    _fields = dict(pow=dict(
+        worker_account=lambda x: x.get('worker_account'),
+        block_id=lambda x: x.get('block_id')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1489,8 +1628,7 @@ class TxTransfer(Base, TxBase):
     """Raw Format
     ==========
 
-    op_type==tranfer
-    ================
+
     {
         "ref_block_prefix": 4211555470,
         "expiration": "2016-03-25T13:49:33",
@@ -1512,8 +1650,36 @@ class TxTransfer(Base, TxBase):
         "extensions": []
     }
 
-    op_type==transfer_from_savings
-    ==============================
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_transfers'
+
+    _from = Column('from', Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    amount = Column(Numeric(15, 6))
+    amount_symbol = Column(Unicode(5))
+    memo = Column(Unicode(250))
+
+    _fields = dict(transfer=dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x['amount']),
+        memo=lambda x: x.get('memo'), ))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxTransferFromSavings(Base, TxBase):
+    """Raw Format
+    ==========
+
+
     {
         "ref_block_prefix": 57927444,
         "expiration": "2016-10-11T17:23:06",
@@ -1536,8 +1702,39 @@ class TxTransfer(Base, TxBase):
         "extensions": []
     }
 
-    op_type==transfer_to_savings
-    ============================
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_transfer_from_savings'
+
+    _from = Column('from', Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    amount = Column(Numeric(15, 6))
+    amount_symbol = Column(Unicode(5))
+    memo = Column(Unicode(250))
+    request_id = Column(Integer)
+
+    _fields = dict(transfer_from_savings=dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x['amount']),
+        memo=lambda x: x.get('memo'),
+        request_id=lambda x: x.get('request_id')))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxTransferToSavings(Base, TxBase):
+    """Raw Format
+    ==========
+
+
     {
         "ref_block_prefix": 2803959602,
         "expiration": "2016-10-10T16:41:45",
@@ -1560,8 +1757,37 @@ class TxTransfer(Base, TxBase):
     }
 
 
-    op_type==transfer_to_vesting
-    ============================
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_transfer_to_savings'
+
+    _from = Column('from', Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    amount = Column(Numeric(15, 6))
+    amount_symbol = Column(Unicode(5))
+    memo = Column(Unicode(250))
+
+    _fields = dict(transfer_to_savings=dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x['amount']),
+        memo=lambda x: x.get('memo'), ))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxTransferToVesting(Base, TxBase):
+    """Raw Format
+    ==========
+
+
     {
         "ref_block_prefix": 4131173691,
         "expiration": "2016-03-27T06:55:27",
@@ -1582,8 +1808,33 @@ class TxTransfer(Base, TxBase):
         "extensions": []
     }
 
-     op_type==cancel_transfer_from_savings
-    ============================
+
+
+    Args:
+
+    Returns:
+
+    """
+
+    __tablename__ = 'sbds_tx_transfer_to_vestings'
+
+    _from = Column('from', Unicode(50), index=True)
+    to = Column(Unicode(50), index=True)
+    amount = Column(Numeric(15, 6))
+    amount_symbol = Column(Unicode(5))
+
+    _fields = dict(transfer_to_vesting=dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x['amount'])))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxCancelTransferFromSavings(Base, TxBase):
+    """Raw Format
+
     {
         "operations": [
             [
@@ -1604,19 +1855,6 @@ class TxTransfer(Base, TxBase):
     }
 
 
-    Prepared Format
-    ===============
-    {
-        "id": 49,
-        "tx_id": 3652,
-        "type": "transfer_to_vesting",
-        "from": "james",
-        "to": "itsascam",
-        "amount": 20.0000,
-        "amount_symbol": "STEEM",
-        "memo": null,
-        "request_id": 0
-    }
 
     Args:
 
@@ -1624,35 +1862,15 @@ class TxTransfer(Base, TxBase):
 
     """
 
-    __tablename__ = 'sbds_tx_transfers'
+    __tablename__ = 'sbds_tx_cancel_transfer_from_savings'
 
-    type = Column(Unicode(50), nullable=False, index=True)
     _from = Column('from', Unicode(50), index=True)
-    to = Column(Unicode(50), index=True)
-    amount = Column(Numeric(15, 6))
-    amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(250))
     request_id = Column(Integer)
 
-    _common = dict(
-        type=lambda x: x.get('type'),
+    _fields = dict(cancel_transfer_from_savings=dict(
         _from=lambda x: x.get('from'),
-        to=lambda x: x.get('to'),
-        amount=lambda x: amount_field(x.get('amount'), num_func=float),
-        amount_symbol=lambda x: amount_symbol_field(x['amount']),
-        memo=lambda x: x.get('memo'),
-        request_id=lambda x: x.get('request_id'))
+        request_id=lambda x: x.get('request_id')))
 
-    _cancel_transfer_from_savings_fields = _common.copy()
-    _cancel_transfer_from_savings_fields['amount'] = lambda x: None
-    _cancel_transfer_from_savings_fields['amount_symbol'] = lambda x: None
-
-    _fields = dict(
-        transfer=_common,
-        transfer_from_savings=_common,
-        transfer_to_savings=_common,
-        transfer_to_vesting=_common,
-        cancel_transfer_from_savings=_cancel_transfer_from_savings_fields)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1772,7 +1990,7 @@ class TxWithdrawVestingRoute(Base, TxBase):
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
-class TxWithdraw(Base, TxBase):
+class TxWithdrawVesting(Base, TxBase):
     """Raw Format
     ==========
     {
@@ -1809,7 +2027,7 @@ class TxWithdraw(Base, TxBase):
 
     """
 
-    __tablename__ = 'sbds_tx_withdraws'
+    __tablename__ = 'sbds_tx_withdraw_vestings'
 
     account = Column(Unicode(50), nullable=False)
     vesting_shares = Column(Numeric(25, 6), nullable=False, default=0.0)
@@ -1853,19 +2071,6 @@ class TxWitnessUpdate(Base, TxBase):
         "extensions": []
     }
 
-    Prepared Format
-    ===============
-    {
-        "id": 1,
-        "tx_id": 102103,
-        "owner": "steempty",
-        "url": "fmooo/steemd-docker",
-        "block_signing_key": "STM8LoQjQqJHvotqBo7HjnqmUbFW9oJ2theyqonzUd9DdJ7YYHsvD",
-        "props_account_creation_fee": 100.0000,
-        "props_maximum_block_size": 131072,
-        "props_sbd_interest_rate": 1000,
-        "fee": 0.0000
-    }
 
     Args:
 
@@ -1905,34 +2110,37 @@ class TxWitnessUpdate(Base, TxBase):
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_operations.hpp
 tx_class_map = {
     'account_create': TxAccountCreate,
+    'account_create_with_delegation': TxAccountCreateWithDelegation,
     'account_update': TxAccountUpdate,
     'account_witness_proxy': TxAccountWitnessProxy,
     'account_witness_vote': TxAccountWitnessVote,
-    'cancel_transfer_from_savings': TxTransfer,
-    'change_recovery_account': TxAccountUpdate,
+    'cancel_transfer_from_savings': TxCancelTransferFromSavings,
+    'change_recovery_account': TxChangeRecoveryAccount,
+    'claim_reward_balance': TxClaimRewardBalance,
     'comment': TxComment,
     'comment_options': TxCommentsOption,
     'convert': TxConvert,
     'custom': TxCustom,
     'custom_json': TxCustomJSON,
+    'delegate_vesting_shares': TxDelegateVestingShares,
     'delete_comment': TxDeleteComment,
     'escrow_approve': TxEscrowApprove,
     'escrow_dispute': TxEscrowDispute,
     'escrow_release': TxEscrowRelease,
     'escrow_transfer': TxEscrowTransfer,
-    'feed_publish': TxFeed,
-    'limit_order_cancel': TxLimitOrder,
-    'limit_order_create': TxLimitOrder,
+    'feed_publish': TxFeedPublish,
+    'limit_order_cancel': TxLimitOrderCancel,
+    'limit_order_create': TxLimitOrderCreate,
     'pow': TxPow,
-    'pow2': TxPow,
-    'recover_account': TxAccountRecover,
-    'request_account_recovery': TxAccountRecover,
+    'pow2': TxPow2,
+    'recover_account': TxRecoverAccount,
+    'request_account_recovery': TxRequestAccountRecovery,
     'set_withdraw_vesting_route': TxWithdrawVestingRoute,
     'transfer': TxTransfer,
-    'transfer_from_savings': TxTransfer,
-    'transfer_to_savings': TxTransfer,
-    'transfer_to_vesting': TxTransfer,
+    'transfer_from_savings': TxTransferFromSavings,
+    'transfer_to_savings': TxTransferToSavings,
+    'transfer_to_vesting': TxTransferToVesting,
     'vote': TxVote,
-    'withdraw_vesting': TxWithdraw,
+    'withdraw_vesting': TxWithdrawVesting,
     'witness_update': TxWitnessUpdate
 }
