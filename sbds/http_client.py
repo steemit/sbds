@@ -119,7 +119,7 @@ class SimpleSteemAPIClient(object):
         else:
             if response.status not in tuple(
                     [*response.REDIRECT_STATUSES, 200]):
-                logger.info('non 200 response:%s', response.status)
+                logger.debug('non 200 response:%s', response.status)
 
             return self._return(
                 response=response,
@@ -130,6 +130,8 @@ class SimpleSteemAPIClient(object):
         return_with_args = return_with_args or self.return_with_args
 
         if not response:
+            result = None
+        elif response.status != 200:
             result = None
         else:
             try:
@@ -168,10 +170,16 @@ class SimpleSteemAPIClient(object):
     def exec_multi_with_futures(self, name, params, max_workers=None):
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers) as executor:
-            futures = (executor.submit(self.exec, name, param)
-                       for param in params)
+            futures = (
+                executor.submit(self.exec, name, param, return_with_args=True)
+                for param in params)
             for future in concurrent.futures.as_completed(futures):
-                yield future.result()
+                result, args = future.result()
+                if result:
+                    yield result
+                else:
+                    executor.submit(
+                        self.exec, name, args, return_with_args=True)
 
     get_dynamic_global_properties = partialmethod(
         exec, 'get_dynamic_global_properties')

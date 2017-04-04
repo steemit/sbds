@@ -13,23 +13,38 @@ from .core import Block
 
 from .tx import TxBase
 from .tx import TxAccountCreate
-from .tx import TxAccountRecover
+from .tx import TxAccountCreateWithDelegation
 from .tx import TxAccountUpdate
 from .tx import TxAccountWitnessProxy
 from .tx import TxAccountWitnessVote
+from .tx import TxCancelTransferFromSavings
+from .tx import TxChangeRecoveryAccount
+from .tx import TxClaimRewardBalance
 from .tx import TxComment
 from .tx import TxCommentsOption
 from .tx import TxConvert
 from .tx import TxCustom
 from .tx import TxCustomJSON
+from .tx import TxDelegateVestingShares
 from .tx import TxDeleteComment
-from .tx import TxFeed
-from .tx import TxLimitOrder
+from .tx import TxEscrowApprove
+from .tx import TxEscrowDispute
+from .tx import TxEscrowRelease
+from .tx import TxEscrowTransfer
+from .tx import TxFeedPublish
+from .tx import TxLimitOrderCancel
+from .tx import TxLimitOrderCreate
 from .tx import TxPow
-from .tx import TxTransfer
-from .tx import TxVote
+from .tx import TxPow2
+from .tx import TxRecoverAccount
+from .tx import TxRequestAccountRecovery
 from .tx import TxWithdrawVestingRoute
-from .tx import TxWithdraw
+from .tx import TxTransfer
+from .tx import TxTransferFromSavings
+from .tx import TxTransferToSavings
+from .tx import TxTransferToVesting
+from .tx import TxVote
+from .tx import TxWithdrawVesting
 from .tx import TxWitnessUpdate
 
 

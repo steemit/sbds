@@ -25,7 +25,8 @@ from sbds.sbds_json import ToStringJSONEncoder
 from sbds.server.jsonrpc import register_endpoint
 from sbds.server.methods import count_operations
 from sbds.server.methods import get_custom_json_by_tid
-
+from sbds.server.methods import get_random_operation_block_nums
+from sbds.server.methods import get_random_operations
 logger = sbds.sbds_logging.getLogger(__name__)
 
 app = bottle.Bottle()
@@ -106,6 +107,18 @@ def stats(db):
 jsonrpc = register_endpoint('/', app, logger)
 jsonrpc.register_method(count_operations)
 jsonrpc.register_method(get_custom_json_by_tid)
+
+
+# All sbds methods registered here MUST have a name that begins with 'sbds.'
+jsonrpc.register_method(
+    method=count_operations, method_name='count_operations')
+jsonrpc.register_method(
+    method=get_custom_json_by_tid, method_name='get_custom_json_by_tid')
+jsonrpc.register_method(
+    method=get_random_operation_block_nums,
+    method_name='get_random_operation_block_nums')
+jsonrpc.register_method(
+    method=get_random_operations, method_name='get_random_operations')
 
 
 def _dev_server(port=8080, debug=True):
