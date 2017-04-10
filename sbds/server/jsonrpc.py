@@ -48,10 +48,12 @@ def error(code, req_id, data=None):
 
 class JSONRPC(object):
     def __init__(self, path, app, logger):
+
         self.path = path
         self.app = app
         self.methods = {}
-        self.logger = logger
+        self.logger = app.config['sbds.logger']
+        self.namespace = namespace
         self.make_endpoint()
 
     # pylint: disable=unused-variable, too-many-return-statements,unsubscriptable-object,assignment-from-none
@@ -59,9 +61,11 @@ class JSONRPC(object):
         @funcy.log_calls(self.logger.debug, errors=True)
         @self.app.post(self.path)
         def rpc(db):
+            if not request.json:
+                return error('parse_error', 0)
+
             # parse json-rpc request envelope and params
             try:
-
                 json_rpc_request = request.json
                 json_rpc_version = json_rpc_request['jsonrpc']
                 assert json_rpc_version == '2.0'
@@ -113,9 +117,18 @@ class JSONRPC(object):
                 return error('internal_error', json_rpc_id)
 
     def register_method(self, method=None, method_name=None):
-        name = method_name or method.__name__
-        self.methods[name] = method
-        self.logger.debug('registered methods: %s', self.methods.keys())
+        method_name = method_name or method.__name__
+        namespaced_method_name = self.namespaced_method(method_name)
+        self.methods[namespaced_method_name] = method
+        self.logger.debug('registered method %s under namespace %s as %s',
+                          method_name, self.namespace, namespaced_method_name)
+
+    def namespaced_method(self, method_name):
+        if method_name.startswith('%s.' % self.namespace):
+            return method_name
+        else:
+            return '.'.join([self.namespace, method_name])
+
 
     def __call__(self, func):
         self.methods[func.__name__] = func
