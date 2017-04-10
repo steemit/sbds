@@ -47,7 +47,7 @@ def error(code, req_id, data=None):
 
 
 class JSONRPC(object):
-    def __init__(self, path, app, logger):
+    def __init__(self, path, app, namespace):
 
         self.path = path
         self.app = app
