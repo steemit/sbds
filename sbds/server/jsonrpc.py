@@ -47,8 +47,8 @@ def error(code, req_id, data=None):
 
 
 class JSONRPC(object):
+    def __init__(self, path, app, logger):
 
-    def __init__(self, path=None, app=None, namespace=None):
         self.path = path
         self.app = app
         self.methods = {}
@@ -128,6 +128,7 @@ class JSONRPC(object):
             return method_name
         else:
             return '.'.join([self.namespace, method_name])
+
 
     def __call__(self, func):
         self.methods[func.__name__] = func

@@ -117,8 +117,8 @@ class SimpleSteemAPIClient(object):
                     args=args,
                     return_with_args=return_with_args)
         else:
-            if response.status not in tuple(
-                    [*response.REDIRECT_STATUSES, 200]):
+            if response.status not in tuple([*response.REDIRECT_STATUSES,
+                                             200]):
                 logger.debug('non 200 response:%s', response.status)
 
             return self._return(
@@ -170,8 +170,8 @@ class SimpleSteemAPIClient(object):
     def exec_multi_with_futures(self, name, params, max_workers=None):
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers) as executor:
-            futures = (
-                executor.submit(self.exec, name, param, return_with_args=True)
+            futures = (executor.submit(
+                self.exec, name, param, return_with_args=True)
                 for param in params)
             for future in concurrent.futures.as_completed(futures):
                 result, args = future.result()

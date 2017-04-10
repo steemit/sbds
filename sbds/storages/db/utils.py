@@ -76,7 +76,6 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, args, kwargs):
 
 
 class UniqueMixin(object):
-
     @classmethod
     def unique_hash(cls, *arg, **kw):
         raise NotImplementedError()

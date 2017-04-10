@@ -698,17 +698,11 @@ class TxClaimRewardBalance(Base, TxBase):
     reward_sbd = Column(Numeric(15, 6))
     reward_vests = Column(Numeric(15, 6))
 
-    _fields = dict(
-        claim_reward_balance=dict(
-            account=lambda x: x.get('to'),
-            reward_steem=lambda x: amount_field(x.get('reward_steem'),
-                                                num_func=float),
-            reward_sbd=lambda x: amount_field(x.get('reward_sbd'),
-                                              num_func=float),
-            reward_vests=lambda x: amount_field(x.get('reward_vests'),
-                                                num_func=float),
-
-        ))
+    _fields = dict(claim_reward_balance=dict(
+        account=lambda x: x.get('to'),
+        reward_steem=lambda x: amount_field(x.get('reward_steem'), num_func=float),
+        reward_sbd=lambda x: amount_field(x.get('reward_sbd'), num_func=float),
+        reward_vests=lambda x: amount_field(x.get('reward_vests'), num_func=float), ))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -884,13 +878,10 @@ class TxCommentsOption(Base, TxBase):
     _fields = dict(comment_options=dict(
         author=lambda x: x.get('author'),
         permlink=lambda x: x.get('permlink'),
-        max_accepted_payout=lambda x: amount_field(
-            x.get('max_accepted_payout'), num_func=float),
+        max_accepted_payout=lambda x: amount_field(x.get('max_accepted_payout'), num_func=float),
         percent_steem_dollars=lambda x: x.get('percent_steem_dollars'),
         allow_votes=lambda x: x.get('allow_votes'),
-        allow_curation_rewards=lambda x: x.get('allow_curation_rewards')
-    )
-    )
+        allow_curation_rewards=lambda x: x.get('allow_curation_rewards')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1025,9 +1016,7 @@ class TxCustomJSON(Base, TxBase):
         tid=lambda x: x.get('id'),
         json=lambda x: x.get('json'),
         required_auths=lambda x: json_string_field(x.get('required_auths')),
-        required_posting_auths=lambda x: json_string_field(
-            x.get('required_posting_auths')),
-    )
+        required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')), )
     _fields = dict(custom_json=common)
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
@@ -1078,9 +1067,7 @@ class TxDelegateVestingShares(Base, TxBase):
     _fields = dict(delegate_vesting_shares=dict(
         delgator=lambda x: x.get('delgator'),
         delgatee=lambda x: x.get('delgatee'),
-        vesting_shares=lambda x: amount_field(x.get('vesting_shares'),
-                                              num_func=float),
-    ))
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float), ))
     op_types = tuple(_fields.keys())
 
 
@@ -1235,10 +1222,8 @@ class TxEscrowRelease(Base, TxBase):
         who=lambda x: x.get('who'),
         receiver=lambda x: x.get('receiver'),
         escrow_id=lambda x: x.get('request_id'),
-        sbd_amount=lambda x: amount_field(x.get('sbd_amount'),
-                                          num_func=float),
-        steem_amount=lambda x: amount_field(x.get('steem_amount'),
-                                            num_func=float)))
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float)))
 
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
@@ -1282,16 +1267,13 @@ class TxEscrowTransfer(Base, TxBase):
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         escrow_id=lambda x: x.get('request_id'),
-        sbd_amount=lambda x: amount_field(x.get('sbd_amount'),
-                                          num_func=float),
-        steem_amount=lambda x: amount_field(x.get('steem_amount'),
-                                            num_func=float),
+        sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
+        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
         fee_amount=lambda x: amount_field(x.get('fee'), num_func=float),
         fee_amount_symbol=lambda x: amount_symbol_field(x.get('fee')),
         json_metadata=lambda x: x.get('json_metadata'),
         escrow_expiration=lambda x: x.get('escrow_expiration'),
-        ratification_deadline=lambda x: x.get('ratification_deadline')
-    ))
+        ratification_deadline=lambda x: x.get('ratification_deadline')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -1421,23 +1403,16 @@ class TxLimitOrderCreate(Base, TxBase):
     fill_or_kill = Column(Boolean, default=False)
     expiration = Column(DateTime)
 
-    _fields = dict(
-        limit_order_create=dict(
-            owner=lambda x: x.get('owner'),
-            orderid=lambda x: x.get('orderid'),
-            cancel=lambda x: x.get('cancel'),
-            amount_to_sell=lambda x: amount_field(
-                x.get('amount_to_sell'),
-                num_func=float),
-            # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
-            min_to_receive=lambda x: amount_field(
-                x.get('min_to_receive'),
-                num_func=float),
-            # receive_symbol=lambda x: x['min_to_receive'].split()[1],
-            fill_or_kill=lambda x: x.get('fill_or_kill'),
-            expiration=lambda x: x.get('expiration')
-        )
-    )
+    _fields = dict(limit_order_create=dict(
+        owner=lambda x: x.get('owner'),
+        orderid=lambda x: x.get('orderid'),
+        cancel=lambda x: x.get('cancel'),
+        amount_to_sell=lambda x: amount_field(x.get('amount_to_sell'), num_func=float),
+        # sell_symbol=lambda x: x['amount_to_sell'].split()[1],
+        min_to_receive=lambda x: amount_field(x.get('min_to_receive'), num_func=float),
+        # receive_symbol=lambda x: x['min_to_receive'].split()[1],
+        fill_or_kill=lambda x: x.get('fill_or_kill'),
+        expiration=lambda x: x.get('expiration')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -2034,10 +2009,7 @@ class TxWithdrawVesting(Base, TxBase):
 
     _fields = dict(withdraw_vesting=dict(
         account=lambda x: x.get('account'),
-        vesting_shares=lambda x: amount_field(x.get('vesting_shares'),
-                                              num_func=float)
-    )
-    )
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float)))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 

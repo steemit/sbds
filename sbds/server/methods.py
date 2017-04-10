@@ -5,6 +5,7 @@ from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db.tables.core import extract_operations_from_blocks
 from .utils import query_response
 
+
 # pylint: disable=unused-argument
 def count_operations(db, bottle, app, params):
     # required params
@@ -59,6 +60,7 @@ def get_random_operation_block_nums(db, bottle, app, params):
         op_count = len(results)
     block_nums = [r[0] for r in random.sample(results, op_count)]
     return block_nums
+
 
 # pylint: disable=unsubscriptable-object
 def get_random_operations(db, bottle, app, params):

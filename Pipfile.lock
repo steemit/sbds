@@ -1,0 +1,46 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "de87bd74b7d449bc967e0527607116f2f1d914206d3373b6f3d44f2d8c7f0e2e"
+        },
+        "requires": {},
+        "sources": [
+            {
+                "url": "https://pypi.python.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "SQLAlchemy": "*",
+        "boto3": "*",
+        "bottle": "*",
+        "bottle-sqlalchemy": "*",
+        "bottle_errorsrest": "*",
+        "certifi": "*",
+        "click": "*",
+        "click-spinner": "*",
+        "funcy": "*",
+        "langdetect": "*",
+        "maya": "*",
+        "mysqlclient": "*",
+        "python-json-logger": "*",
+        "rollbar": "*",
+        "toolz": "*",
+        "ujson": "*",
+        "urllib3": "*",
+        "w3lib": "*"
+    },
+    "develop": {
+        "Sphinx": "*",
+        "pep8": "*",
+        "pytest": "*",
+        "pytest-console-scripts": "*",
+        "pytest-docker": "*",
+        "pytest-pylint": "*",
+        "recommonmark": "*",
+        "sphinxcontrib-programoutput": "*",
+        "sphinxcontrib-restbuilder": "*",
+        "yapf": "*"
+    }
+}

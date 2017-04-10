@@ -68,8 +68,7 @@ def get_db_plugin(database_url):
 
 
 app.install(
-    bottle.JSONPlugin(
-        json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
+    bottle.JSONPlugin(json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
 app.install(ErrorsRestPlugin())
 db_plugin = get_db_plugin(app.config['sbds.DATABASE_URL'])
 app.install(db_plugin)
@@ -108,14 +107,14 @@ jsonrpc = register_endpoint(path='/', app=app, namespace='sbds')
 
 # All sbds methods registered here MUST have a name that begins with 'sbds.'
 jsonrpc.register_method(
-    method=count_operations, method_name='count_operations')
+    method=count_operations, method_name='sbds.count_operations')
 jsonrpc.register_method(
-    method=get_custom_json_by_tid, method_name='get_custom_json_by_tid')
+    method=get_custom_json_by_tid, method_name='sbds.get_custom_json_by_tid')
 jsonrpc.register_method(
     method=get_random_operation_block_nums,
-    method_name='get_random_operation_block_nums')
+    method_name='sbds.get_random_operation_block_nums')
 jsonrpc.register_method(
-    method=get_random_operations, method_name='get_random_operations')
+    method=get_random_operations, method_name='sbds.get_random_operations')
 
 
 # WSGI application
