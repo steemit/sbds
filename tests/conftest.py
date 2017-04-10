@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 import pytest
 import tempfile
+import requests
+
+from requests.exceptions import ConnectionError
+
 
 import sbds
 import sbds.http_client
@@ -93,3 +97,23 @@ def first_block_dict():
 @pytest.fixture()
 def http_client(url='https://steemd.steemitdev.com', **kwargs):
     return SimpleSteemAPIClient(url, **kwargs)
+
+
+def is_responsive(url):
+    """Check if something responds to ``url``."""
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return True
+    except ConnectionError:
+        return False
+
+@pytest.fixture(scope='session')
+def sbds_http_server(docker_ip, docker_services):
+    """Ensure that "some service" is up and responsive."""
+    url = 'http://localhost:9191'
+    docker_services.wait_until_responsive(
+       timeout=60.0, pause=0.1,
+       check=lambda: is_responsive(url)
+    )
+    return url

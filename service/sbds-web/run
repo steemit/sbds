@@ -7,4 +7,5 @@ exec setuidgid nobody uwsgi \
  --wsgi-file "${WSGI_APP}" \
  --processes "${HTTP_SERVER_PROCESSES:-8}" \
  --threads "${HTTP_SERVER_THREADS:-1}" \
- --stats 127.0.0.1:"${HTTP_SERVER_STATS_PORT}"
+ --stats 0.0.0.0:"${HTTP_SERVER_STATS_PORT}" \
+ --stats-http

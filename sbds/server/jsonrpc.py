@@ -47,7 +47,6 @@ def error(code, req_id, data=None):
 
 
 class JSONRPC(object):
-
     def __init__(self, path, app, logger):
         self.path = path
         self.app = app
@@ -113,8 +112,8 @@ class JSONRPC(object):
                 self.logger.exception(e)
                 return error('internal_error', json_rpc_id)
 
-    def register_method(self, method=None, name=None):
-        name = name or method.__name__
+    def register_method(self, method=None, method_name=None):
+        name = method_name or method.__name__
         self.methods[name] = method
         self.logger.debug('registered methods: %s', self.methods.keys())
 

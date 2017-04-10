@@ -1,0 +1,9 @@
+version: "3"
+services:
+  sbds:
+    image: steemit/sbds
+    env_file: envfile
+    ports:
+      - "8080:8080"
+      - "9191:9191"
+

@@ -6,7 +6,12 @@ DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 
 default: build
 
-.PHONY: test run test-without-lint test-pylint fmt test-without-build build test-in-venv
+.PHONY: test run test-without-lint test-pylint fmt test-without-build build test-in-venv init
+
+init:
+	pip install pipenv
+	pipenv lock
+	pipenv install --three --dev
 
 build:
 	docker build -t steemit/sbds .
@@ -14,19 +19,15 @@ build:
 run:
 	docker run steemit/sbds
 
-test: test-without-build build
+test:
+	pipenv run py.test tests
 
-test-without-build: test-without-lint test-pylint
-
-test-without-lint:
-	py.test tests
-
-test-pylint:
-	py.test --pylint -m pylint sbds
+lint:
+	 pipenv run py.test --pylint -m pylint sbds
 
 fmt:
-	yapf --recursive --in-place --style pep8 sbds
-	autopep8 --recursive --in-place sbds
+	pipenv run yapf --recursive --in-place --style pep8 sbds
+	pipenv run autopep8 --recursive --in-place sbds
 
 README.rst: docs/src/README.rst 
 	cd $(DOCS_DIR) && $(MAKE) README

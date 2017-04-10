@@ -1,0 +1,40 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[packages]
+boto3 = "*"
+bottle = "*"
+bottle-sqlalchemy = "*"
+certifi = "*"
+click = "*"
+click-spinner = "*"
+funcy = "*"
+langdetect = "*"
+maya = "*"
+mysqlclient = "*"
+python-json-logger = "*"
+rollbar = "*"
+toolz = "*"
+ujson = "*"
+urllib3 = "*"
+w3lib = "*"
+bottle_errorsrest = "*"
+SQLAlchemy = "*"
+
+[requires]
+python_version = "3.5"
+
+[dev-packages]
+ipython = "*"
+pep8 = "*"
+pytest = "*"
+pytest-console-scripts = "*"
+pytest-docker = "*"
+pytest-pylint = "*"
+recommonmark = "*"
+sphinxcontrib-programoutput = "*"
+sphinxcontrib-restbuilder = "*"
+yapf = "*"
+Sphinx = "*"
+autopep8 = "*"
