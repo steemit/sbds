@@ -203,10 +203,10 @@ def populate(database_url, steemd_http_url, max_procs, max_threads):
 def _populate(database_url, steemd_http_url, max_procs, max_threads):
     try:
         # [1/6] confirm db connectivity
-        #task_confirm_db_connectivity(database_url, task_num=1)
+        task_confirm_db_connectivity(database_url, task_num=1)
 
         # [2/6] init db if required
-        #task_init_db_if_required(database_url=database_url, task_num=2)
+        task_init_db_if_required(database_url=database_url, task_num=2)
 
         # [3/6] find last irreversible block
         last_chain_block = task_get_last_irreversible_block(
