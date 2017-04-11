@@ -1069,6 +1069,7 @@ class TxDelegateVestingShares(Base, TxBase):
         delgatee=lambda x: x.get('delgatee'),
         vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float), ))
     op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
 
 class TxDeleteComment(Base, TxBase):
