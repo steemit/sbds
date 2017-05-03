@@ -54,25 +54,18 @@ def standard_trailing_windows():
 
 
 def blockchain_stats_query(session):
+    import operator as op
     from .tables import TxAccountCreate
+    from .tables import TxAccountCreateWithDelegation
     from .tables import TxComment
     from .tables import TxVote
     from .tables import TxTransfer
-    '''
-    account creations
-
-posts
-
-comments
-
-votes
-
-payments
-
-sum of STEEM payment amounts in each period
-    '''
 
     account_creates = TxAccountCreate.standard_windowed_count(session)
+    account_creates_with_delegation = TxAccountCreateWithDelegation.standard_windowed_count(session)
+    combined_account_creates = map(op.add, account_creates,
+                                   account_creates_with_delegation)
+
     votes = TxVote.standard_windowed_count(session)
     payments = TxTransfer.standard_windowed_count(session)
     post_count_query = TxComment.post_count_query(session)
@@ -88,7 +81,7 @@ sum of STEEM payment amounts in each period
                            for query in windowed_comment_queries)
     return dict(
         labels=STANDARD_WINDOW_LABELS,
-        account_creates=tuple(account_creates),
+        account_creates=tuple(combined_account_creates),
         votes=tuple(votes),
         payments=tuple(payments),
         post_counts=post_counts,
