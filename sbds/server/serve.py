@@ -107,14 +107,14 @@ jsonrpc = register_endpoint(path='/', app=app, namespace='sbds')
 
 # All sbds methods registered here MUST have a name that begins with 'sbds.'
 jsonrpc.register_method(
-    method=count_operations, method_name='sbds.count_operations')
+    method=count_operations, method_name='count_operations')
 jsonrpc.register_method(
-    method=get_custom_json_by_tid, method_name='sbds.get_custom_json_by_tid')
+    method=get_custom_json_by_tid, method_name='get_custom_json_by_tid')
 jsonrpc.register_method(
     method=get_random_operation_block_nums,
-    method_name='sbds.get_random_operation_block_nums')
+    method_name='get_random_operation_block_nums')
 jsonrpc.register_method(
-    method=get_random_operations, method_name='sbds.get_random_operations')
+    method=get_random_operations, method_name='get_random_operations')
 
 
 # WSGI application
@@ -124,7 +124,7 @@ application = app
 
 # dev/debug server
 # ----------------
-def _dev_server(port=8080, debug=True):
+def _dev_server(port=8081, debug=True):
     # pylint: disable=bare-except
     try:
         app.run(port=port, debug=debug)
