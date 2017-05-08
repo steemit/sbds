@@ -62,7 +62,8 @@ def blockchain_stats_query(session):
     from .tables import TxTransfer
 
     account_creates = TxAccountCreate.standard_windowed_count(session)
-    account_creates_with_delegation = TxAccountCreateWithDelegation.standard_windowed_count(session)
+    account_creates_with_delegation = TxAccountCreateWithDelegation.standard_windowed_count(
+        session)
     combined_account_creates = map(op.add, account_creates,
                                    account_creates_with_delegation)
 
