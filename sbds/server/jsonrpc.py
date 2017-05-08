@@ -62,7 +62,8 @@ class JSONRPC(object):
         @self.app.post(self.path)
         def rpc(db):
             if not request.json:
-                self.logger.error('Parse Error, Not JSON', extra=request.body.read())
+                self.logger.error(
+                    'Parse Error, Not JSON', extra=request.body.read())
                 return error('parse_error', 0)
 
             # parse json-rpc request envelope and params
@@ -83,7 +84,7 @@ class JSONRPC(object):
             # unanticipated errors should be logged with more detail
             except Exception as e:
                 self.logger.exception(e)
-                return error('internal_error','missing')
+                return error('internal_error', 'missing')
 
             # parse json-rpc params
             try:
@@ -127,7 +128,6 @@ class JSONRPC(object):
             return method_name
         else:
             return '.'.join([self.namespace, method_name])
-
 
     def __call__(self, func):
         self.methods[func.__name__] = func

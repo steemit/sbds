@@ -7,6 +7,30 @@ from collections import namedtuple
 import sbds.sbds_logging
 
 logger = sbds.sbds_logging.getLogger(__name__)
+'''
+# Checkpoint Files
+These are useful for speeding up certain developer tasks, but they are not 
+officially supported, nor are the cryptograhiclly signed or verified, so they
+must not be used for anything besided development. 
+
+The major improvements they offer when compared to a flat file of blocks are 
+more efficient "indexing" and the flexability to store them locally or in S3.
+The indexing is rudimentary, but helpful. When you with to iterate over a known
+range of blocks, only the necesarry lines from the necessary files will be 
+read, which may provide significant performance improvement.
+
+- Checkpoint files must all live in the same directory or S3 bucket
+- Checkpoint files may be gzipped or not, but they must not be mixed
+- Checkpoint file must have 1000000 blocks except for the last file
+- Checkpoint files must use this naming scheme:
+
+blocks_<zero-padded starting block_num>-<zero-padded ending block_num>.json[.gz]
+
+Examples:
+/home/steemit/checkpoints/blocks_0000001-1000000.json
+s3://checkpoints-bucket/blocks_0000001-1000000.json.gz
+
+'''
 
 # shell/glob patterns
 CHECKPOINT_FILENAME_PATTERN = 'blocks_*-*.json*'

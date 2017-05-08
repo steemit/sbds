@@ -116,7 +116,6 @@ jsonrpc.register_method(
 jsonrpc.register_method(
     method=get_random_operations, method_name='get_random_operations')
 
-
 # WSGI application
 # ----------------
 application = app
