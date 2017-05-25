@@ -8,10 +8,11 @@ import maya
 24h 7d 30d with two trailing periods
 '''
 STANDARD_WINDOWS_ARGS = ((24, 'hours', 3), (7, 'days', 3), (30, 'days', 3), )
-STANDARD_WINDOW_LABELS = (
-    'past_24_hours', 'past_24_to_48_hours', 'past_48_to_72_hours',
-    'past_7_days', 'past_7_to_14_days', 'past_14_to_21_days', 'past_30_days',
-    'past_30_to_60_days', 'past_60_to_90_days')
+STANDARD_WINDOW_LABELS = ('past_24_hours', 'past_24_to_48_hours',
+                          'past_48_to_72_hours', 'past_7_days',
+                          'past_7_to_14_days', 'past_14_to_21_days',
+                          'past_30_days', 'past_30_to_60_days',
+                          'past_60_to_90_days')
 
 
 def trailing_periods(step, units, periods):
