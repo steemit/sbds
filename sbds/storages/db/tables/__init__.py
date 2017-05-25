@@ -21,7 +21,7 @@ from .tx import TxCancelTransferFromSavings
 from .tx import TxChangeRecoveryAccount
 from .tx import TxClaimRewardBalance
 from .tx import TxComment
-from .tx import TxCommentsOption
+from .tx import TxCommentOption
 from .tx import TxConvert
 from .tx import TxCustom
 from .tx import TxCustomJSON

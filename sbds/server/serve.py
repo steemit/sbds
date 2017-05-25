@@ -68,7 +68,8 @@ def get_db_plugin(database_url):
 
 
 app.install(
-    bottle.JSONPlugin(json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
+    bottle.JSONPlugin(
+        json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
 app.install(ErrorsRestPlugin())
 db_plugin = get_db_plugin(app.config['sbds.DATABASE_URL'])
 app.install(db_plugin)

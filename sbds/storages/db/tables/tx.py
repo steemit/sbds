@@ -693,13 +693,13 @@ class TxClaimRewardBalance(Base, TxBase):
 
     __tablename__ = 'sbds_tx_claim_reward_balances'
 
-    account = Column(Unicode(50), index=True)
+    account = Column(Unicode(50), index=True, nullable=False)
     reward_steem = Column(Numeric(15, 6))
     reward_sbd = Column(Numeric(15, 6))
     reward_vests = Column(Numeric(15, 6))
 
     _fields = dict(claim_reward_balance=dict(
-        account=lambda x: x.get('to'),
+        account=lambda x: x.get('account'),
         reward_steem=lambda x: amount_field(x.get('reward_steem'), num_func=float),
         reward_sbd=lambda x: amount_field(x.get('reward_sbd'), num_func=float),
         reward_vests=lambda x: amount_field(x.get('reward_vests'), num_func=float), ))
@@ -820,7 +820,7 @@ class TxComment(Base, TxBase):
         return self.type == 'comment'
 
 
-class TxCommentsOption(Base, TxBase):
+class TxCommentOption(Base, TxBase):
     """Raw Format
     ==========
     {
@@ -1068,6 +1068,20 @@ class TxDelegateVestingShares(Base, TxBase):
         delgator=lambda x: x.get('delgator'),
         delgatee=lambda x: x.get('delgatee'),
         vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float), ))
+    op_types = tuple(_fields.keys())
+    operation_type = Column(Enum(*op_types), nullable=False, index=True)
+
+
+class TxDeclineVotingRights(Base, TxBase):
+
+    __tablename__ = 'sbds_tx_decline_voting_rights'
+
+    account = Column(Unicode(50), nullable=False)
+    decline = Column(Boolean, default=True)
+
+    _fields = dict(decline_voting_rights=dict(
+        account=lambda x: x.get('account'),
+        decline=lambda x: x.get('decline')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
 
@@ -2091,10 +2105,11 @@ tx_class_map = {
     'change_recovery_account': TxChangeRecoveryAccount,
     'claim_reward_balance': TxClaimRewardBalance,
     'comment': TxComment,
-    'comment_options': TxCommentsOption,
+    'comment_options': TxCommentOption,
     'convert': TxConvert,
     'custom': TxCustom,
     'custom_json': TxCustomJSON,
+    'decline_voting_rights': TxDeclineVotingRights,
     'delegate_vesting_shares': TxDelegateVestingShares,
     'delete_comment': TxDeleteComment,
     'escrow_approve': TxEscrowApprove,
