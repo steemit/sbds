@@ -9,7 +9,10 @@ from sqlalchemy.orm.util import object_state
 from sbds.sbds_logging import generate_fail_log_from_obj
 from sbds.sbds_logging import getLogger
 
+from sbds.utils import block_info
+
 from .tables.core import from_raw_block
+from .tables.core import extract_transactions_from_block
 from .utils import is_duplicate_entry_error
 from .utils import session_scope
 
@@ -285,4 +288,46 @@ def bulk_add(raw_blocks, session):
     logger.info(
         'adaptive_insert results: %s blocks, %s txs, %s succeeded, %s failed',
         len(raw_blocks), len(tx_objs), success_count, fail_count)
+    return results
+
+
+
+def bulk_add_transactions(raw_blocks, session, include_types=None, exclude_types=None):
+    """
+    Add Blocks and Txs as quickly as possible.
+
+    Args:
+        raw_blocks (Union[Dict[str, str],str,bytes]):
+        session (sqlalchemy.orm.session.Session):
+
+    Returns:
+        results (List[bool]):
+    """
+    from .tables import Block
+    from .tables import TxBase
+
+    raw_blocks_chunk = list(raw_blocks)
+    tx_objs = list(
+            chain.from_iterable(map(TxBase.from_raw_block, raw_blocks_chunk)))
+    logger.info('processing %s tx_objs before filtering', len(tx_objs))
+    if include_types:
+        includes = set(include_types)
+        logger.debug('including only %s operations', includes)
+        filtered_txs = list(filter(lambda x: x.operation_type in includes , tx_objs))
+    elif exclude_types:
+        excludes = set(exclude_types)
+        logger.info('excluding %s operations', excludes)
+        filtered_txs = list(filter(lambda x: x.operation_type not in excludes, tx_objs))
+    else:
+        filtered_txs = tx_objs
+    logger.info('%s operations after filtering', len(filtered_txs))
+
+    # add blocks (only if we havent removed them all)
+    objs_to_add = filtered_txs
+    results = adaptive_insert(objs_to_add, session, bulk=True)
+    success_count = list(r[1] for r in results).count(True)
+    fail_count = list(r[1] for r in results).count(False)
+    logger.info(
+        'adaptive_insert results: %s txs, %s succeeded, %s failed',
+        len(objs_to_add), success_count, fail_count)
     return results

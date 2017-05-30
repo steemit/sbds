@@ -110,3 +110,4 @@ tests/failed_blocks/
 /envd/
 /tests/envdir-to-envfile.sh
 /deploy/
+blocks.json
