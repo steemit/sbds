@@ -1653,7 +1653,7 @@ class TxTransfer(Base, TxBase):
     to = Column(Unicode(50), index=True)
     amount = Column(Numeric(15, 6))
     amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(250))
+    memo = Column(UnicodeText(250))
 
     _fields = dict(transfer=dict(
         _from=lambda x: x.get('from'),

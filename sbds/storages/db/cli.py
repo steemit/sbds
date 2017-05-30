@@ -9,6 +9,7 @@ from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
+from sbds.storages.db import bulk_add_transactions
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
@@ -92,6 +93,34 @@ def insert_blocks(ctx, blocks):
     add_blocks(
         blocks, session, insert=True, merge_insert=False, insert_many=False)
 
+@db.command(name='bulk-add-transactions')
+@click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
+@click.option('--chunksize', type=click.INT, default=1000)
+@click.option('--include_types', type=click.STRING, multiple=True, default=[])
+@click.option('--exclude_types', type=click.STRING, multiple=True, default=[])
+@click.pass_context
+def _bulk_add_transactions(ctx, blocks, chunksize, include_types, exclude_types):
+    """Insert many transactions in the database, filtering on transaction type"""
+    engine = ctx.obj['engine']
+    database_url = ctx.obj['database_url']
+    metadata = ctx.obj['metadata']
+
+    # init tables first
+    init_tables(database_url, metadata)
+
+    # configure session
+    Session.configure(bind=engine)
+    session = Session()
+    click.echo("SQL: 'SET SESSION innodb_lock_wait_timeout=150'", err=True)
+    session.execute('SET SESSION innodb_lock_wait_timeout=150')
+
+    try:
+        for chunk in chunkify(blocks, chunksize):
+            bulk_add_transactions(chunk, session, include_types=include_types, exclude_types=exclude_types)
+    except Exception as e:
+        raise e
+    finally:
+        session.close_all()
 
 @db.command(name='bulk-add')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
