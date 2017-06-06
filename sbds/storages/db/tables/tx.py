@@ -339,7 +339,7 @@ class TxAccountCreateWithDelegation(Base, TxBase):
     fee = Column(Numeric(15, 6), nullable=False)
     delegation = Column(Numeric(15, 6), nullable=False)
     creator = Column(Unicode(50), nullable=False, index=True)
-    new_account_name = Column(Unicode(50))
+    new_account_name = Column(Unicode(50), index=True)
     owner_key = Column(Unicode(80), nullable=False)
     active_key = Column(Unicode(80), nullable=False)
     posting_key = Column(Unicode(80), nullable=False)
@@ -1007,7 +1007,7 @@ class TxCustomJSON(Base, TxBase):
 
     __tablename__ = 'sbds_tx_custom_jsons'
 
-    tid = Column(Unicode(50), nullable=False)
+    tid = Column(Unicode(50), nullable=False, index=True)
     required_auths = Column(Unicode(250))
     required_posting_auths = Column(Unicode(250))
     json = Column(UnicodeText)
@@ -1060,13 +1060,13 @@ class TxDelegateVestingShares(Base, TxBase):
 
     __tablename__ = 'sbds_tx_delegate_vesting_shares'
 
-    delgator = Column(Unicode(50), index=True)
-    delgatee = Column(Unicode(50), index=True)
+    delegator = Column(Unicode(50), index=True)
+    delegatee = Column(Unicode(50), index=True)
     vesting_shares = Column(Numeric(15, 6))
 
     _fields = dict(delegate_vesting_shares=dict(
-        delgator=lambda x: x.get('delgator'),
-        delgatee=lambda x: x.get('delgatee'),
+        delegator=lambda x: x.get('delegator'),
+        delegatee=lambda x: x.get('delegatee'),
         vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float), ))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)

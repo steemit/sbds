@@ -2,6 +2,20 @@
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 
+[dev-packages]
+ipython = "*"
+pep8 = "*"
+pytest = "*"
+pytest-console-scripts = "*"
+pytest-docker = "*"
+pytest-pylint = "*"
+recommonmark = "*"
+sphinxcontrib-programoutput = "*"
+sphinxcontrib-restbuilder = "*"
+yapf = "*"
+Sphinx = "*"
+autopep8 = "*"
+
 [packages]
 boto3 = "*"
 bottle = "*"
@@ -21,20 +35,10 @@ urllib3 = "*"
 w3lib = "*"
 bottle_errorsrest = "*"
 SQLAlchemy = "*"
+aiobotocore = "*"
+aiodns = "*"
+uvloop = "*"
+aiofiles = "*"
 
 [requires]
 python_version = "3.5"
-
-[dev-packages]
-ipython = "*"
-pep8 = "*"
-pytest = "*"
-pytest-console-scripts = "*"
-pytest-docker = "*"
-pytest-pylint = "*"
-recommonmark = "*"
-sphinxcontrib-programoutput = "*"
-sphinxcontrib-restbuilder = "*"
-yapf = "*"
-Sphinx = "*"
-autopep8 = "*"
