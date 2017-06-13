@@ -1127,7 +1127,7 @@ class TxDeleteComment(Base, TxBase):
     __tablename__ = 'sbds_tx_delete_comments'
 
     author = Column(Unicode(50), nullable=False)
-    permlink = Column(Unicode(250), nullable=False)
+    permlink = Column(Unicode(512), nullable=False)
 
     _fields = dict(delete_comment=dict(
         author=lambda x: x.get('author'),
