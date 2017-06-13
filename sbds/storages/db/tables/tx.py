@@ -653,7 +653,7 @@ class TxAccountWitnessVote(Base, TxBase):
 
     _fields = dict(account_witness_vote=dict(
         account=lambda x: x.get('account'),
-        approve=lambda x: x.get('appove'),
+        approve=lambda x: x.get('approve'),
         witness=lambda x: x.get('witness')))
     op_types = tuple(_fields.keys())
     operation_type = Column(Enum(*op_types), nullable=False, index=True)
