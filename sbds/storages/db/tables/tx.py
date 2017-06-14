@@ -1286,7 +1286,7 @@ class TxEscrowTransfer(Base, TxBase):
         steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float),
         fee_amount=lambda x: amount_field(x.get('fee'), num_func=float),
         fee_amount_symbol=lambda x: amount_symbol_field(x.get('fee')),
-        json_metadata=lambda x: x.get('json_metadata'),
+        json_metadata=lambda x: x.get('json_meta'),
         escrow_expiration=lambda x: x.get('escrow_expiration'),
         ratification_deadline=lambda x: x.get('ratification_deadline')))
     op_types = tuple(_fields.keys())
