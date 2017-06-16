@@ -1653,7 +1653,7 @@ class TxTransfer(Base, TxBase):
     to = Column(Unicode(50), index=True)
     amount = Column(Numeric(15, 6))
     amount_symbol = Column(Unicode(5))
-    memo = Column(UnicodeText)
+    memo = Column(Unicode(2048))
 
     _fields = dict(transfer=dict(
         _from=lambda x: x.get('from'),
@@ -1706,7 +1706,7 @@ class TxTransferFromSavings(Base, TxBase):
     to = Column(Unicode(50), index=True)
     amount = Column(Numeric(15, 6))
     amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(250))
+    memo = Column(Unicode(2048))
     request_id = Column(Integer)
 
     _fields = dict(transfer_from_savings=dict(
@@ -1761,7 +1761,7 @@ class TxTransferToSavings(Base, TxBase):
     to = Column(Unicode(50), index=True)
     amount = Column(Numeric(15, 6))
     amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(250))
+    memo = Column(Unicode(2048))
 
     _fields = dict(transfer_to_savings=dict(
         _from=lambda x: x.get('from'),
