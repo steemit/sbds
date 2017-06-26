@@ -39,6 +39,7 @@ aiobotocore = "*"
 aiodns = "*"
 uvloop = "*"
 aiofiles = "*"
+pytest-runner = "*"
 
 [requires]
 python_version = "3.5"

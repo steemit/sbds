@@ -2,6 +2,8 @@
 import pytest
 import tempfile
 import requests
+import json
+import os
 
 from requests.exceptions import ConnectionError
 
@@ -42,6 +44,16 @@ from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.utils import configure_engine
 
+OPERATION_SCHEMA_FILENAME = 'operations.json'
+OPERATIONS_SCHEMA_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                                      OPERATION_SCHEMA_FILENAME)
+
+with open(OPERATIONS_SCHEMA_PATH) as f:
+    orig_operations_schema = json.load(f)
+    _operations_schema = dict()
+    for k,v in orig_operations_schema.items():
+        name = k.replace('_operation','')
+        _operations_schema[name] = v
 
 # pylint: skip-file
 @pytest.fixture()
@@ -79,18 +91,16 @@ def blocks_with_txs(http_client, number_of_blocks=5):
 @pytest.fixture()
 def first_block_dict():
     return {
-        'extensions': [],
-        'previous':
-        '0000000000000000000000000000000000000000',
-        'timestamp':
-        '2016-03-24T16:05:00',
-        'transaction_merkle_root':
-        '0000000000000000000000000000000000000000',
-        'transactions': [],
-        'witness':
-        'initminer',
-        'witness_signature':
-        '204f8ad56a8f5cf722a02b035a61b500aa59b9519b2c33c77a80c0a714680a5a5a7a340d909d19996613c5e4ae92146b9add8a7a663eef37d837ef881477313043'
+      "previous": "0000000000000000000000000000000000000000",
+      "timestamp": "2016-03-24T16:05:00",
+      "witness": "initminer",
+      "transaction_merkle_root": "0000000000000000000000000000000000000000",
+      "extensions": [],
+      "witness_signature": "204f8ad56a8f5cf722a02b035a61b500aa59b9519b2c33c77a80c0a714680a5a5a7a340d909d19996613c5e4ae92146b9add8a7a663eef37d837ef881477313043",
+      "transactions": [],
+      "block_id": "0000000109833ce528d5bbfb3f6225b39ee10086",
+      "signing_key": "STM8GC13uCZbP44HzMLV6zPZGwVQ8Nt4Kji8PapsPiNq1BK153XTX",
+      "transaction_ids": []
     }
 
 
@@ -117,3 +127,9 @@ def sbds_http_server(docker_ip, docker_services):
        check=lambda: is_responsive(url)
     )
     return url
+
+@pytest.fixture(scope='session',
+                params=_operations_schema.items(),
+                ids=list(_operations_schema.keys()))
+def operation_schema(request):
+    return request.param
