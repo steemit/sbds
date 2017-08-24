@@ -209,8 +209,13 @@ def _populate(database_url, steemd_http_url, max_procs, max_threads):
         task_init_db_if_required(database_url=database_url, task_num=2)
 
         # [3/6] find last irreversible block
-        last_chain_block = task_get_last_irreversible_block(
-            steemd_http_url, task_num=3)
+        last_chain_block = None
+        while last_chain_block is None:
+           try:
+              last_chain_block = task_get_last_irreversible_block(
+              steemd_http_url, task_num=3)
+           except Exception as e:
+              logger.exception('Exception occurred, retrying')
 
         # [4/6] get missing block_nums
         missing_block_nums = task_find_missing_block_nums(
