@@ -9,6 +9,10 @@ Notice
 This is prerelease software, not yet suitable for production use.
 Proceed at your own risk.
 
+Dev Quickstart
+==============
+
+`docker-compose -f contrib/docker-compose.yml up`
 
 Quickstart
 ==========
