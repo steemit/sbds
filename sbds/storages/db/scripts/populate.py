@@ -7,11 +7,10 @@ import click
 
 import sbds.sbds_logging
 from sbds.http_client import SimpleSteemAPIClient
-from sbds.storages.db.tables import Base
+from sbds.storages.db.tables import Base, Block
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import test_connection
-from sbds.storages.db.tables import Block
 
 from sbds.storages.db.utils import isolated_engine
 from sbds.storages.db import bulk_add

@@ -56,26 +56,26 @@ def standard_trailing_windows():
 
 def blockchain_stats_query(session):
     import operator as op
-    from .tables import TxAccountCreate
-    from .tables import TxAccountCreateWithDelegation
-    from .tables import TxComment
-    from .tables import TxVote
-    from .tables import TxTransfer
+    from .tables import AccountCreateOperation
+    from .tables import AccountCreateWithDelegationOperation
+    from .tables import CommentOperation
+    from .tables import VoteOperation
+    from .tables import TransferOperation
 
-    account_creates = TxAccountCreate.standard_windowed_count(session)
-    account_creates_with_delegation = TxAccountCreateWithDelegation.standard_windowed_count(
+    account_creates = AccountCreateOperation.standard_windowed_count(session)
+    account_creates_with_delegation = AccountCreateWithDelegationOperation.standard_windowed_count(
         session)
     combined_account_creates = map(op.add, account_creates,
                                    account_creates_with_delegation)
 
-    votes = TxVote.standard_windowed_count(session)
-    payments = TxTransfer.standard_windowed_count(session)
-    post_count_query = TxComment.post_count_query(session)
-    windowed_post_queries = TxComment.standard_trailing_windowed_queries(
+    votes = VoteOperation.standard_windowed_count(session)
+    payments = TransferOperation.standard_windowed_count(session)
+    post_count_query = CommentOperation.post_count_query(session)
+    windowed_post_queries = CommentOperation.standard_trailing_windowed_queries(
         post_count_query)
 
-    comment_count_query = TxComment.comment_count_query(session)
-    windowed_comment_queries = TxComment.standard_trailing_windowed_queries(
+    comment_count_query = CommentOperation.comment_count_query(session)
+    windowed_comment_queries = CommentOperation.standard_trailing_windowed_queries(
         comment_count_query)
 
     post_counts = tuple(query.scalar() for query in windowed_post_queries)

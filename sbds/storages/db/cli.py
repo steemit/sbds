@@ -5,7 +5,7 @@ import json
 import click
 
 import sbds.sbds_logging
-from sbds.storages.db.tables import Base
+from sbds.storages.db.tables import Base, Block
 from sbds.storages.db.tables import Session
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
@@ -211,7 +211,6 @@ def last_block(ctx):
     Session.configure(bind=engine)
     session = Session()
 
-    from sbds.storages.db.tables import Block
     click.echo(Block.highest_block(session))
 
 

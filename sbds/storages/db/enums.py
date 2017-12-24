@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.types import Enum
 
-transaction_types_enum = Enum(
+operation_types_enum = Enum(
     'account_create',
     'account_update',
     'account_witness_proxy',

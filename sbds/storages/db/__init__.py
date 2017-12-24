@@ -25,7 +25,7 @@ def safe_merge_insert(objects, session, load=True, **kwargs):
     Merge objects into session and commit session.
 
     Args:
-        objects (List[TxBase, Block]):
+        objects (List[BaseOperation, Block]):
         session (sqlalchemy.orm.session.Session):
         load (bool):
         **kwargs (dict):
@@ -49,7 +49,7 @@ def safe_insert(obj, session, **kwargs):
     Add single object to session and commit session.
 
     Args:
-        obj (Union[TxBase,Block]):
+        obj (Union[BaseOperation,Block]):
         session (sqlalchemy.orm.session.Session):
         **kwargs (dict):
 
@@ -67,7 +67,7 @@ def safe_insert_many(objects, session, **kwargs):
     Add all objects to session and commit session.
 
     Args:
-        objects (List[TxBase, Block]):
+        objects (List[BaseOperation, Block]):
         session (sqlalchemy.orm.session.Session):
         **kwargs (dict):
 
@@ -89,7 +89,7 @@ def safe_bulk_save(objects, session, **kwargs):
     Bulk save objects.
 
     Args:
-        objects (List[TxBase, Block]):
+        objects (List[BaseOperation, Block]):
         session (sqlalchemy.orm.session.Session):
         **kwargs (dict):
 
@@ -119,7 +119,7 @@ def adaptive_insert(objects,
     Add Blocks and Txs using succesion of different insert methods.
 
     Args:
-        objects (List[TxBase, Block]):
+        objects (List[BaseOperation, Block]):
         session (sqlalchemy.orm.session.Session):
         bulk (bool):
         insert_many (bool):
@@ -221,7 +221,7 @@ def filter_existing_blocks(block_objects, session):
         block_objects (List[Block]):
     """
 
-    from .tables import Block
+    from sbds.storages.db.tables import Block
     results = session.query(Block.block_num) \
         .filter(Block.block_num.in_([b.block_num for b in block_objects])).all()
     if results:
@@ -268,14 +268,14 @@ def bulk_add(raw_blocks, session):
     Returns:
         results (List[bool]):
     """
-    from .tables import Block
-    from .tables import TxBase
+    from sbds.storages.db.tables import Block
+    from .tables import BaseOperation
 
     raw_blocks_chunk = list(raw_blocks)
 
     block_objs = list(map(Block.from_raw_block, raw_blocks_chunk))
     tx_objs = list(
-        chain.from_iterable(map(TxBase.from_raw_block, raw_blocks_chunk)))
+        chain.from_iterable(map(BaseOperation.from_raw_block, raw_blocks_chunk)))
 
     # remove existing to avoid IntegrityError
     block_objs = filter_existing_blocks(block_objs, session)
@@ -303,12 +303,12 @@ def bulk_add_transactions(raw_blocks, session, include_types=None, exclude_types
     Returns:
         results (List[bool]):
     """
-    from .tables import Block
-    from .tables import TxBase
+    from sbds.storages.db.tables import Block
+    from .tables import BaseOperation
 
     raw_blocks_chunk = list(raw_blocks)
     tx_objs = list(
-            chain.from_iterable(map(TxBase.from_raw_block, raw_blocks_chunk)))
+            chain.from_iterable(map(BaseOperation.from_raw_block, raw_blocks_chunk)))
     logger.info('processing %s tx_objs before filtering', len(tx_objs))
     if include_types:
         includes = set(include_types)

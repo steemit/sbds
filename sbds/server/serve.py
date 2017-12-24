@@ -1,139 +1,101 @@
 # -*- coding: utf-8 -*-
+import asyncio
+import functools
 import os
 import json
 from datetime import datetime
 
-# pylint: disable=import-error, unused-import
-import bottle
-from bottle.ext import sqlalchemy
-# pylint: enable=import-error
-from bottle import request
-from bottle import abort
-from bottle_errorsrest import ErrorsRestPlugin
+import structlog
+import uvloop
 
-import sbds.sbds_logging
-from sbds.http_client import SimpleSteemAPIClient
-
-from sbds.storages.db.tables import Base
-from sbds.storages.db.tables import Session
-from sbds.storages.db.tables.core import Block
-from sbds.storages.db.tables.tx import tx_class_map
-from sbds.storages.db.query_helpers import blockchain_stats_query
-from sbds.storages.db.utils import configure_engine
-from sbds.sbds_json import ToStringJSONEncoder
-
-from sbds.server.jsonrpc import register_endpoint
-from sbds.server.methods import count_operations
-from sbds.server.methods import get_custom_json_by_tid
-from sbds.server.methods import get_random_operation_block_nums
-from sbds.server.methods import get_random_operations
-logger = sbds.sbds_logging.getLogger(__name__)
-
-app = bottle.Bottle()
-app.config['sbds.RPC_URL'] = os.environ.get('STEEMD_HTTP_URL',
-                                            'https://steemd.steemitdev.com')
-app.config['sbds.DATABASE_URL'] = os.environ.get('DATABASE_URL', 'sqlite:///')
-app.config['sbds.MAX_BLOCK_NUM_DIFF'] = 10
-app.config['sbds.MAX_DB_ROW_RESULTS'] = 100000
-app.config['sbds.DB_QUERY_LIMIT'] = app.config['sbds.MAX_DB_ROW_RESULTS'] + 1
-app.config['sbds.tx_class_map'] = tx_class_map
-app.config['sbds.logger'] = logger
-
-rpc = SimpleSteemAPIClient(app.config['sbds.RPC_URL'])
+from aiohttp import web
+from jsonrpcserver import config
+from jsonrpcserver.async_methods import AsyncMethods
 
 
-def get_db_plugin(database_url):
-    engine_config = configure_engine(database_url)
-    Session.configure(bind=engine_config.engine)
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-    # pylint: disable=undefined-variable
-    return sqlalchemy.Plugin(
-        # SQLAlchemy engine created with create_engine function.
-        engine_config.engine,
+config.log_responses = False
+config.log_requests = False
 
-        # SQLAlchemy metadata, required only if create=True.
-        Base.metadata,
-
-        # Keyword used to inject session database in a route (default 'db').
-        keyword='db',
-
-        # If it is true, execute `metadata.create_all(engine)` when plugin is applied (default False).
-        create=True,
-
-        # If it is true, plugin commit changes after route is executed (default True).
-        commit=False,
-        # If it is true and keyword is not defined, plugin uses **kwargs argument to inject session database (default False).
-        use_kwargs=False,
-        create_session=Session)
+logger = structlog.getLogger(__name__)
 
 
-app.install(
-    bottle.JSONPlugin(
-        json_dumps=lambda s: json.dumps(s, cls=ToStringJSONEncoder)))
-app.install(ErrorsRestPlugin())
-db_plugin = get_db_plugin(app.config['sbds.DATABASE_URL'])
-app.install(db_plugin)
+def default_json(obj):
+    if isinstance(obj, datetime.datetime):
+        return str(obj)
+    raise TypeError('Unable to serialize {!r}'.format(obj))
 
 
-# Non JSON-RPC routes
-# -------------------
-@app.get('/health')
-def health(db):
+json_dumps = functools.partial(json.dumps, default=default_json)
+json_response = functools.partial(web.json_response, dumps=json_dumps)
+
+
+
+
+async def handle_api(request):
+    request = await request.json()
+    context = {'db': None}
+    response = await api_methods.dispatch(request, context=context)
+    return json_response(response)
+
+
+# pylint: disable=unused-argument
+async def start_background_tasks(app):
+    logger.info('starting tasks')
+    pass
+# pylint: enable=unused-argument
+
+
+async def api_healthcheck(request):
+    db = request.config.db
+    Block = request.config.Block
+    rpc = request.config.rpc
+    app = request.app
     last_db_block = Block.highest_block(db)
     last_irreversible_block = rpc.last_irreversible_block_num()
     diff = last_irreversible_block - last_db_block
     if diff > app.config['sbds.MAX_BLOCK_NUM_DIFF']:
-        abort(
-            500,
-            'last irreversible block (%s) - highest db block (%s) = %s, > max allowable difference (%s)'
-            % (last_irreversible_block, last_db_block, diff,
-               app.config['sbds.MAX_BLOCK_NUM_DIFF']))
-    else:
-        return dict(
-            last_db_block=last_db_block,
-            last_irreversible_block=last_irreversible_block,
-            diff=diff,
-            timestamp=datetime.utcnow().isoformat())
+        return json_response(
+                500,
+                'last irreversible block (%s) - highest db block (%s) = %s, > max allowable difference (%s)'
+                % (last_irreversible_block, last_db_block, diff,
+                   app.config['sbds.MAX_BLOCK_NUM_DIFF']))
+
+    return {
+        'status':                   'OK',
+        'source_commit':            os.environ.get('SOURCE_COMMIT'),
+        'docker_tag':               os.environ.get('DOCKER_TAG'),
+        'datetime':                 datetime.utcnow().isoformat(),
+        'last_db_block':            last_db_block,
+        'last_irreversible_block':  last_irreversible_block,
+        'diff':                     diff
+    }
 
 
-@app.get('/api/v1/blockchainStats')
-def stats(db):
-    results = blockchain_stats_query(db)
-    return results
+# pylint: disable=unused-argument
+async def healthcheck_handler(request):
+    return web.json_response(await api_healthcheck())
 
 
-# JSON-RPC route
-# --------------
-jsonrpc = register_endpoint(path='/', app=app, namespace='sbds')
-
-# All sbds methods registered here MUST have a name that begins with 'sbds.'
-jsonrpc.register_method(
-    method=count_operations, method_name='count_operations')
-jsonrpc.register_method(
-    method=get_custom_json_by_tid, method_name='get_custom_json_by_tid')
-jsonrpc.register_method(
-    method=get_random_operation_block_nums,
-    method_name='get_random_operation_block_nums')
-jsonrpc.register_method(
-    method=get_random_operations, method_name='get_random_operations')
-
-# WSGI application
-# ----------------
-application = app
+async def on_cleanup(app):
+    logger.info('executing on_cleanup signal handler')
+    pass
+# pylint: enable=unused-argument
 
 
-# dev/debug server
-# ----------------
-def _dev_server(port=8081, debug=True):
-    # pylint: disable=bare-except
-    try:
-        app.run(port=port, debug=debug)
-    except:
-        logger.exception('HTTP Server Exception')
-    finally:
-        app.close()
 
 
-# For pdb debug only
-if __name__ == '__main__':
-    _dev_server()
+
+app = web.Application()
+api_methods = AsyncMethods()
+app.router.add_post('/', handle_api)
+app.router.add_get('/.well-known/healthcheck.json',
+                                    healthcheck_handler)
+api_methods.add(api_healthcheck, 'sbds.health')
+
+
+def run(app):
+    app.on_startup.append(start_background_tasks)
+    app.on_cleanup.append(on_cleanup)
+    web.run_app(app, host='localhost',port=8080)
