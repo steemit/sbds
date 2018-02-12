@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
 from itertools import zip_longest
-from typing import Dict, Tuple, List, Union
 
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
@@ -9,11 +8,7 @@ from sqlalchemy.orm.util import object_state
 from sbds.sbds_logging import generate_fail_log_from_obj
 from sbds.sbds_logging import getLogger
 
-from sbds.utils import block_info
-
 from .tables.core import from_raw_block
-from .tables.core import extract_transactions_from_block
-from .utils import is_duplicate_entry_error
 from .utils import session_scope
 
 logger = getLogger(__name__)
@@ -38,7 +33,7 @@ def safe_merge_insert(objects, session, load=True, **kwargs):
         with session_scope(session, _raise_all=True) as s:
             for obj in objects:
                 s.merge(obj, load=load)
-    except:
+    except BaseException:
         return False
     else:
         return True
@@ -78,7 +73,7 @@ def safe_insert_many(objects, session, **kwargs):
     try:
         with session_scope(session, _raise_all=True) as s:
             s.add_all(objects)
-    except:
+    except BaseException:
         return False
     else:
         return True
@@ -101,7 +96,7 @@ def safe_bulk_save(objects, session, **kwargs):
         with session_scope(session, _raise_all=True) as s:
             s.bulk_save_objects(objects)
             s.commit()
-    except:
+    except BaseException:
         logger.debug('session.info: %s', session.info)
         return False
     else:
@@ -221,7 +216,7 @@ def filter_existing_blocks(block_objects, session):
         block_objects (List[Block]):
     """
 
-    from sbds.storages.db.tables import Block
+    from sbds.storages.db.tables.block import Block
     results = session.query(Block.block_num) \
         .filter(Block.block_num.in_([b.block_num for b in block_objects])).all()
     if results:
@@ -268,14 +263,15 @@ def bulk_add(raw_blocks, session):
     Returns:
         results (List[bool]):
     """
-    from sbds.storages.db.tables import Block
-    from .tables import BaseOperation
+    from sbds.storages.db.tables.block import Block
+    from .tables.operations.base import BaseOperation
 
     raw_blocks_chunk = list(raw_blocks)
 
     block_objs = list(map(Block.from_raw_block, raw_blocks_chunk))
     tx_objs = list(
-        chain.from_iterable(map(BaseOperation.from_raw_block, raw_blocks_chunk)))
+        chain.from_iterable(
+            map(BaseOperation.from_raw_block, raw_blocks_chunk)))
 
     # remove existing to avoid IntegrityError
     block_objs = filter_existing_blocks(block_objs, session)
@@ -291,8 +287,10 @@ def bulk_add(raw_blocks, session):
     return results
 
 
-
-def bulk_add_transactions(raw_blocks, session, include_types=None, exclude_types=None):
+def bulk_add_transactions(raw_blocks,
+                          session,
+                          include_types=None,
+                          exclude_types=None):
     """
     Add Blocks and Txs as quickly as possible.
 
@@ -303,21 +301,23 @@ def bulk_add_transactions(raw_blocks, session, include_types=None, exclude_types
     Returns:
         results (List[bool]):
     """
-    from sbds.storages.db.tables import Block
-    from .tables import BaseOperation
+    from .tables.operations.base import BaseOperation
 
     raw_blocks_chunk = list(raw_blocks)
     tx_objs = list(
-            chain.from_iterable(map(BaseOperation.from_raw_block, raw_blocks_chunk)))
+        chain.from_iterable(
+            map(BaseOperation.from_raw_block, raw_blocks_chunk)))
     logger.info('processing %s tx_objs before filtering', len(tx_objs))
     if include_types:
         includes = set(include_types)
         logger.debug('including only %s operations', includes)
-        filtered_txs = list(filter(lambda x: x.operation_type in includes , tx_objs))
+        filtered_txs = list(
+            filter(lambda x: x.operation_type in includes, tx_objs))
     elif exclude_types:
         excludes = set(exclude_types)
         logger.info('excluding %s operations', excludes)
-        filtered_txs = list(filter(lambda x: x.operation_type not in excludes, tx_objs))
+        filtered_txs = list(
+            filter(lambda x: x.operation_type not in excludes, tx_objs))
     else:
         filtered_txs = tx_objs
     logger.info('%s operations after filtering', len(filtered_txs))
@@ -327,7 +327,6 @@ def bulk_add_transactions(raw_blocks, session, include_types=None, exclude_types
     results = adaptive_insert(objs_to_add, session, bulk=True)
     success_count = list(r[1] for r in results).count(True)
     fail_count = list(r[1] for r in results).count(False)
-    logger.info(
-        'adaptive_insert results: %s txs, %s succeeded, %s failed',
-        len(objs_to_add), success_count, fail_count)
+    logger.info('adaptive_insert results: %s txs, %s succeeded, %s failed',
+                len(objs_to_add), success_count, fail_count)
     return results

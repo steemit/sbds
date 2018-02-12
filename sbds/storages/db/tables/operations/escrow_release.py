@@ -2,14 +2,15 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Integer, Numeric, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class EscrowReleaseOperation(Base, BaseOperation):
@@ -48,9 +49,10 @@ class EscrowReleaseOperation(Base, BaseOperation):
         receiver=lambda x: x.get('receiver'),
         escrow_id=lambda x: x.get('request_id'),
         sbd_amount=lambda x: amount_field(x.get('sbd_amount'), num_func=float),
-        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float)
-    )
+        steem_amount=lambda x: amount_field(x.get('steem_amount'), num_func=float))
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class AccountWitnessVoteOperation(Base, BaseOperation):
@@ -62,5 +61,8 @@ class AccountWitnessVoteOperation(Base, BaseOperation):
         account=lambda x: x.get('account'),
         approve=lambda x: x.get('approve'),
         witness=lambda x: x.get('witness'))
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

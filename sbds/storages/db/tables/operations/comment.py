@@ -2,15 +2,15 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import func
 
-import os.path
-from sqlalchemy import Column, Unicode, UnicodeText, Enum, func
-
-from ...field_handlers import comment_body_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import comment_body_field
 from .base import BaseOperation
-
 
 
 class CommentOperation(Base, BaseOperation):
@@ -80,9 +80,11 @@ class CommentOperation(Base, BaseOperation):
         body=lambda x: comment_body_field(x['body']),
         json_metadata=lambda x: x.get('json_metadata'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)
 
     @classmethod
     def find_parent_from_prepared(cls, session, prepared):

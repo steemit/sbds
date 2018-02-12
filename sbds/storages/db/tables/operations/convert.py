@@ -2,15 +2,15 @@
 
 import os.path
 
+from sqlalchemy import BigInteger
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-import os.path
-from sqlalchemy import Column, Unicode, BigInteger, Numeric, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class ConvertOperation(Base, BaseOperation):
@@ -54,5 +54,8 @@ class ConvertOperation(Base, BaseOperation):
         owner=lambda x: x.get('owner'),
         amount=lambda x: amount_field(x.get('amount'), num_func=float),
         requestid=lambda x: x.get('requestid'))
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

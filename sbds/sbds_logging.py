@@ -3,7 +3,27 @@ import logging
 import os
 import time
 
+import structlog
+
 from pythonjsonlogger import jsonlogger
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
 
 
 def make_log_format(x):
@@ -45,7 +65,7 @@ def log_level_from_str(log_level_str):
     # pylint: disable=bare-except, lost-exception
     try:
         level = getattr(logging, log_level_str.upper())
-    except:
+    except BaseException:
         pass
     finally:
         return level
@@ -58,7 +78,7 @@ SBDS_LOG_DATETIME_FORMAT = r'%Y-%m-%dT%H:%M:%S.%s%Z'
 SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'levelname',
     'asctime',
-    #'created',
+    # 'created',
     'filename',
     # 'levelno',
     'module',
@@ -71,7 +91,7 @@ SBDS_SUPPORTED_LOG_MESSAGE_KEYS = (
     'process',
     'processName',
     # 'relativeCreated',
-    #'thread',
+    # 'thread',
     'threadName')
 SBDS_LOG_HANDLER = configure_log_handler(SBDS_SUPPORTED_LOG_MESSAGE_KEYS,
                                          SBDS_LOG_DATETIME_FORMAT)

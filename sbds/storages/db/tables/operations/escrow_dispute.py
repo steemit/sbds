@@ -2,14 +2,14 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Integer, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class EscrowDisputeOperation(Base, BaseOperation):
@@ -40,8 +40,10 @@ class EscrowDisputeOperation(Base, BaseOperation):
         to=lambda x: x.get('to'),
         agent=lambda x: x.get('agent'),
         escrow_id=lambda x: x.get('request_id'),
-        who=lambda x: x.get('who')
-    )
+        who=lambda x: x.get('who'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

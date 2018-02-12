@@ -2,15 +2,16 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import SmallInteger
+from sqlalchemy import Unicode
 
-import os.path
-from sqlalchemy import Column, Unicode, Numeric, SmallInteger, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class CommentOptionOperation(Base, BaseOperation):
@@ -77,5 +78,8 @@ class CommentOptionOperation(Base, BaseOperation):
         allow_votes=lambda x: x.get('allow_votes'),
         allow_curation_rewards=lambda x: x.get('allow_curation_rewards'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

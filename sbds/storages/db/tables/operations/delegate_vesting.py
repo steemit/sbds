@@ -2,15 +2,14 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-import os.path
-from sqlalchemy import Column, Unicode, Numeric, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class DelegateVestingSharesOperation(Base, BaseOperation):
@@ -46,8 +45,10 @@ class DelegateVestingSharesOperation(Base, BaseOperation):
     _fields = dict(
         delegator=lambda x: x.get('delegator'),
         delegatee=lambda x: x.get('delegatee'),
-        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float)
-    )
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

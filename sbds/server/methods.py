@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from sbds.http_client import SimpleSteemAPIClient
-from sbds.storages.db.tables.core import extract_operations_from_blocks
-
 
 # pylint: disable=unused-argument
 def count_operations(operation, to=None, _from=None, context=None):

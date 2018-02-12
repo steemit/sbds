@@ -1,26 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
-import re
-
 from urllib.parse import urlparse
 
 import w3lib.url
-import langdetect
-from langdetect import DetectorFactory
 
 import sbds.sbds_logging
 
 logger = sbds.sbds_logging.getLogger(__name__)
-
-# https://github.com/matiasb/python-unidiff/blob/master/unidiff/constants.py#L37
-# @@ (source offset, length) (target offset, length) @@ (section header)
-RE_HUNK_HEADER = re.compile(
-    r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@[ ]?(.*)$",
-    flags=re.MULTILINE)
-
-# ensure deterministec language detection
-DetectorFactory.seed = 0
-MIN_TEXT_LENGTH_FOR_DETECTION = 20
 
 
 def block_num_from_hash(block_hash: str) -> int:
@@ -66,7 +52,7 @@ def chunkify(iterable, chunksize=10000):
             yield chunk
             i = 0
             chunk = []
-    if len(chunk) > 0:
+    if chunk:
         yield chunk
 
 
@@ -89,10 +75,10 @@ def ensure_decoded(thing):
                 logger.debug(
                     'ensure_decoded thing is single encoded str == ""')
                 return None
-            else:
-                double_encoded_dict = json.loads(single_encoded_dict)
-                logger.debug('ensure_decoded thing is double encoded')
-                return double_encoded_dict
+
+            double_encoded_dict = json.loads(single_encoded_dict)
+            logger.debug('ensure_decoded thing is double encoded')
+            return double_encoded_dict
     except Exception as e:
         extra = dict(
             thing=thing,
@@ -171,18 +157,3 @@ def canonicalize_url(url, **kwargs):
         logger.warning('url parse error', extra=dict(url=url, error=e))
         return None
     return canonical_url
-
-
-def findall_patch_hunks(body=None):
-    return RE_HUNK_HEADER.findall(body)
-
-
-def detect_language(text):
-    if not text or len(text) < MIN_TEXT_LENGTH_FOR_DETECTION:
-        logger.debug('not enough text to perform langdetect')
-        return None
-    try:
-        return langdetect.detect(text)
-    except langdetect.lang_detect_exception.LangDetectException as e:
-        logger.warning(e)
-        return None

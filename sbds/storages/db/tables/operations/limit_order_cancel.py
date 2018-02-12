@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import BigInteger
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, BigInteger, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class LimitOrderCancelOperation(Base, BaseOperation):
@@ -28,8 +27,10 @@ class LimitOrderCancelOperation(Base, BaseOperation):
     orderid = Column(BigInteger, nullable=False)
 
     _fields = dict(
-        owner=lambda x: x.get('owner'), orderid=lambda x: x.get('orderid')
-    )
+        owner=lambda x: x.get('owner'), orderid=lambda x: x.get('orderid'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

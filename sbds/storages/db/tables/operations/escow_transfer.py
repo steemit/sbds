@@ -2,15 +2,18 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 
-from sqlalchemy import Column, Unicode, Integer, Numeric, UnicodeText, DateTime, \
-    String
-
-from ...field_handlers import amount_field, amount_symbol_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
 from .base import BaseOperation
-
 
 
 class EscrowTransferOperation(Base, BaseOperation):
@@ -60,4 +63,8 @@ class EscrowTransferOperation(Base, BaseOperation):
         escrow_expiration=lambda x: x.get('escrow_expiration'),
         ratification_deadline=lambda x: x.get('ratification_deadline'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default='escrow_transfer')
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default='escrow_transfer')

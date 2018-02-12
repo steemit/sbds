@@ -2,15 +2,13 @@
 
 import os.path
 
-
-from sqlalchemy import Column, Unicode, Enum
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 from toolz import get_in
 
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class Pow2Operation(Base, BaseOperation):
@@ -137,8 +135,10 @@ class Pow2Operation(Base, BaseOperation):
 
     _fields = dict(
         worker_account=lambda x: get_in(['work', 1, 'input', 'worker_account'], x),
-        block_id=lambda x: get_in(['work', 1, 'input', 'prev_block'], x)
-    )
+        block_id=lambda x: get_in(['work', 1, 'input', 'prev_block'], x))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

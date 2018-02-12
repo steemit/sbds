@@ -1,7 +1,12 @@
 # coding=utf-8
 from functools import partial
 
-from sqlalchemy import Column, UnicodeText, Integer, Unicode, DateTime, func
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import func
 from toolz import dissoc
 
 import sbds.sbds_json
@@ -165,8 +170,8 @@ class Block(Base, UniqueMixin):
         data = self.dump()
         if not include_raw:
             return dissoc(data, 'raw')
-        else:
-            return data
+
+        return data
 
     def to_json(self):
         return sbds.sbds_json.dumps(self.to_dict())
@@ -250,8 +255,8 @@ class Block(Base, UniqueMixin):
         highest = session.query(func.max(cls.block_num)).scalar()
         if not highest:
             return 0
-        else:
-            return highest
+
+        return highest
 
     @classmethod
     def count(cls, session, start=None, end=None):
@@ -303,17 +308,17 @@ class Block(Base, UniqueMixin):
                     end = last_chain_block
                 chunks.append(partial(range, start, end))
             return chunks
-        else:
-            num_chunks = (last_chain_block // chunksize) + 1
-            chunks = []
-            for i in range(1, num_chunks + 1):
-                start = (i - 1) * chunksize
-                end = i * chunksize
-                if end >= last_chain_block:
-                    end = last_chain_block
-                chunks.append(
-                    partial(cls.find_missing_range, session, start, end))
-            return chunks
+
+        num_chunks = (last_chain_block // chunksize) + 1
+        chunks = []
+        for i in range(1, num_chunks + 1):
+            start = (i - 1) * chunksize
+            end = i * chunksize
+            if end >= last_chain_block:
+                end = last_chain_block
+            chunks.append(
+                partial(cls.find_missing_range, session, start, end))
+        return chunks
 
     @classmethod
     def find_missing(cls, session, last_chain_block, chunksize=1000000):

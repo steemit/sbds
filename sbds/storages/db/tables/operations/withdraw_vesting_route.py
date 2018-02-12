@@ -2,14 +2,14 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import SmallInteger
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, SmallInteger, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class WithdrawVestingRouteOperation(Base, BaseOperation):
@@ -65,8 +65,10 @@ class WithdrawVestingRouteOperation(Base, BaseOperation):
         from_account=lambda x: x.get('from_account'),
         to_account=lambda x: x.get('to_account'),
         percent=lambda x: x.get('percent'),
-        auto_vest=lambda x: x.get('auto_vest')
-    )
+        auto_vest=lambda x: x.get('auto_vest'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

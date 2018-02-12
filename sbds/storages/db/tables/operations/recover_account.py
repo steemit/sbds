@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class RecoverAccountOperation(Base, BaseOperation):
@@ -71,9 +70,10 @@ class RecoverAccountOperation(Base, BaseOperation):
     _fields = dict(
         recovery_account=lambda x: x.get('recovery_account'),
         account_to_recover=lambda x: x.get('account_to_recover'),
-        recovered=lambda x: True
-    )
+        recovered=lambda x: True)
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from .base import BaseOperation
-from .base import tx_class_map
 from .account_create import AccountCreateOperation
-from .account_create_with_delegation import AccountCreateWithDelegationOperation
+from .account_create_with_delegation import \
+    AccountCreateWithDelegationOperation
 from .account_update import AccountUpdateOperation
 from .account_witness_proxy import AccountWitnessProxyOperation
 from .account_witness_vote import AccountWitnessVoteOperation
@@ -37,4 +36,3 @@ from .vote import VoteOperation
 from .withdraw_vesting import WithdrawVestingOperation
 from .withdraw_vesting_route import WithdrawVestingRouteOperation
 from .witness_update import WitnessUpdateOperation
-

@@ -2,18 +2,15 @@
 
 import os.path
 
-
-from sqlalchemy import Column, Numeric, Unicode, UnicodeText, Enum
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 from toolz import get_in
 
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
-from .base import BaseOperation
-
-from ...field_handlers import amount_field
 from ...enums import operation_types_enum
-from .. import Base
+from ...field_handlers import amount_field
 from .base import BaseOperation
 
 
@@ -114,7 +111,8 @@ class AccountCreateOperation(Base, BaseOperation):
         active_key=lambda x: get_in(['active', 'key_auths', 0, 0], x),
         posting_key=lambda x: get_in(['posting', 'key_auths', 0, 0], x))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
-
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

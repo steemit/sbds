@@ -8,14 +8,12 @@ import maya
 
 import sbds.sbds_json
 import sbds.sbds_logging
-from sbds.storages.db.tables import Block
+from sbds.storages.db.tables.block import Block
 from sbds.utils import block_num_from_previous
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
-
 # pylint: disable=line-too-long
-
 def from_raw_block(raw_block, session=None):
     """
     Extract and instantiate Block and Ops from raw block.
@@ -27,7 +25,7 @@ def from_raw_block(raw_block, session=None):
     Returns:
         Tuple[Block, List[BaseOperation,None])
     """
-    # pylint: disable=redefined-variable-type
+
     from .operations.base import BaseOperation
     if session:
         block = Block.get_or_create_from_raw_block(raw_block, session=session)

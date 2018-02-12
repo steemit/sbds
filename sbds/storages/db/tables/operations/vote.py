@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Integer, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class VoteOperation(Base, BaseOperation):
@@ -65,9 +64,10 @@ class VoteOperation(Base, BaseOperation):
         voter=lambda x: x.get('voter'),
         author=lambda x: x.get('author'),
         permlink=lambda x: x.get('permlink'),
-        weight=lambda x: x.get('weight')
-    )
+        weight=lambda x: x.get('weight'))
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

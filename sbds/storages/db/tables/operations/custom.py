@@ -2,16 +2,15 @@
 
 import os.path
 
-
-import os.path
-from sqlalchemy import Column, Unicode, UnicodeText, Enum
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 
 import sbds.sbds_json
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
-from .. import Base
-from .base import BaseOperation
 
+from .. import Base
+from ...enums import operation_types_enum
+from .base import BaseOperation
 
 
 class CustomOperation(Base, BaseOperation):
@@ -52,10 +51,11 @@ class CustomOperation(Base, BaseOperation):
         data=lambda x: x.get('data'),
         required_auths=lambda x: x.get('required_auths'), )
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)
 
     def to_dict(self, decode_json=True):
         data_dict = self.dump()

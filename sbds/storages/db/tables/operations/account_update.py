@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 
-from sqlalchemy import Column, Unicode, UnicodeText, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class AccountUpdateOperation(Base, BaseOperation):
@@ -54,7 +53,10 @@ class AccountUpdateOperation(Base, BaseOperation):
         key_auth1=lambda x: None,  # TODO fix null
         key_auth2=lambda x: None,  # TODO fix null
         memo_key=lambda x: x.get('memo_key'),
-        json_metadata=lambda x: x.get('json_metadata') )
+        json_metadata=lambda x: x.get('json_metadata'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

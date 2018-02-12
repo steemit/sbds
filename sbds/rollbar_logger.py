@@ -115,7 +115,7 @@ class RollbarHandler(logging.Handler):
         # pylint: disable=bare-except
         try:
             request = getattr(record, "request", None) or rollbar.get_request()
-        except:
+        except BaseException:
             request = None
 
         uuid = None
@@ -145,7 +145,7 @@ class RollbarHandler(logging.Handler):
                 uuid = rollbar.report_exc_info(exc_info, **report_dict)
             else:
                 uuid = rollbar.report_message(message, **report_dict)
-        except:
+        except BaseException:
             self.handleError(record)
         else:
             if uuid:

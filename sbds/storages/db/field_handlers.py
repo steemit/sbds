@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from sbds import sbds_json
 import sbds.sbds_logging
+from sbds import sbds_json
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
@@ -31,8 +31,7 @@ def amount_symbol_field(value, no_value=''):
 def comment_body_field(value):
     if isinstance(value, bytes):
         return value.decode('utf8')
-    else:
-        return value
+    return value
 
 
 def json_string_field(value):

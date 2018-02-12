@@ -1,9 +1,9 @@
 # coding=utf-8
-import json
-import os
-import logging
-import socket
 import concurrent.futures
+import json
+import logging
+import os
+import socket
 import time
 from functools import partial
 from functools import partialmethod
@@ -99,8 +99,8 @@ class SimpleSteemAPIClient(object):
         body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": 0}
         if as_json:
             return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
-        else:
-            return body_dict
+
+        return body_dict
 
     def exec(self, name, *args, re_raise=None, return_with_args=None):
         body = SimpleSteemAPIClient.json_rpc_body(name, *args)
@@ -150,8 +150,7 @@ class SimpleSteemAPIClient(object):
                 result = response_json.get('result', None)
         if return_with_args:
             return result, args
-        else:
-            return result
+        return result
 
     def exec_multi(self, name, params):
         body_gen = ({
@@ -172,7 +171,7 @@ class SimpleSteemAPIClient(object):
                 max_workers=max_workers) as executor:
             futures = (executor.submit(
                 self.exec, name, param, return_with_args=True)
-                       for param in params)
+                for param in params)
             for future in concurrent.futures.as_completed(futures):
                 result, args = future.result()
                 if result:
@@ -215,7 +214,7 @@ class SimpleSteemAPIClient(object):
             try:
                 block = self.get_block(block_num)
                 yield block
-            except:
+            except BaseException:
                 pass
             else:
                 block_num += 1

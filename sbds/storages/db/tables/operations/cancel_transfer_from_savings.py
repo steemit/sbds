@@ -2,14 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Integer, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class CancelTransferFromSavingsOperation(Base, BaseOperation):
@@ -52,6 +51,8 @@ class CancelTransferFromSavingsOperation(Base, BaseOperation):
         _from=lambda x: x.get('from'),
         request_id=lambda x: x.get('request_id'))
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

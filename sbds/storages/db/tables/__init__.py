@@ -9,43 +9,6 @@ Session = sessionmaker()
 
 # pylint: disable=wrong-import-position
 from ..utils import isolated_nullpool_engine
-from sbds.storages.db.tables.block import Block
-
-from .operations import BaseOperation
-from .operations import AccountCreateOperation
-from .operations import AccountCreateWithDelegationOperation
-from .operations import AccountUpdateOperation
-from .operations import AccountWitnessProxyOperation
-from .operations import AccountWitnessVoteOperation
-from .operations import CancelTransferFromSavingsOperation
-from .operations import ChangeRecoveryAccountOperation
-from .operations import ClaimRewardBalanceOperation
-from .operations import CommentOperation
-from .operations import CommentOptionOperation
-from .operations import ConvertOperation
-from .operations import CustomOperation
-from .operations import CustomJSONOperation
-from .operations import DelegateVestingSharesOperation
-from .operations import DeleteCommentOperation
-from .operations import EscrowApproveOperation
-from .operations import EscrowDisputeOperation
-from .operations import EscrowReleaseOperation
-from .operations import EscrowTransferOperation
-from .operations import FeedPublishOperation
-from .operations import LimitOrderCancelOperation
-from .operations import LimitOrderCreateOperation
-from .operations import PowOperation
-from .operations import Pow2Operation
-from .operations import RecoverAccountOperation
-from .operations import RequestAccountRecoveryOperation
-from .operations import WithdrawVestingRouteOperation
-from .operations import TransferOperation
-from .operations import TransferFromSavingsOperation
-from .operations import TransferToSavingsOperation
-from .operations import TransferToVestingOperation
-from .operations import VoteOperation
-from .operations import WithdrawVestingOperation
-from .operations import WitnessUpdateOperation
 
 
 def init_tables(database_url, _metadata, checkfirst=True):

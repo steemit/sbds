@@ -2,15 +2,13 @@
 
 import os.path
 
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 
-import os.path
-from sqlalchemy import Column, Unicode, Boolean, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class DeclineVotingRightsOperation(Base, BaseOperation):
@@ -22,8 +20,10 @@ class DeclineVotingRightsOperation(Base, BaseOperation):
     decline = Column(Boolean, default=True)
 
     _fields = dict(
-        account=lambda x: x.get('account'),
-        decline=lambda x: x.get('decline'))
+        account=lambda x: x.get('account'), decline=lambda x: x.get('decline'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

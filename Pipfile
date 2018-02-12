@@ -24,6 +24,7 @@ autoflake = "*"
 pylint = "*"
 vulture = "*"
 mypy = "*"
+python-rapidjson = "*"
 
 
 [packages]
@@ -53,6 +54,7 @@ ujson = "*"
 uvloop = "*"
 "w3lib" = "*"
 jsonrpcclient = "*"
+python-rapidjson = "*"
 
 
 [requires]

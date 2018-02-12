@@ -2,14 +2,16 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Numeric, Integer, Enum
-
-from ...field_handlers import amount_field, amount_symbol_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
 from .base import BaseOperation
-
 
 
 class TransferFromSavingsOperation(Base, BaseOperation):
@@ -63,8 +65,10 @@ class TransferFromSavingsOperation(Base, BaseOperation):
         amount=lambda x: amount_field(x.get('amount'), num_func=float),
         amount_symbol=lambda x: amount_symbol_field(x['amount']),
         memo=lambda x: x.get('memo'),
-        request_id=lambda x: x.get('request_id')
-    )
+        request_id=lambda x: x.get('request_id'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

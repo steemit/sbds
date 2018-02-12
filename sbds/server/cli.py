@@ -10,7 +10,6 @@ logger = sbds.sbds_logging.getLogger(__name__)
 @click.group()
 def server():
     """HTTP server for answering DB queries"""
-    pass
 
 
 # Development server

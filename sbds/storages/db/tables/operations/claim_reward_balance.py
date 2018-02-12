@@ -2,15 +2,14 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-import os.path
-from sqlalchemy import Column, Unicode, Numeric, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class ClaimRewardBalanceOperation(Base, BaseOperation):
@@ -57,8 +56,10 @@ class ClaimRewardBalanceOperation(Base, BaseOperation):
         account=lambda x: x.get('account'),
         reward_steem=lambda x: amount_field(x.get('reward_steem'), num_func=float),
         reward_sbd=lambda x: amount_field(x.get('reward_sbd'), num_func=float),
-        reward_vests=lambda x: amount_field(x.get('reward_vests'), num_func=float)
-    )
+        reward_vests=lambda x: amount_field(x.get('reward_vests'), num_func=float))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

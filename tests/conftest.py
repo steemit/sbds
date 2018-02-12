@@ -1,45 +1,12 @@
 # -*- coding: utf-8 -*-
-import pytest
 import tempfile
-import requests
 
+import pytest
+import requests
 from requests.exceptions import ConnectionError
 
-
-import sbds
-import sbds.http_client
-
-import sbds.sbds_logging
-import sbds.sbds_json
-import sbds.utils
-
-import sbds.chain
-
-import sbds.checkpoints
-
-import sbds.server
-import sbds.server.utils
-import sbds.server.input_parsers
-
-import sbds.storages
-import sbds.storages.db
-import sbds.storages.db.cli
-import sbds.storages.db.enums
-import sbds.storages.db.field_handlers
-import sbds.storages.db.query_helpers
-import sbds.storages.db.utils
-import sbds.storages.db.tables
-import sbds.storages.db.tables.core
-import sbds.storages.db.tables.tx
-
-import sbds.storages.s3
-import sbds.storages.s3.cli
-
 from sbds.http_client import SimpleSteemAPIClient
-
-from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
-from sbds.storages.db.tables import init_tables
 from sbds.storages.db.utils import configure_engine
 
 
@@ -108,12 +75,11 @@ def is_responsive(url):
     except ConnectionError:
         return False
 
+
 @pytest.fixture(scope='session')
 def sbds_http_server(docker_ip, docker_services):
     """Ensure that "some service" is up and responsive."""
     url = 'http://localhost:9191'
     docker_services.wait_until_responsive(
-       timeout=60.0, pause=0.1,
-       check=lambda: is_responsive(url)
-    )
+        timeout=60.0, pause=0.1, check=lambda: is_responsive(url))
     return url

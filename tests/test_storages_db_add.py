@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from sqlalchemy.orm.util import object_state
+
 from sbds.storages.db import add_blocks
 from sbds.storages.db.tables import Block
-from sqlalchemy.orm.util import object_state
 
 
 # pylint: disable=no-member

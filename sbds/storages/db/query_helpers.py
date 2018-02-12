@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-from itertools import tee
 from itertools import chain
 from itertools import starmap
+from itertools import tee
 
 import maya
 '''
 24h 7d 30d with two trailing periods
 '''
-STANDARD_WINDOWS_ARGS = ((24, 'hours', 3), (7, 'days', 3), (30, 'days', 3), )
+STANDARD_WINDOWS_ARGS = (
+    (24, 'hours', 3),
+    (7, 'days', 3),
+    (30, 'days', 3), )
 STANDARD_WINDOW_LABELS = ('past_24_hours', 'past_24_to_48_hours',
                           'past_48_to_72_hours', 'past_7_days',
                           'past_7_to_14_days', 'past_14_to_21_days',
@@ -53,14 +56,14 @@ def standard_trailing_windows():
     return chain.from_iterable(
         starmap(trailing_windows, STANDARD_WINDOWS_ARGS))
 
-
+# pylint: disable=too-many-locals
 def blockchain_stats_query(session):
     import operator as op
-    from .tables import AccountCreateOperation
-    from .tables import AccountCreateWithDelegationOperation
-    from .tables import CommentOperation
-    from .tables import VoteOperation
-    from .tables import TransferOperation
+    from .tables.operations import AccountCreateOperation
+    from .tables.operations import AccountCreateWithDelegationOperation
+    from .tables.operations import CommentOperation
+    from .tables.operations import VoteOperation
+    from .tables.operations import TransferOperation
 
     account_creates = AccountCreateOperation.standard_windowed_count(session)
     account_creates_with_delegation = AccountCreateWithDelegationOperation.standard_windowed_count(

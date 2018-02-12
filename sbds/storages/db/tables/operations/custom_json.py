@@ -2,16 +2,16 @@
 
 import os.path
 
-
-import os.path
-from sqlalchemy import Column, Unicode, UnicodeText, Enum
+from sqlalchemy import Column
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 
 import sbds.sbds_json
-from ...field_handlers import json_string_field
-from ...enums import operation_types_enum
-from .. import Base
-from .base import BaseOperation
 
+from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
+from .base import BaseOperation
 
 
 class CustomJSONOperation(Base, BaseOperation):
@@ -55,10 +55,11 @@ class CustomJSONOperation(Base, BaseOperation):
         required_auths=lambda x: json_string_field(x.get('required_auths')),
         required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')), )
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)
 
     def to_dict(self, decode_json=True):
         data_dict = self.dump()

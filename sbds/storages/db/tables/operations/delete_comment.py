@@ -2,14 +2,12 @@
 
 import os.path
 
+from sqlalchemy import Column
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
 from .base import BaseOperation
-
 
 
 class DeleteCommentOperation(Base, BaseOperation):
@@ -57,9 +55,10 @@ class DeleteCommentOperation(Base, BaseOperation):
     permlink = Column(Unicode(256), nullable=False)
 
     _fields = dict(
-        author=lambda x: x.get('author'),
-        permlink=lambda x: x.get('permlink')
-    )
+        author=lambda x: x.get('author'), permlink=lambda x: x.get('permlink'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

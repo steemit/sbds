@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
-import json
 from functools import partial
 
+try:
+    import rapidjson as json
+except ImportError:
+    import json
 
 class ToStringJSONEncoder(json.JSONEncoder):
     """This encoder handles date, time, datetime, timedelta, and anything else
     with a __str__ method"""
 
     # pylint: disable=method-hidden
-    def default(self, obj):
+    def default(self, o):
         # pylint: disable=bare-except
         try:
-            return str(obj)
-        except:
-            return super(ToStringJSONEncoder, self).default(obj)
+            return str(o)
+        except BaseException:
+            return super(ToStringJSONEncoder, self).default(o)
 
     # pylint: enable=method-hidden
 

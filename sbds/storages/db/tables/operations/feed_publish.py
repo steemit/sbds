@@ -2,15 +2,15 @@
 
 import os.path
 
-
-from sqlalchemy import Column, Unicode, Numeric, Enum
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 from toolz import get_in
 
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class FeedPublishOperation(Base, BaseOperation):
@@ -63,13 +63,15 @@ class FeedPublishOperation(Base, BaseOperation):
     exchange_rate_quote = Column(Numeric(15, 6), nullable=False)
 
     _fields = dict(
-     publisher=lambda x: x.get('publisher'),
+        publisher=lambda x: x.get('publisher'),
         exchange_rate_base=lambda x: amount_field(
             get_in(['exchange_rate', 'base'], x), num_func=float),
         exchange_rate_quote=lambda x: amount_field(
             get_in(['exchange_rate', 'quote'], x), num_func=float)
     )
 
-
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

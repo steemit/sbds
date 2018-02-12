@@ -2,17 +2,17 @@
 
 import os.path
 
-
-from sqlalchemy import Column, Numeric, Unicode, UnicodeText, Enum
+from sqlalchemy import Column
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
 from toolz import get_in
 
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
 
-from .. import Base
-from ...field_handlers import amount_field
 
 class AccountCreateWithDelegationOperation(Base, BaseOperation):
     """
@@ -47,5 +47,8 @@ class AccountCreateWithDelegationOperation(Base, BaseOperation):
         posting_key=lambda x: get_in(['posting', 'key_auths', 0, 0], x),
         memo_key=lambda x: x.get('memo_key'),
         json_metadata=lambda x: x.get('json_metadata'))
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

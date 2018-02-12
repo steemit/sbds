@@ -2,15 +2,17 @@
 
 import os.path
 
+from sqlalchemy import BigInteger
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Numeric
+from sqlalchemy import Unicode
 
-from sqlalchemy import Column, Unicode, BigInteger, Boolean, Numeric, DateTime, \
-    Enum
-
-from ...field_handlers import amount_field
-from ...enums import operation_types_enum
 from .. import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
 from .base import BaseOperation
-
 
 
 class LimitOrderCreateOperation(Base, BaseOperation):
@@ -60,7 +62,7 @@ class LimitOrderCreateOperation(Base, BaseOperation):
     expiration = Column(DateTime)
 
     _fields = dict(
-     owner=lambda x: x.get('owner'),
+        owner=lambda x: x.get('owner'),
         orderid=lambda x: x.get('orderid'),
         cancel=lambda x: x.get('cancel'),
         amount_to_sell=lambda x: amount_field(x.get('amount_to_sell'), num_func=float),
@@ -68,8 +70,10 @@ class LimitOrderCreateOperation(Base, BaseOperation):
         min_to_receive=lambda x: amount_field(x.get('min_to_receive'), num_func=float),
         # receive_symbol=lambda x: x['min_to_receive'].split()[1],
         fill_or_kill=lambda x: x.get('fill_or_kill'),
-        expiration=lambda x: x.get('expiration')
-    )
+        expiration=lambda x: x.get('expiration'))
 
-    operation_type = Column(operation_types_enum, nullable=False, index=True, default=__operation_type__)
-
+    operation_type = Column(
+        operation_types_enum,
+        nullable=False,
+        index=True,
+        default=__operation_type__)

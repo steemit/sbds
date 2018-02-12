@@ -12,8 +12,13 @@ from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 import sbds.sbds_logging
+
+from ...query_helpers import standard_trailing_windows
+from ...utils import UniqueMixin
+from ..core import extract_operations_from_block
 from .account_create import AccountCreateOperation
-from .account_create_with_delegation import AccountCreateWithDelegationOperation
+from .account_create_with_delegation import \
+    AccountCreateWithDelegationOperation
 from .account_update import AccountUpdateOperation
 from .account_witness_proxy import AccountWitnessProxyOperation
 from .account_witness_vote import AccountWitnessVoteOperation
@@ -47,10 +52,6 @@ from .vote import VoteOperation
 from .withdraw_vesting import WithdrawVestingOperation
 from .withdraw_vesting_route import WithdrawVestingRouteOperation
 from .witness_update import WitnessUpdateOperation
-
-from ..core import extract_operations_from_block
-from ...query_helpers import standard_trailing_windows
-from ...utils import UniqueMixin
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
@@ -101,8 +102,7 @@ class BaseOperation(UniqueMixin):
 
             if 'class_tuple' in kwargs:
                 return tx_cls, prepared
-            else:
-                return prepared
+            return prepared
         except Exception as e:
             extra = dict(
                 block_num=data_dict.get('block_num'),
@@ -253,44 +253,43 @@ class BaseOperation(UniqueMixin):
 
 # pylint: disable=line-too-long, bad-continuation, too-many-lines, no-self-argument
 
-
 # These are defined in the steem source code here:
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/operations.hpp
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_operations.hpp
 tx_class_map = {
-    'account_create':                 AccountCreateOperation,
+    'account_create': AccountCreateOperation,
     'account_create_with_delegation': AccountCreateWithDelegationOperation,
-    'account_update':                 AccountUpdateOperation,
-    'account_witness_proxy':          AccountWitnessProxyOperation,
-    'account_witness_vote':           AccountWitnessVoteOperation,
-    'cancel_transfer_from_savings':   CancelTransferFromSavingsOperation,
-    'change_recovery_account':        ChangeRecoveryAccountOperation,
-    'claim_reward_balance':           ClaimRewardBalanceOperation,
-    'comment':                        CommentOperation,
-    'comment_options':                CommentOptionOperation,
-    'convert':                        ConvertOperation,
-    'custom':                         CustomOperation,
-    'custom_json':                    CustomJSONOperation,
-    'decline_voting_rights':          DeclineVotingRightsOperation,
-    'delegate_vesting_shares':        DelegateVestingSharesOperation,
-    'delete_comment':             DeleteCommentOperation,
-    'escrow_approve':             EscrowApproveOperation,
-    'escrow_dispute':             EscrowDisputeOperation,
-    'escrow_release':             EscrowReleaseOperation,
-    'escrow_transfer':            EscrowTransferOperation,
-    'feed_publish':               FeedPublishOperation,
-    'limit_order_cancel':         LimitOrderCancelOperation,
-    'limit_order_create':         LimitOrderCreateOperation,
-    'pow':                        PowOperation,
-    'pow2':                       Pow2Operation,
-    'recover_account':            RecoverAccountOperation,
-    'request_account_recovery':       RequestAccountRecoveryOperation,
-    'set_withdraw_vesting_route':     WithdrawVestingRouteOperation,
-    'transfer':                       TransferOperation,
-    'transfer_from_savings':          TransferFromSavingsOperation,
-    'transfer_to_savings':            TransferToSavingsOperation,
-    'transfer_to_vesting':            TransferToVestingOperation,
-    'vote':                           VoteOperation,
-    'withdraw_vesting':               WithdrawVestingOperation,
-    'witness_update':                 WitnessUpdateOperation
+    'account_update': AccountUpdateOperation,
+    'account_witness_proxy': AccountWitnessProxyOperation,
+    'account_witness_vote': AccountWitnessVoteOperation,
+    'cancel_transfer_from_savings': CancelTransferFromSavingsOperation,
+    'change_recovery_account': ChangeRecoveryAccountOperation,
+    'claim_reward_balance': ClaimRewardBalanceOperation,
+    'comment': CommentOperation,
+    'comment_options': CommentOptionOperation,
+    'convert': ConvertOperation,
+    'custom': CustomOperation,
+    'custom_json': CustomJSONOperation,
+    'decline_voting_rights': DeclineVotingRightsOperation,
+    'delegate_vesting_shares': DelegateVestingSharesOperation,
+    'delete_comment': DeleteCommentOperation,
+    'escrow_approve': EscrowApproveOperation,
+    'escrow_dispute': EscrowDisputeOperation,
+    'escrow_release': EscrowReleaseOperation,
+    'escrow_transfer': EscrowTransferOperation,
+    'feed_publish': FeedPublishOperation,
+    'limit_order_cancel': LimitOrderCancelOperation,
+    'limit_order_create': LimitOrderCreateOperation,
+    'pow': PowOperation,
+    'pow2': Pow2Operation,
+    'recover_account': RecoverAccountOperation,
+    'request_account_recovery': RequestAccountRecoveryOperation,
+    'set_withdraw_vesting_route': WithdrawVestingRouteOperation,
+    'transfer': TransferOperation,
+    'transfer_from_savings': TransferFromSavingsOperation,
+    'transfer_to_savings': TransferToSavingsOperation,
+    'transfer_to_vesting': TransferToVestingOperation,
+    'vote': VoteOperation,
+    'withdraw_vesting': WithdrawVestingOperation,
+    'witness_update': WitnessUpdateOperation
 }

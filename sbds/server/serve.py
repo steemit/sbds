@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import functools
-import os
-import json
 import datetime
+import functools
+import json
+import os
 
-import aiomysql
-import aiomysql.sa
 import structlog
 import uvloop
-
 from aiohttp import web
-
 from jsonrpcserver import config
 from jsonrpcserver.async_methods import AsyncMethods
 
@@ -22,6 +18,7 @@ config.log_requests = False
 
 logger = structlog.getLogger(__name__)
 
+# pylint: disable=redefined-outer-name
 
 def default_json(obj):
     if isinstance(obj, datetime.datetime):
@@ -43,7 +40,6 @@ async def handle_api(request):
 # pylint: disable=unused-argument
 async def start_background_tasks(app):
     logger.info('starting tasks')
-    pass
 
 
 # pylint: enable=unused-argument
@@ -51,10 +47,10 @@ async def start_background_tasks(app):
 
 async def api_healthcheck(request):
     db = request.config.db
-    Block = request.config.Block
+    block_cls = request.config.Block
     rpc = request.config.rpc
     app = request.app
-    last_db_block = Block.highest_block(db)
+    last_db_block = block_cls.highest_block(db)
     last_irreversible_block = rpc.last_irreversible_block_num()
     diff = last_irreversible_block - last_db_block
     if diff > app.config['sbds.MAX_BLOCK_NUM_DIFF']:
@@ -82,7 +78,6 @@ async def healthcheck_handler(request):
 
 async def on_cleanup(app):
     logger.info('executing on_cleanup signal handler')
-    pass
 
 
 # pylint: enable=unused-argument
@@ -92,7 +87,6 @@ api_methods = AsyncMethods()
 app.router.add_post('/', handle_api)
 app.router.add_get('/.well-known/healthcheck.json', healthcheck_handler)
 app.router.add_get('/health', healthcheck_handler)
-
 api_methods.add(api_healthcheck, 'sbds.health')
 
 
