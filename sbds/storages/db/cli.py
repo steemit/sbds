@@ -171,30 +171,6 @@ def reset_db_tables(ctx):
     reset_tables(database_url, metadata)
 
 
-@db.command(name='list-processes')
-@click.pass_context
-def list_processes(ctx):
-    """Create any missing tables on the database"""
-    database_url = ctx.obj['database_url']
-
-    processes = get_db_processes(database_url)
-    for proc in processes:
-        click.echo(row_to_json(proc))
-
-
-@db.command(name='kill-processes')
-@click.pass_context
-def kill_processes(ctx):
-    """Create any missing tables on the database"""
-    database_url = ctx.obj['database_url']
-
-    # pylint: disable=unused-variable
-    processes, killed = kill_db_processes(database_url)
-    # pylint: enable=unused-variable
-    click.echo('killed %s processes' % len(killed))
-    for proc in killed:
-        click.echo(row_to_json(proc))
-
 
 @db.command(name='last-block')
 @click.pass_context
@@ -258,5 +234,4 @@ def raw_sql(ctx, sql):
     stmt = text(sql)
     with engine.connect() as conn:
         results = conn.execute(stmt).fetchall()
-
     click.echo(json.dumps(results))

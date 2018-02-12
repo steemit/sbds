@@ -54,3 +54,5 @@ local.db
 *.db
 envfile
 /deploy
+Pipfile.lockdump.sql
+blocks.json

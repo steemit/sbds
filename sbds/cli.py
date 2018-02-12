@@ -9,7 +9,8 @@ from sbds.server.cli import server
 
 
 @click.group(
-    short_help='manages storage, retrieval, and querying of the Steem blockchain')
+    short_help=
+    'manages storage, retrieval, and querying of the Steem blockchain')
 def sbds():
     """The *sbds* CLI manages storage, retrieval, and querying of the Steem
     blockchain.
@@ -23,7 +24,6 @@ def sbds():
 
 
 sbds.add_command(chain)
-sbds.add_command(checkpoints)
 sbds.add_command(db)
 sbds.add_command(s3)
 sbds.add_command(server)

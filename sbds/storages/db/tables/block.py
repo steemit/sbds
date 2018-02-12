@@ -11,7 +11,9 @@ from sbds.storages.db.utils import UniqueMixin
 
 
 class Block(Base, UniqueMixin):
-    """{
+    """Steem Block class
+
+    {
         "extensions": [],
         "timestamp": "2016-08-11T22:00:09",
         "transaction_merkle_root": "57e17f40cfa97c260eef365dc599e06acdba8591",

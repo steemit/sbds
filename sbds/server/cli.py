@@ -2,7 +2,7 @@
 import click
 
 import sbds.sbds_logging
-from sbds.server import lazy_load_dev_server
+from sbds.server.serve import run
 
 logger = sbds.sbds_logging.getLogger(__name__)
 
@@ -14,15 +14,9 @@ def server():
 
 
 # Development server
-@server.command(name='dev-server')
-@click.option(
-    '--port',
-    type=click.INT,
-    default=8080,
-    help='localhost TCP port for server')
-@click.option('--no_debug', is_flag=True)
-def dev_server_command(port, no_debug):
-    """development server"""
-    debug = not no_debug
-    dev_server = lazy_load_dev_server()
-    dev_server(port, debug)
+@server.command(name='serve')
+@click.option('--host', type=click.STRING, default='localhost', help='host')
+@click.option('--port', type=click.INT, default=8080, help='host TCP port')
+def server_command(host, port):
+    """server"""
+    run(host, port)

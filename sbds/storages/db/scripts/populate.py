@@ -1,28 +1,40 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import os
-from multiprocessing import Pool
-from functools import partial
 
+import aiomysql.sa
 import click
+import janus
+from sqlalchemy.engine.url import make_url
 
+import uvloop
 import sbds.sbds_logging
+
 from sbds.http_client import SimpleSteemAPIClient
+from sbds.async_http_client import AsyncClient
 from sbds.storages.db.tables import Base, Block
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import test_connection
 
 from sbds.storages.db.utils import isolated_engine
-from sbds.storages.db import bulk_add
+
 from sbds.storages.db import add_blocks
 from sbds.utils import chunkify
 
 # pylint: skip-file
 logger = sbds.sbds_logging.getLogger(__name__)
-TOTAL_TASKS = 6
-MAX_CHUNKSIZE = 1000000
 
-# set up for clean exit
+TOTAL_TASKS = 6
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+loop = asyncio.get_event_loop()
+
+missing_blocks_q = janus.Queue(loop=loop)
+fetched_blocks_q =  janus.Queue(loop=loop)
+fetched_ops_q = janus.Queue(loop=loop)
+
+
 
 progress_bar_kwargs = dict(
     color=True,
@@ -33,6 +45,51 @@ progress_bar_kwargs = dict(
     show_pos=True,
     bar_template='%(bar)s  %(info)s')
 
+
+def create_async_engine(database_url, **kwargs):
+    sa_db_url = make_url(database_url)
+    loop = asyncio.get_event_loop()
+    async_engine = loop.run_until_complete(
+        aiomysql.sa.create_engine(
+                user=sa_db_url.username,
+                password=sa_db_url.password,
+                host=sa_db_url.host,
+                port=sa_db_url.port,
+                db=sa_db_url.database,
+                             charset='utf8mb4',
+                             **kwargs)
+    )
+    return async_engine
+
+def create_async_pool(database_url, **kwargs):
+    sa_db_url = make_url(database_url)
+    loop = asyncio.get_event_loop()
+    pool = loop.run_until_complete(
+        aiomysql.create_pool(loop=loop,
+                             host=sa_db_url.host,
+                             user=sa_db_url.username,
+                             password=sa_db_url.password,
+                             db=sa_db_url.database,
+                             charset='utf8mb4',
+                             **kwargs
+                             )
+    )
+    return pool
+
+def create_async_connection(database_url, **kwargs):
+    sa_db_url = make_url(database_url)
+    loop = asyncio.get_event_loop()
+    pool = loop.run_until_complete(
+        aiomysql.connect(loop=loop,
+                             host=sa_db_url.host,
+                             user=sa_db_url.username,
+                             password=sa_db_url.password,
+                             db=sa_db_url.database,
+                             charset='utf8mb4',
+                             **kwargs
+                             )
+    )
+    return pool
 
 def fmt_success_message(msg, *args):
     base_msg = msg % (args)
@@ -96,69 +153,104 @@ def task_get_last_irreversible_block(steemd_http_url, task_num=3):
     return last_chain_block
 
 
+async def enqueue_missing_block_nums(database_url, last_chain_block):
+    connection = create_async_connection(database_url,
+                                         cursorclass=aiomysql.SSCursor)
+    async_client = AsyncClient()
+
+
+
+
+    with connection.cursor() as cursor:
+        existing_count = asyncio.ensure_future(cursor.execute('SELECT COUNT(timestamp) from sbds_core_blocks').fetchone())
+
+    with connection.cursor() as cursor:
+        missing_count = last_chain_block - existing_count
+
+    with click.progressbar(
+                length=missing_count,
+                label='Finding missing block_nums',
+                **progress_bar_kwargs) as pbar:
+
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT block_num from sbds_core_blocks')
+            existing_block_nums = cursor.fetchall()
+            complete_block_nums = iter(range(1, last_chain_block + 1))
+            next_block_num = 1
+            missing_blocks  = []
+            try:
+                next_existing_block_num = next(existing_block_nums)
+                for next_block_num in complete_block_nums:
+                    while next_existing_block_num > next_block_num:
+                        missing_blocks.append(next_block_num)
+                        next_block_num = next(complete_block_nums)
+                    next_existing_block_num = next(existing_block_nums)
+                    if len(missing_blocks) >= 150:
+                        asyncio.ensure_future(
+                            async_client.get_blocks(missing_blocks,
+                                                    fetched_blocks_q))
+                        asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
+                        missing_blocks = []
+
+            except StopIteration:
+                for chunk in chunkify(missing_blocks, 150):
+                    asyncio.ensure_future(
+                            async_client.get_blocks(chunk,
+                                                    fetched_blocks_q))
+                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
+                for chunk in chunkify(range(next_block_num, last_chain_block +1)):
+                    asyncio.ensure_future(
+                            async_client.get_blocks(chunk,
+                                                    fetched_blocks_q))
+                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
+
+
+
+
+
 def task_find_missing_block_nums(database_url, last_chain_block, task_num=4):
     task_message = fmt_task_message(
         'Finding blocks missing from db',
         emoji_code_point=u'\U0001F52D',
         task_num=task_num)
     click.echo(task_message)
-    with isolated_engine(database_url) as engine:
+    connection = create_async_connection(database_url,
+                                         cursorclass=aiomysql.SSCursor)
+    async_client = AsyncClient()
+    missing_block_nums = []
 
-        session = Session(bind=engine)
 
-        missing_block_nums_gen = Block.get_missing_block_num_iterator(
-            session, last_chain_block, chunksize=1000000)
 
-        with click.progressbar(
-                missing_block_nums_gen,
-                label='Finding missing block_nums',
-                **progress_bar_kwargs) as pbar:
 
-            all_missing_block_nums = []
-            for missing_gen in pbar:
-                all_missing_block_nums.extend(missing_gen())
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT block_num from sbds_core_blocks')
 
-        success_msg = fmt_success_message('found %s missing blocks',
-                                          len(all_missing_block_nums))
+        existing_block_nums = cursor.fetchall()
+        for bn in range(1, last_chain_block+1):
+            next_existing_block_num = 0
+            try:
+                while bn > next_existing_block_num:
+                    next_existing_block_num = next(existing_block_nums)
+
+                    if len(missing_block_nums) >= 150:
+                        asyncio.ensure_future(async_client.get_blocks(missing_block_nums,
+                                                                      fetched_blocks_q))
+                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
+
+            except StopIteration:
+                pass
+
+        success_msg = fmt_success_message('completed adding missing blocks')
         click.echo(success_msg)
-        engine.dispose()
-
-    return all_missing_block_nums
 
 
-def task_add_missing_blocks(missing_block_nums,
-                            max_procs,
-                            max_threads,
-                            database_url,
-                            steemd_http_url,
-                            task_num=5):
-    task_message = fmt_task_message(
-        'Adding missing blocks to db, this may take a while',
-        emoji_code_point=u'\U0001F4DD',
-        task_num=task_num)
-    click.echo(task_message)
-
-    max_workers = max_procs or os.cpu_count() or 1
-
-    chunksize = len(missing_block_nums) // max_workers
-    if chunksize <= 0:
-        chunksize = 1
-
-    #counter = Value('L',0)
-
-    map_func = partial(
-        block_adder_process_worker,
-        database_url,
-        steemd_http_url,
-        max_threads=max_threads)
-
-    chunks = chunkify(missing_block_nums, 10000)
-
-    with Pool(processes=max_workers) as pool:
-        results = pool.map(map_func, chunks)
-
-    success_msg = fmt_success_message('added missing blocks')
-    click.echo(success_msg)
+async def add_blocks_from_q(q):
+    try:
+        while True:
+            block = await q.async_q.get_nowait()
+            print(block)
+    except asyncio.QueueEmpty:
+        pass
 
 
 def task_stream_blocks(database_url, steemd_http_url, task_num=6):
@@ -193,13 +285,11 @@ def task_stream_blocks(database_url, steemd_http_url, task_num=6):
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
-@click.option('--max_procs', type=click.INT, default=None)
-@click.option('--max_threads', type=click.INT, default=5)
-def populate(database_url, steemd_http_url, max_procs, max_threads):
-    _populate(database_url, steemd_http_url, max_procs, max_threads)
+@click.option('--jsonrpc_batch_size', type=click.INT, default=100)
+def populate(database_url, steemd_http_url, jsonrpc_batch_size):
+    _populate(database_url, steemd_http_url, jsonrpc_batch_size)
 
-
-def _populate(database_url, steemd_http_url, max_procs, max_threads):
+def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
     try:
         # [1/6] confirm db connectivity
         task_confirm_db_connectivity(database_url, task_num=1)
@@ -215,47 +305,14 @@ def _populate(database_url, steemd_http_url, max_procs, max_threads):
         missing_block_nums = task_find_missing_block_nums(
             database_url, last_chain_block, task_num=4)
 
-        # [5/6] adding missing blocks
-        task_add_missing_blocks(
-            missing_block_nums,
-            max_procs,
-            max_threads,
-            database_url,
-            steemd_http_url,
-            task_num=5)
-
-        # [6/6] stream blocks
-        task_stream_blocks(database_url, steemd_http_url, task_num=6)
     except KeyboardInterrupt:
         pass
     except Exception as e:
         logger.exception('ERROR')
         raise (e)
-    finally:
-        os.killpg(os.getpgrp(), 9)
 
 
-# pylint: disable=redefined-outer-name
-def block_fetcher_thread_worker(rpc_url, block_nums, max_threads=None):
-    rpc = SimpleSteemAPIClient(rpc_url, return_with_args=True)
-    # pylint: disable=unused-variable
-    for block in rpc.exec_multi_with_futures(
-            'get_block', block_nums, max_workers=max_threads):
-        yield block
 
-
-def block_adder_process_worker(database_url,
-                               rpc_url,
-                               block_nums,
-                               max_threads=5):
-    with isolated_engine(database_url) as engine:
-        session = Session(bind=engine)
-        raw_blocks = block_fetcher_thread_worker(
-            rpc_url, block_nums, max_threads=max_threads)
-        for raw_blocks_chunk in chunkify(raw_blocks, 1000):
-            # pylint: disable=unused-variable
-            # we could do something here with results, like retry failures
-            results = bulk_add(raw_blocks_chunk, session)
 
 
 # included only for debugging with pdb, all the above code should be called
@@ -263,4 +320,4 @@ def block_adder_process_worker(database_url,
 if __name__ == '__main__':
     db_url = os.environ['DATABASE_URL']
     rpc_url = os.environ['STEEMD_HTTP_URL']
-    _populate(db_url, rpc_url, max_procs=4, max_threads=2)
+    _populate(db_url, rpc_url, jsonrpc_batch_size=100)

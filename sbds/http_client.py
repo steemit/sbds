@@ -172,7 +172,7 @@ class SimpleSteemAPIClient(object):
                 max_workers=max_workers) as executor:
             futures = (executor.submit(
                 self.exec, name, param, return_with_args=True)
-                for param in params)
+                       for param in params)
             for future in concurrent.futures.as_completed(futures):
                 result, args = future.result()
                 if result:

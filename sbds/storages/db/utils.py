@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
+import asyncio
 from contextlib import contextmanager
 from collections import namedtuple
 
+import aiomysql
+import aiomysql.sa
+import uvloop
 import sqlalchemy.orm.exc
 import sqlalchemy.exc
+
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.pool import NullPool
@@ -12,7 +17,7 @@ from sbds.sbds_logging import getLogger
 import sbds.sbds_json
 
 logger = getLogger(__name__)
-
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 # pylint: disable=too-many-arguments, broad-except, protected-access
 def _unique(session, cls, hashfunc, queryfunc, constructor, args, kwargs):
@@ -279,3 +284,17 @@ def kill_db_processes(database_url, db_name=None, db_user_name=None):
                     engine.execute('KILL %s' % process.Id)
                     killed_procs.append(process)
         return all_procs, killed_procs
+
+
+def create_async_engine(database_url):
+    sa_db_url = make_url(database_url)
+    loop = asyncio.get_event_loop()
+    async_engine = loop.run_until_complete(
+        create_engine(
+                user=sa_db_url.username,
+                password=sa_db_url.password,
+                host=sa_db_url.host,
+                port=sa_db_url.port,
+                database=sa_db_url.database)
+    )
+    return async_engine
