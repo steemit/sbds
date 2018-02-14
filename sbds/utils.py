@@ -4,9 +4,9 @@ from urllib.parse import urlparse
 
 import w3lib.url
 
-import sbds.sbds_logging
+import structlog
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def block_num_from_hash(block_hash: str) -> int:

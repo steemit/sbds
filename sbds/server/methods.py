@@ -15,7 +15,7 @@ def get_custom_json_by_tid(tid, to, _from, context=None):
     request = context['request']
     db = request.config.db
     db_query_hard_limit = request.config['sbds.DB_QUERY_LIMIT']
-    custom_json_class = request.config['sbds.tx_class_map']['custom_json']
+    custom_json_class = request.config['sbds.op_class_map']['custom_json']
 
     query = db.query(custom_json_class).filter_by(tid=tid)
     query = custom_json_class.from_to_filter(query, _from=_from, to=to)

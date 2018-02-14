@@ -4,7 +4,7 @@ import json
 
 import click
 
-import sbds.sbds_logging
+import structlog
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db import add_blocks
 from sbds.storages.db import bulk_add
@@ -18,7 +18,7 @@ from sbds.storages.db.tables.block import Block
 from sbds.storages.db.utils import isolated_engine_config
 from sbds.utils import chunkify
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @click.group(short_help='Interact with an SQL storage backend')

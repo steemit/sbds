@@ -8,7 +8,7 @@ import janus
 import uvloop
 from sqlalchemy.engine.url import make_url
 
-import sbds.sbds_logging
+import structlog
 from sbds.async_http_client import AsyncClient
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db import add_blocks
@@ -21,7 +21,7 @@ from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
 
 # pylint: skip-file
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 TOTAL_TASKS = 6
 

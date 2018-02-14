@@ -11,7 +11,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
-import sbds.sbds_logging
+import structlog
 
 from ...query_helpers import standard_trailing_windows
 from ...utils import UniqueMixin
@@ -53,7 +53,7 @@ from .withdraw_vesting import WithdrawVestingOperation
 from .withdraw_vesting_route import WithdrawVestingRouteOperation
 from .witness_update import WitnessUpdateOperation
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class UndefinedTransactionType(Exception):
@@ -146,7 +146,7 @@ class BaseOperation(UniqueMixin):
     @classmethod
     def tx_class_for_type(cls, tx_type):
         try:
-            return tx_class_map[tx_type]
+            return op_class_map[tx_type]
         except KeyError:
             raise UndefinedTransactionType(tx_type)
 
@@ -256,7 +256,7 @@ class BaseOperation(UniqueMixin):
 # These are defined in the steem source code here:
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/operations.hpp
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_operations.hpp
-tx_class_map = {
+op_class_map = {
     'account_create': AccountCreateOperation,
     'account_create_with_delegation': AccountCreateWithDelegationOperation,
     'account_update': AccountUpdateOperation,
@@ -293,3 +293,26 @@ tx_class_map = {
     'withdraw_vesting': WithdrawVestingOperation,
     'witness_update': WitnessUpdateOperation
 }
+
+
+# virtual operations
+# https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_virtual_operations.hpp
+virtual_op_class_map = {
+    'author_reward_operation':None,
+    'curation_reward_operation': None,
+    'comment_reward_operation': None,
+    'liquidity_reward_operation':None,
+    'interest_operation':None,
+    'fill_convert_request_operation':None,
+    'fill_vesting_withdraw_operation': None,
+    'shutdown_witness_operation': None,
+    'fill_order_operation': None,
+    'fill_transfer_from_savings_operation': None,
+    'hardfork_operation': None,
+    'comment_payout_update_operation': None,
+    'return_vesting_delegation_operation': None,
+    'comment_benefactor_reward_operation': None,
+    'producer_reward_operation': None
+}
+
+combined_ops_class_map = dict(**op_class_map, **virtual_op_class_map)

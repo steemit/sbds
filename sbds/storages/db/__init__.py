@@ -2,17 +2,18 @@
 from itertools import chain
 from itertools import zip_longest
 
+import structlog
 import toolz.itertoolz
 from sqlalchemy.orm.util import object_state
 
 from sbds.sbds_logging import generate_fail_log_from_obj
-from sbds.sbds_logging import getLogger
+
 
 from .tables.core import from_raw_block
 from .utils import session_scope
 
-logger = getLogger(__name__)
 
+logger = structlog.get_logger(__name__)
 
 # pylint: disable=bare-except,too-many-branches,too-many-arguments, unused-argument
 def safe_merge_insert(objects, session, load=True, **kwargs):

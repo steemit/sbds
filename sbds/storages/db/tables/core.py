@@ -7,11 +7,11 @@ from itertools import chain
 import maya
 
 import sbds.sbds_json
-import sbds.sbds_logging
+import structlog
 from sbds.storages.db.tables.block import Block
 from sbds.utils import block_num_from_previous
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # pylint: disable=line-too-long
 def from_raw_block(raw_block, session=None):

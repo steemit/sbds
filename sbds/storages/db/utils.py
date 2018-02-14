@@ -13,9 +13,11 @@ from sqlalchemy.orm.exc import FlushError
 from sqlalchemy.pool import NullPool
 
 import sbds.sbds_json
-from sbds.sbds_logging import getLogger
 
-logger = getLogger(__name__)
+
+import structlog
+logger = structlog.get_logger(__name__)
+
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
@@ -249,39 +251,6 @@ def isolated_engine_config(database_url, **kwargs):
     finally:
         engine_config.engine.dispose()
         del engine_config
-
-
-def get_db_processes(database_url, **kwargs):
-    with isolated_nullpool_engine(database_url, **kwargs) as engine:
-        if engine.url.get_backend_name() != 'mysql':
-            raise TypeError('unsupported function for %s database' %
-                            engine.url.get_backend_name())
-        return engine.execute('SHOW PROCESSLIST').all()
-
-
-def kill_db_processes(database_url, db_name=None, db_user_name=None):
-    url = make_url(database_url)
-    if url.get_backend_name() == 'sqlite':
-        return [], []
-    processes = get_db_processes(database_url)
-
-    all_procs = []
-    killed_procs = []
-    with isolated_nullpool_engine(database_url) as engine:
-        for process in processes:
-            logger.debug(
-                'process: Id:%s User:%s db:%s Command:%s State:%s Info:%s',
-                process.Id, process.User, process.db, process.Command,
-                process.State, process.Info)
-            all_procs.append(process)
-            if process.db == db_name and process.User == db_user_name:
-                if process.Info != 'SHOW PROCESSLIST':
-                    logger.debug('killing process %s on db %s owned by %s',
-                                 process.Id, process.db, process.User)
-
-                    engine.execute('KILL %s' % process.Id)
-                    killed_procs.append(process)
-        return all_procs, killed_procs
 
 
 def create_async_engine(database_url):

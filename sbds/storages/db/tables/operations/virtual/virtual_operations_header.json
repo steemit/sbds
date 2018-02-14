@@ -1,0 +1,3844 @@
+{
+    "headerFileName": "build/steem_src/libraries/protocol/include/steemit/protocol/steem_virtual_operations.hpp",
+    "curClass": "",
+    "classes": {
+        "author_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "author_reward_operation",
+            "line_number": 10,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "author_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "author_reward_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 11,
+                        "parameters": [],
+                        "path": "steemit::protocol::author_reward_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "author_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "author_reward_operation ( const account_name_type & a , const string & p , const asset & s , const asset & st , const asset & v ) : author ( a ) , permlink ( p ) , sbd_payout ( s ) , steem_payout ( st ) , vesting_payout ( v ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 12,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 12,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "a",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 12,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "p",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 12,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "s",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 12,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "st",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 12,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "v",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::author_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 15,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "author",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "author_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 16,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "permlink",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "author_reward_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 17,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "sbd_payout",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "author_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 18,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "steem_payout",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "author_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 19,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "vesting_payout",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "author_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "curation_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "curation_reward_operation",
+            "line_number": 23,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "curation_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "curation_reward_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 25,
+                        "parameters": [],
+                        "path": "steemit::protocol::curation_reward_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "curation_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "curation_reward_operation ( const string & c , const asset & r , const string & a , const string & p ) : curator ( c ) , reward ( r ) , comment_author ( a ) , comment_permlink ( p ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 26,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 26,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "c",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 26,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "r",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 26,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "a",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 26,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "p",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            }
+                        ],
+                        "path": "steemit::protocol::curation_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 29,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "curator",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "curation_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 30,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "reward",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "curation_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 31,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "comment_author",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "curation_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 32,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "comment_permlink",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "curation_reward_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "comment_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "comment_reward_operation",
+            "line_number": 36,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "comment_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_reward_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 38,
+                        "parameters": [],
+                        "path": "steemit::protocol::comment_reward_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "comment_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_reward_operation ( const account_name_type & a , const string & pl , const asset & p ) : author ( a ) , permlink ( pl ) , payout ( p ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 39,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 39,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "a",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 39,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "pl",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 39,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "p",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::comment_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 42,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "author",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 43,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "permlink",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_reward_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 44,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "payout",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "liquidity_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "liquidity_reward_operation",
+            "line_number": 48,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "liquidity_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "liquidity_reward_operation ( string o = string ( ) , asset p = asset ( ) ) : owner ( o ) , payout ( p ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 50,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 50,
+                                "function_pointer": 0,
+                                "type": "string",
+                                "name": "o",
+                                "defaultValue": "string()",
+                                "default": "string()",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 0,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 50,
+                                "function_pointer": 0,
+                                "type": "asset",
+                                "name": "p",
+                                "defaultValue": "asset()",
+                                "default": "asset()",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 0,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::liquidity_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 53,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "liquidity_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 54,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "payout",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "liquidity_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "interest_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "interest_operation",
+            "line_number": 58,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "interest_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "interest_operation ( const string & o = \"\" , const asset & i = asset ( 0 , SBD_SYMBOL ) ) : owner ( o ) , interest ( i ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 60,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 60,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "o",
+                                "defaultValue": "\"\"",
+                                "default": "\"\"",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 60,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "i",
+                                "defaultValue": "asset(0,SBD_SYMBOL)",
+                                "default": "asset(0,SBD_SYMBOL)",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::interest_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 63,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "interest_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 64,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "interest",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "interest_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "fill_convert_request_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "fill_convert_request_operation",
+            "line_number": 68,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "fill_convert_request_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_convert_request_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 70,
+                        "parameters": [],
+                        "path": "steemit::protocol::fill_convert_request_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "fill_convert_request_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_convert_request_operation ( const string & o , const uint32_t id , const asset & in , const asset & out ) : owner ( o ) , requestid ( id ) , amount_in ( in ) , amount_out ( out ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 71,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 71,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "o",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 71,
+                                "function_pointer": 0,
+                                "type": "const uint32_t",
+                                "name": "id",
+                                "aliases": [
+                                    "uint32_t"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "uint32_t"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 71,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "in",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 71,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "out",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::fill_convert_request_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 74,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_convert_request_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 75,
+                        "function_pointer": 0,
+                        "type": "uint32_t",
+                        "name": "requestid",
+                        "defaultValue": "0",
+                        "default": "0",
+                        "aliases": [
+                            "uint32_t"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_convert_request_operation",
+                        "mutable": false,
+                        "raw_type": "uint32_t"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 76,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "amount_in",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_convert_request_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 77,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "amount_out",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_convert_request_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "fill_vesting_withdraw_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "fill_vesting_withdraw_operation",
+            "line_number": 81,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "fill_vesting_withdraw_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_vesting_withdraw_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 83,
+                        "parameters": [],
+                        "path": "steemit::protocol::fill_vesting_withdraw_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "fill_vesting_withdraw_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_vesting_withdraw_operation ( const string & f , const string & t , const asset & w , const asset & d ) : from_account ( f ) , to_account ( t ) , withdrawn ( w ) , deposited ( d ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 84,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 84,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "f",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 84,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "t",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 84,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "w",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 84,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "d",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::fill_vesting_withdraw_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 87,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "from_account",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_vesting_withdraw_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 88,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "to_account",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_vesting_withdraw_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 89,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "withdrawn",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_vesting_withdraw_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 90,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "deposited",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_vesting_withdraw_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "shutdown_witness_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "shutdown_witness_operation",
+            "line_number": 94,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "shutdown_witness_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "shutdown_witness_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 96,
+                        "parameters": [],
+                        "path": "steemit::protocol::shutdown_witness_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "shutdown_witness_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "shutdown_witness_operation ( const string & o ) : owner ( o ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 97,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 97,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "o",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            }
+                        ],
+                        "path": "steemit::protocol::shutdown_witness_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 99,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "shutdown_witness_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "fill_order_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "fill_order_operation",
+            "line_number": 103,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "fill_order_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_order_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 105,
+                        "parameters": [],
+                        "path": "steemit::protocol::fill_order_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "fill_order_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_order_operation ( const string & c_o , uint32_t c_id , const asset & c_p , const string & o_o , uint32_t o_id , const asset & o_p ) : current_owner ( c_o ) , current_orderid ( c_id ) , current_pays ( c_p ) , open_owner ( o_o ) , open_orderid ( o_id ) , open_pays ( o_p ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 106,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "c_o",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "uint32_t",
+                                "name": "c_id",
+                                "aliases": [
+                                    "uint32_t"
+                                ],
+                                "typedef": null,
+                                "constant": 0,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "uint32_t"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "c_p",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "o_o",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "uint32_t",
+                                "name": "o_id",
+                                "aliases": [
+                                    "uint32_t"
+                                ],
+                                "typedef": null,
+                                "constant": 0,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "uint32_t"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 106,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "o_p",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::fill_order_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 109,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "current_owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 110,
+                        "function_pointer": 0,
+                        "type": "uint32_t",
+                        "name": "current_orderid",
+                        "defaultValue": "0",
+                        "default": "0",
+                        "aliases": [
+                            "uint32_t"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "uint32_t"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 111,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "current_pays",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 112,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "open_owner",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 113,
+                        "function_pointer": 0,
+                        "type": "uint32_t",
+                        "name": "open_orderid",
+                        "defaultValue": "0",
+                        "default": "0",
+                        "aliases": [
+                            "uint32_t"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "uint32_t"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 114,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "open_pays",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_order_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "fill_transfer_from_savings_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "fill_transfer_from_savings_operation",
+            "line_number": 118,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "fill_transfer_from_savings_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_transfer_from_savings_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 120,
+                        "parameters": [],
+                        "path": "steemit::protocol::fill_transfer_from_savings_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "fill_transfer_from_savings_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "fill_transfer_from_savings_operation ( const account_name_type & f , const account_name_type & t , const asset & a , const uint32_t r , const string & m ) : from ( f ) , to ( t ) , amount ( a ) , request_id ( r ) , memo ( m ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 121,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 121,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "f",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 121,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "t",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 121,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "a",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 121,
+                                "function_pointer": 0,
+                                "type": "const uint32_t",
+                                "name": "r",
+                                "aliases": [
+                                    "uint32_t"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "uint32_t"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 121,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "m",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            }
+                        ],
+                        "path": "steemit::protocol::fill_transfer_from_savings_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 124,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "from",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_transfer_from_savings_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 125,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "to",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_transfer_from_savings_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 126,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "amount",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_transfer_from_savings_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 127,
+                        "function_pointer": 0,
+                        "type": "uint32_t",
+                        "name": "request_id",
+                        "defaultValue": "0",
+                        "default": "0",
+                        "aliases": [
+                            "uint32_t"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_transfer_from_savings_operation",
+                        "mutable": false,
+                        "raw_type": "uint32_t"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 128,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "memo",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "fill_transfer_from_savings_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "hardfork_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "hardfork_operation",
+            "line_number": 131,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "hardfork_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "hardfork_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 133,
+                        "parameters": [],
+                        "path": "steemit::protocol::hardfork_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "hardfork_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "hardfork_operation ( uint32_t hf_id ) : hardfork_id ( hf_id ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 134,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 134,
+                                "function_pointer": 0,
+                                "type": "uint32_t",
+                                "name": "hf_id",
+                                "aliases": [
+                                    "uint32_t"
+                                ],
+                                "typedef": null,
+                                "constant": 0,
+                                "reference": 0,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "uint32_t"
+                            }
+                        ],
+                        "path": "steemit::protocol::hardfork_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 136,
+                        "function_pointer": 0,
+                        "type": "uint32_t",
+                        "name": "hardfork_id",
+                        "defaultValue": "0",
+                        "default": "0",
+                        "aliases": [
+                            "uint32_t"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "hardfork_operation",
+                        "mutable": false,
+                        "raw_type": "uint32_t"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "comment_payout_update_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "comment_payout_update_operation",
+            "line_number": 139,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "comment_payout_update_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_payout_update_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 141,
+                        "parameters": [],
+                        "path": "steemit::protocol::comment_payout_update_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "comment_payout_update_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_payout_update_operation ( const account_name_type & a , const string & p ) : author ( a ) , permlink ( p ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 142,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 142,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "a",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 142,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "p",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            }
+                        ],
+                        "path": "steemit::protocol::comment_payout_update_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 144,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "author",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_payout_update_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 145,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "permlink",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_payout_update_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "return_vesting_delegation_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "return_vesting_delegation_operation",
+            "line_number": 148,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "return_vesting_delegation_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "return_vesting_delegation_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 150,
+                        "parameters": [],
+                        "path": "steemit::protocol::return_vesting_delegation_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "return_vesting_delegation_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "return_vesting_delegation_operation ( const account_name_type & a , const asset & v ) : account ( a ) , vesting_shares ( v ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 151,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 151,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "a",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 151,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "v",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::return_vesting_delegation_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 153,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "account",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "return_vesting_delegation_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 154,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "vesting_shares",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "return_vesting_delegation_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "comment_benefactor_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "comment_benefactor_reward_operation",
+            "line_number": 157,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "comment_benefactor_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_benefactor_reward_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 159,
+                        "parameters": [],
+                        "path": "steemit::protocol::comment_benefactor_reward_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "comment_benefactor_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "comment_benefactor_reward_operation ( const account_name_type & b , const account_name_type & a , const string & p , const asset & r ) : benefactor ( b ) , author ( a ) , permlink ( p ) , reward ( r ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 160,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 160,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "b",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 160,
+                                "function_pointer": 0,
+                                "type": "const account_name_type &",
+                                "name": "a",
+                                "aliases": [
+                                    "account_name_type"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "account_name_type"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 160,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "p",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 160,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "r",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::comment_benefactor_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 163,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "benefactor",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_benefactor_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 164,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "author",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_benefactor_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 165,
+                        "function_pointer": 0,
+                        "type": "string",
+                        "name": "permlink",
+                        "aliases": [
+                            "string"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_benefactor_reward_operation",
+                        "mutable": false,
+                        "raw_type": "string"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 166,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "reward",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "comment_benefactor_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        },
+        "producer_reward_operation": {
+            "nested_classes": [],
+            "abstract": false,
+            "namespace": "steemit::protocol",
+            "final": false,
+            "name": "producer_reward_operation",
+            "line_number": 169,
+            "inherits": [
+                {
+                    "access": "public",
+                    "virtual": false,
+                    "class": "virtual_operation"
+                }
+            ],
+            "methods": {
+                "public": [
+                    {
+                        "rtnType": "void",
+                        "name": "producer_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "producer_reward_operation ( ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 171,
+                        "parameters": [],
+                        "path": "steemit::protocol::producer_reward_operation"
+                    },
+                    {
+                        "rtnType": "void",
+                        "name": "producer_reward_operation",
+                        "const": false,
+                        "final": false,
+                        "override": false,
+                        "debug": "producer_reward_operation ( const string & p , const asset & v ) : producer ( p ) , vesting_shares ( v ) {",
+                        "class": null,
+                        "namespace": "steemit::protocol::",
+                        "defined": true,
+                        "pure_virtual": false,
+                        "operator": false,
+                        "constructor": true,
+                        "destructor": false,
+                        "extern": false,
+                        "template": false,
+                        "virtual": false,
+                        "static": false,
+                        "explicit": false,
+                        "inline": false,
+                        "friend": false,
+                        "returns": "",
+                        "returns_pointer": 0,
+                        "returns_fundamental": true,
+                        "returns_class": false,
+                        "returns_reference": false,
+                        "line_number": 172,
+                        "parameters": [
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 172,
+                                "function_pointer": 0,
+                                "type": "const string &",
+                                "name": "p",
+                                "aliases": [
+                                    "string"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "string"
+                            },
+                            {
+                                "extern": false,
+                                "array": 0,
+                                "line_number": 172,
+                                "function_pointer": 0,
+                                "type": "const asset &",
+                                "name": "v",
+                                "aliases": [
+                                    "asset"
+                                ],
+                                "typedef": null,
+                                "constant": 1,
+                                "reference": 1,
+                                "pointer": 0,
+                                "static": 0,
+                                "typedefs": 0,
+                                "class": 0,
+                                "fundamental": 0,
+                                "unresolved": true,
+                                "namespace": "steemit::protocol::",
+                                "mutable": false,
+                                "raw_type": "asset"
+                            }
+                        ],
+                        "path": "steemit::protocol::producer_reward_operation",
+                        "unresolved_parameters": true
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "properties": {
+                "public": [
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 174,
+                        "function_pointer": 0,
+                        "type": "account_name_type",
+                        "name": "producer",
+                        "aliases": [
+                            "account_name_type"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "producer_reward_operation",
+                        "mutable": false,
+                        "raw_type": "account_name_type"
+                    },
+                    {
+                        "extern": false,
+                        "array": 0,
+                        "line_number": 175,
+                        "function_pointer": 0,
+                        "type": "asset",
+                        "name": "vesting_shares",
+                        "aliases": [
+                            "asset"
+                        ],
+                        "typedef": null,
+                        "constant": 0,
+                        "reference": 0,
+                        "pointer": 0,
+                        "static": 0,
+                        "typedefs": 0,
+                        "class": 0,
+                        "fundamental": 0,
+                        "unresolved": true,
+                        "namespace": "steemit::protocol::",
+                        "property_of_class": "producer_reward_operation",
+                        "mutable": false,
+                        "raw_type": "asset"
+                    }
+                ],
+                "protected": [],
+                "private": []
+            },
+            "enums": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "structs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "typedefs": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "forward_declares": {
+                "public": [],
+                "protected": [],
+                "private": []
+            },
+            "declaration_method": "struct"
+        }
+    },
+    "functions": [],
+    "pragmas": [
+        "once"
+    ],
+    "defines": [],
+    "includes": [
+        "<steemit/protocol/base.hpp>",
+        "<steemit/protocol/block_header.hpp>",
+        "<steemit/protocol/asset.hpp>",
+        "<fc/utf8.hpp>"
+    ],
+    "enums": [],
+    "variables": [],
+    "global_enums": {},
+    "typedefs": {},
+    "structs": {},
+    "structs_order": [],
+    "namespaces": [
+        "steemit",
+        "steemit::protocol"
+    ]
+}

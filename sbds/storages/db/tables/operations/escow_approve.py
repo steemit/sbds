@@ -28,6 +28,7 @@ class EscrowApproveOperation(Base, BaseOperation):
 
     __tablename__ = 'sbds_op_escrow_approves'
     __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
+
     _from = Column('from', Unicode(50), index=True)
     agent = Column(Unicode(50), index=True)
     to = Column(Unicode(50), index=True)

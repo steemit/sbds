@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import click
 
-import sbds.sbds_logging
+import structlog
 from sbds.server.serve import run
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @click.group()

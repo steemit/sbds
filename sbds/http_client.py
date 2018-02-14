@@ -13,9 +13,9 @@ import certifi
 import urllib3
 from urllib3.connection import HTTPConnection
 
-import sbds.sbds_logging
+import structlog
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RPCError(Exception):

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-import sbds.sbds_logging
+import structlog
 from sbds import sbds_json
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def amount_field(value, num_func=int, no_value=0):
@@ -11,9 +11,7 @@ def amount_field(value, num_func=int, no_value=0):
     try:
         return num_func(value.split()[0])
     except Exception as e:
-        extra = dict(
-            original=value, num_func=num_func, no_value=no_value, error=e)
-        logger.error('amount handler error', extra=extra)
+        logger.error('amount handler error', original=value, num_func=num_func, no_value=no_value, error=e)
         return num_func(no_value)
 
 
@@ -23,8 +21,7 @@ def amount_symbol_field(value, no_value=''):
     try:
         return value.split()[1]
     except Exception as e:
-        extra = dict(original=value, no_value=no_value, error=e)
-        logger.error('amount_symbol handler error', extra=extra)
+        logger.error('amount_symbol handler error', original=value, no_value=no_value, error=e)
         return no_value
 
 
