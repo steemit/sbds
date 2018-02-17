@@ -2,45 +2,49 @@
 # coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
+
+from sqlalchemy.dialects.mysql import JSON
+
 from toolz import get_in
 
 from ... import Base
 from ....enums import operation_types_enum
 from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
 from ..base import BaseOperation
 
 class CommentPayoutUpdateOperation(Base, BaseOperation):
     """
     
-    CPP Class Definition
+    
+    Steem Blockchain Example
     ======================
-    
-    struct comment_payout_update_operation : public virtual_operation
-   {
-      comment_payout_update_operation() {}
-      comment_payout_update_operation( const account_name_type& a, const string& p ) : author( a ), permlink( p ) {}
 
-      account_name_type author;
-      string            permlink;
-   };
     
-    
+
     """
     
-    __tablename__ = 'sbds_op_comment_payout_update_operations'
+    __tablename__ = 'sbds_op_comment_payout_updates'
     __operation_type__ = 'comment_payout_update_operation'
     
-    author = Column(Unicode(50))
-    permlink = Column(Unicode(150))
+    author = Column(String(50), index=True) # steem_type:account_name_type
+    permlink = Column(Unicode(150)) # steem_type:string
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='comment_payout_update_operation')
     
     _fields = dict(
         author=lambda x: x.get('author'),

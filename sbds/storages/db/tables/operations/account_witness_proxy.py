@@ -1,65 +1,56 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class AccountWitnessProxyOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 2749880717,
-        "operations": [
-            [
-                "account_witness_proxy",
-                {
-                    "proxy": "abit",
-                    "account": "puppies"
-                }
-            ]
-        ],
-        "signatures": [
-            "2066825bf5033b1a85b3f26c43bc853aa2e1e57ecdd400f61ea0ed444906836c323345c6b04cdbbb39637ed180ddf7a8eacc9d36086158140d1dec5788b73a01b4"
-        ],
-        "ref_block_num": 31712,
-        "expiration": "2016-04-08T15:47:00",
-        "extensions": []
+      "account": "bunkermining",
+      "proxy": "datasecuritynode"
     }
-
-    Prepared Format
-    ===============
-    {
-        "id": 22,
-        "tx_id": 44236,
-        "account": "puppies",
-        "Proxy": "abit"
-    }
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_account_witness_proxies'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    account = Column(Unicode(50), nullable=False)
-    Proxy = Column(Unicode(50), nullable=False)
-
-    _fields = dict(
-        account=lambda x: x.get('account'),
-        Proxy=lambda x: x.get('proxy'),  # TODO fix capitalization
-    )
-
+    __operation_type__ = 'account_witness_proxy_operation'
+    
+    account = Column(String(50), index=True) # steem_type:account_name_type
+    proxy = Column(String(50), index=True) # steem_type:account_name_type
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='account_witness_proxy_operation')
+    
+    _fields = dict(
+        account=lambda x: x.get('account'),
+        proxy=lambda x: x.get('proxy'),
+    )
+

@@ -25,6 +25,7 @@ pylint = "*"
 vulture = "*"
 mypy = "*"
 python-rapidjson = "*"
+inflect = "*"
 
 
 [packages]

@@ -1,12 +1,15 @@
 # coding=utf-8
 from functools import partial
 
+import sqlalchemy.dialects
+
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
 from sqlalchemy import func
+
 from toolz import dissoc
 
 import sbds.sbds_json
@@ -150,7 +153,7 @@ class Block(Base, UniqueMixin):
         'mysql_collate': 'utf8mb4_general_ci'
     }, )
 
-    raw = Column(UnicodeText)
+    raw = Column(UnicodeText().with_variant(sqlalchemy.dialects.mysql, 'mysql'))
     block_num = Column(
         Integer, primary_key=True, nullable=False, autoincrement=False)
     previous = Column(Unicode(50))

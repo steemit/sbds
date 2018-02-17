@@ -1,74 +1,67 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
-from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from ...field_handlers import amount_field
-from ...field_handlers import amount_symbol_field
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class TransferFromSavingsOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
-
-
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 57927444,
-        "expiration": "2016-10-11T17:23:06",
-        "operations": [
-            [
-                "transfer_from_savings",
-                {
-                    "amount": "0.051 STEEM",
-                    "to": "knozaki2015",
-                    "request_id": 1476206568,
-                    "memo": "",
-                    "from": "knozaki2015"
-                }
-            ]
-        ],
-        "signatures": [
-            "205230e01b4def2d4e5a7d0446dd8c41874689155e5c739fc9a6a7d339303a5f135aa89cad21b568ef9f68d15bfaaf85e9fcc78bd544d9831c977a9b1ac578f726"
-        ],
-        "ref_block_num": 42559,
-        "extensions": []
+      "from": "abit",
+      "to": "abit",
+      "amount": "1.000 SBD",
+      "request_id": 101,
+      "memo": ""
     }
-
-
-
-    Args:
-
-    Returns:
+    
 
     """
-
-    __tablename__ = 'sbds_op_transfer_from_savings'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    _from = Column('from', Unicode(50), index=True)
-    to = Column(Unicode(50), index=True)
-    amount = Column(Numeric(15, 6))
-    amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(2048))
-    request_id = Column(Integer)
-
-    _fields = dict(
-        _from=lambda x: x.get('from'),
-        to=lambda x: x.get('to'),
-        amount=lambda x: amount_field(x.get('amount'), num_func=float),
-        amount_symbol=lambda x: amount_symbol_field(x['amount']),
-        memo=lambda x: x.get('memo'),
-        request_id=lambda x: x.get('request_id'))
-
+    
+    __tablename__ = 'sbds_op_transfer_from_saving'
+    __operation_type__ = 'transfer_from_savings_operation'
+    
+    _from = Column('from', Unicode(50), index=True) # name:from
+    request_id = Column(Integer) # steem_type:uint32_t
+    to = Column(String(50), index=True) # steem_type:account_name_type
+    amount = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    amount_symbol = Column(String(5)) # steem_type:asset
+    memo = Column(UnicodeText) # name:memo
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='transfer_from_savings_operation')
+    
+    _fields = dict(
+        _from=lambda x: x.get('from'),
+        request_id=lambda x: x.get('request_id'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x.get('amount')),
+        memo=lambda x: x.get('memo'),
+    )
+

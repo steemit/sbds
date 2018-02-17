@@ -1,69 +1,64 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from ...field_handlers import amount_field
-from ...field_handlers import amount_symbol_field
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class TransferOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
-
-
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 4211555470,
-        "expiration": "2016-03-25T13:49:33",
-        "operations": [
-            [
-                "transfer",
-                {
-                    "amount": "833.000 STEEM",
-                    "to": "steemit",
-                    "memo": "",
-                    "from": "admin"
-                }
-            ]
-        ],
-        "signatures": [
-            "204ffd40d4feefdf309780a62058e7944b6833595c500603f3bb66ddbbca2ea661391196a97aa7dde53fdcca8aeb31f8c63aee4f47a20238f3749d9f4cb77f03f5"
-        ],
-        "ref_block_num": 25501,
-        "extensions": []
+      "amount": "833.000 STEEM",
+      "from": "admin",
+      "to": "steemit",
+      "memo": ""
     }
-
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_transfers'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    _from = Column('from', Unicode(50), index=True)
-    to = Column(Unicode(50), index=True)
-    amount = Column(Numeric(15, 6))
-    amount_symbol = Column(Unicode(5))
-    memo = Column(Unicode(2048))
-
-    _fields = dict(
-        _from=lambda x: x.get('from'),
-        to=lambda x: x.get('to'),
-        amount=lambda x: amount_field(x.get('amount'), num_func=float),
-        amount_symbol=lambda x: amount_symbol_field(x['amount']),
-        memo=lambda x: x.get('memo'))
-
+    __operation_type__ = 'transfer_operation'
+    
+    _from = Column('from', Unicode(50), index=True) # name:from
+    to = Column(String(50), index=True) # steem_type:account_name_type
+    amount = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    amount_symbol = Column(String(5)) # steem_type:asset
+    memo = Column(UnicodeText) # name:memo
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='transfer_operation')
+    
+    _fields = dict(
+        _from=lambda x: x.get('from'),
+        to=lambda x: x.get('to'),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float),
+        amount_symbol=lambda x: amount_symbol_field(x.get('amount')),
+        memo=lambda x: x.get('memo'),
+    )
+

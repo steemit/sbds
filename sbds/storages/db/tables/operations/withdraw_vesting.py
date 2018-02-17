@@ -1,66 +1,58 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from ...field_handlers import amount_field
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class WithdrawVestingOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 4265937178,
-        "expiration": "2016-03-31T18:52:33",
-        "operations": [
-            [
-                "withdraw_vesting",
-                {
-                    "account": "steemit",
-                    "vesting_shares": "260000.000000 VESTS"
-                }
-            ]
-        ],
-        "signatures": [
-            "2056b5be4b9d12f91e3cec198e74dd048bcfded95b92291709815c0afc069e5aa44c1a62e3aca0001a50d57010a870975c576f83de42e435f8634dcde52a8764c5"
-        ],
-        "ref_block_num": 7003,
-        "extensions": []
+      "vesting_shares": "200000.000000 VESTS",
+      "account": "steemit"
     }
-
-    Prepared Format
-    ===============
-    {
-        "id": 2,
-        "tx_id": 10275,
-        "account": "steemit",
-        "vesting_shares": 260000.0000
-    }
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_withdraw_vestings'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    account = Column(Unicode(50), nullable=False)
-    vesting_shares = Column(Numeric(25, 6), nullable=False, default=0.0)
-
-    _fields = dict(
-        account=lambda x: x.get('account'),
-        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float))
-
+    __operation_type__ = 'withdraw_vesting_operation'
+    
+    account = Column(String(50), index=True) # steem_type:account_name_type
+    vesting_shares = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    vesting_shares_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='withdraw_vesting_operation')
+    
+    _fields = dict(
+        account=lambda x: x.get('account'),
+        vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float),
+        vesting_shares_symbol=lambda x: amount_symbol_field(x.get('vesting_shares')),
+    )
+

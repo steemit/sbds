@@ -15,6 +15,13 @@ ENVFILE := .env
 
 PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
 
+BUILD_DIR := build_dir
+BLOCKCHAIN_EXAMPLES_DIR := $(BUILD_DIR)/examples
+
+OPERATIONS_FILE := sbds/storages/db/tables/operations/operations_header.json
+
+OPERATIONS_PYTHON_FILES := $(addprefix 'sbds/storages/db/tables/operations', $(addsuffix '.py $(shell jq -r '.classes[].name' $(OPERATIONS_FILE))))
+
 default: help
 
 .PHONY: help
@@ -122,3 +129,12 @@ ipython:
 
 README.rst: docs/src/README.rst 
 	cd $(DOCS_DIR) && $(MAKE) README
+
+$(BUILD_DIR):
+	mkdir $@
+
+$(BLOCKCHAIN_EXAMPLES_DIR): $(BUILD_DIR)
+	mkdir $@
+
+$(BLOCKCHAIN_EXAMPLES_DIR)/%.json: $(BLOCKCHAIN_EXAMPLES_DIR)
+	pipenv run $(ROOT_DIR)/contrib/get_operation_example.py $(basename $(@F)) mysql://sbds_user:RDf2ckvahqNN%5Dghoq@sbds-dev-1.c5fwsnh29c0p.us-east-1.rds.amazonaws.com/sbds > $@

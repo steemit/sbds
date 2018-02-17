@@ -1,75 +1,64 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-import sbds.sbds_json
+from sqlalchemy.dialects.mysql import JSON
 
-from .. import Base
-from ...enums import operation_types_enum
-from ...field_handlers import json_string_field
-from .base import BaseOperation
+from toolz import get_in
 
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
-class CustomJSONOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
-    {
-        "ref_block_prefix": 1629956753,
-        "ref_block_num": 10739,
-        "operations": [
-            [
-                "custom_json",
-                {
-                    "id": "follow",
-                    "json": "[\"follow\",{\"follower\":\"joanaltres\",\"following\":\"str8jackitjake\",\"what\":[\"blog\"]}]",
-                    "required_posting_auths": [
-                        "joanaltres"
-                    ],
-                    "required_auths": []
-                }
-            ]
-        ],
-        "expiration": "2017-02-26T15:54:57",
-        "signatures": [
-            "200d43fadd4a11d02d2dca36d0092b4439b674db406c024d9ef0eef08041a9500b45e5807a69d9e8ed9457ee675ba76ccdaee1587bef9902a680da7fd7f498e620"
-        ],
-        "extensions": []
-    }
+class CustomJsonOperation(Base, BaseOperation):
     """
+    
+    
+    Steem Blockchain Example
+    ======================
+    {
+      "required_auths": [],
+      "id": "follow",
+      "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+      "required_posting_auths": [
+        "steemit"
+      ]
+    }
+    
 
+    """
+    
     __tablename__ = 'sbds_op_custom_jsons'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    tid = Column(Unicode(50), nullable=False, index=True)
-    required_auths = Column(Unicode(250))
-    required_posting_auths = Column(Unicode(250))
-    json = Column(UnicodeText)
-
-    _fields = dict(
-        tid=lambda x: x.get('id'),
-        json=lambda x: x.get('json'),
-        required_auths=lambda x: json_string_field(x.get('required_auths')),
-        required_posting_auths=lambda x: json_string_field(x.get('required_posting_auths')), )
-
+    __operation_type__ = 'custom_json_operation'
+    
+    required_auths = Column(JSON) # steem_type:flat_set< account_name_type>
+    required_posting_auths = Column(JSON) # steem_type:flat_set< account_name_type>
+    id = Column(Unicode(150)) # steem_type:string
+    json = Column(JSON) # name:json
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='custom_json_operation')
+    
+    _fields = dict(
+        required_auths=lambda x: x.get('required_auths'),
+        required_posting_auths=lambda x: x.get('required_posting_auths'),
+        id=lambda x: x.get('id'),
+        json=lambda x: x.get('json'),
+    )
 
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('required_auths'), str) and decode_json:
-            data_dict['required_auths'] = sbds.sbds_json.loads(
-                data_dict['required_auths'])
-        if isinstance(data_dict.get('required_posting_auths'),
-                      str) and decode_json:
-            data_dict['required_posting_auths'] = sbds.sbds_json.loads(
-                data_dict['required_posting_auths'])
-        if isinstance(data_dict.get('json'), str) and decode_json:
-            data_dict['json'] = sbds.sbds_json.loads(data_dict['json'])
-        return data_dict

@@ -1,77 +1,59 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
+
+from sqlalchemy.dialects.mysql import JSON
+
 from toolz import get_in
 
-from .. import Base
-from ...enums import operation_types_enum
-from ...field_handlers import amount_field
-from .base import BaseOperation
-
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class FeedPublishOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 336265640,
-        "expiration": "2016-04-26T23:08:06",
-        "operations": [
-            [
-                "feed_publish",
-                {
-                    "exchange_rate": {
-                        "quote": "1.000 STEEM",
-                        "base": "0.374 SBD"
-                    },
-                    "publisher": "smooth.witness"
-                }
-            ]
-        ],
-        "signatures": [
-            "1f45f20c78e105eba93946b4366293f28a1d5b5e6e52e2007e8c0965c19bdd5b1464ba7a6b274d1a483715e3a883125106905c24e57092bc89247689cdc335c3fc"
-        ],
-        "ref_block_num": 19946,
-        "extensions": []
+      "exchange_rate": {
+        "quote": "1000.000 STEEM",
+        "base": "1.000 SBD"
+      },
+      "publisher": "abit"
     }
-
-
-    Prepared Format
-    ===============
-    {
-        "id": 23,
-        "tx_id": 157612,
-        "publisher": "smooth.witness",
-        "exchange_rate_base": 0.3740,
-        "exchange_rate_quote": 1.0000
-    }
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_feed_publishes'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    publisher = Column(Unicode(50), nullable=False)
-    exchange_rate_base = Column(Numeric(15, 6), nullable=False)
-    exchange_rate_quote = Column(Numeric(15, 6), nullable=False)
-
-    _fields = dict(
-        publisher=lambda x: x.get('publisher'),
-        exchange_rate_base=lambda x: amount_field(
-            get_in(['exchange_rate', 'base'], x), num_func=float),
-        exchange_rate_quote=lambda x: amount_field(
-            get_in(['exchange_rate', 'quote'], x), num_func=float)
-    )
-
+    __operation_type__ = 'feed_publish_operation'
+    
+    publisher = Column(String(50), index=True) # steem_type:account_name_type
+    exchange_rate = Column(JSON) # steem_type:price
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='feed_publish_operation')
+    
+    _fields = dict(
+        publisher=lambda x: x.get('publisher'),
+        exchange_rate=lambda x: x.get('exchange_rate'),
+    )
+

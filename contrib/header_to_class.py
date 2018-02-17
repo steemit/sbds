@@ -3,11 +3,33 @@
 # coding=utf-8
 import json
 import os.path
+import string
+import subprocess
+
 from pathlib import Path
 
 import click
+import inflect
 
 from collections import defaultdict
+
+p = inflect.engine()
+
+def reindent(s, numSpaces):
+    if s:
+        s = s.splitlines()
+        s = [(numSpaces * ' ') + line.lstrip() for line in s]
+        s = '\n'.join(s)
+    return s
+
+
+def addindent(s, numSpaces):
+    if s:
+        s = '\n'.join([(numSpaces * ' ') + line for line in s.splitlines()])
+    return s
+
+BAD_MYSQLSH_OUTPUT = '''{\n    "info": "mysqlx: [Warning] Using a password on the command line interface can be insecure."\n}\n'''
+
 
 # virtual operations
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_virtual_operations.hpp
@@ -179,10 +201,19 @@ class_template = '''
 # coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
+
+from sqlalchemy.dialects.mysql import JSON
+
 from toolz import get_in
 
 from ... import Base
@@ -192,14 +223,18 @@ from ....field_handlers import amount_symbol_field
 from ....field_handlers import comment_body_field
 from ..base import BaseOperation
 
-class {camel_op_name}(Base, BaseOperation):
+class {op_class_name}(Base, BaseOperation):
     """
     
-    {op_source}
+    
+    Steem Blockchain Example
+    ======================
+{op_example}
+    
 
     """
     
-    __tablename__ = 'sbds_op_{op_name}s'
+    __tablename__ = '{op_table_name}'
     __operation_type__ = '{op_name}'
     
 {op_columns}
@@ -215,35 +250,179 @@ class {camel_op_name}(Base, BaseOperation):
 
 '''
 
-name_to_column_map = defaultdict(lambda: [])
-name_to_column_map.update({
-    'fee': ['Column(Numeric(15, 6), nullable=False)',
-            'fee_symbol = Column(Unicode(5))'],
-    'delegation': ['Column(Numeric(15, 6), nullable=False)'],
-    'creator': ['Column(Unicode(50), nullable=False, index=True)'],
-    'new_account_name': ['Column(Unicode(50), index=True)'],
-    'owner_key': ['Column(Unicode(80), nullable=False)'],
-    'active_key': ['Column(Unicode(80), nullable=False)'],
-    'posting_key': ['Column(Unicode(80), nullable=False)'],
-    'memo_key': ['Column(Unicode(250), nullable=False)'],
-    'json_metadata': ['Column(UnicodeText)'],
-    '_from': ["Column('from', Unicode(50), index=True)"],
-    'request_id': ['Column(Integer)'],
-    'permlink': ['Column(Unicode(512), nullable=False, index=True)'],
-    'parent_author': ['Column(Unicode(50), index=True)'],
-    'parent_permlink': ['Column(Unicode(512))'],
-    'json': ['Column(UnicodeText)'],
+name_to_columns_map = defaultdict(lambda: [])
+name_to_columns_map.update({
+    'json_metadata': ['json_metadata = Column(JSON) # name:json_metadata'],
+    'from': ["_from = Column('from', Unicode(50), index=True) # name:from"],
+    'json': ['json = Column(JSON) # name:json'],
+    'posting': ['posting = Column(JSON) # name:posting'],
+    'owner': ['owner = Column(JSON) # name:owner'],
+    'active': ['active = Column(JSON) # name:active'],
+    'body': ['body = Column(UnicodeText) # name:body'],
+    'json_meta': ['json_meta = Column(JSON) # name:json_meta'],
+    'memo': ['memo = Column(UnicodeText) # name:memo']
 
 })
 
-type_to_column_map  = defaultdict(lambda: ['Column(Unicode(100)) # type'])
-type_to_column_map.update({
-    'account_name_type': ['Column(Unicode(50)) # account_name_type'],
-    'asset': ['Column(Numeric(15, 6), nullable=False) # asset',
-              '# asset_symbol = Column(Unicode(5)) # asset'],
-    'string': ['Column(Unicode(150)) # string']
-})
 
+
+
+OLD_TABLE_NAME_MAP = {
+    'delegate_vesting_shares_operation': 'sbds_tx_delegate_vesting_shares',
+    'decline_voting_rights_operation': 'sbds_tx_decline_voting_rights',
+    'cancel_transfer_from_savings_operation': 'sbds_tx_cancel_transfer_from_savings',
+    'transfer_from_savings_operation': 'sbds_tx_transfer_from_savings',
+    'transfer_to_savings_operation': 'sbds_tx_transfer_to_savings',
+    'set_withdraw_vesting_route_operation': 'sbds_tx_withdraw_vesting_routes',
+    'comment_options_operation': 'sbds_tx_comments_options'
+}
+
+
+SMALL_INT_TYPES = (
+'uint16_t',
+'int8_t',
+'int16_t'
+)
+
+INT_TYPES = (
+'uint32_t',
+'int32_t'
+)
+
+BIG_INT_TYPES = (
+'uint64_t',
+'int64_t',
+)
+
+
+
+def get_fields(name, _type):
+    fields = []
+    if _type == 'asset':
+        # amount_field(x.get('amount'), num_func=float)
+        fields.append(
+            f"{name}=lambda x: amount_field(x.get('{name}'), num_func=float),")
+        fields.append(
+            f"{name}_symbol=lambda x: amount_symbol_field(x.get('{name}')),")
+    elif name == 'body':
+        # body = lambda x: comment_body_field(x['body']),
+        fields.append(
+            f"{name}=lambda x: comment_body_field(x.get('{name}')),")
+    elif name == 'from':
+        fields.append(f"_from=lambda x: x.get('from'),")
+    else:
+        fields.append(f"{name}=lambda x: x.get('{name}'),")
+    return fields
+
+def get_columns(name, _type, op_name):
+    cols = name_to_columns_map.get(f'{name},{op_name}')
+    if not cols:
+        cols = name_to_columns_map.get(name)
+    if not cols:
+        cols = _get_columns_by_type(name, _type)
+    return cols
+
+def _get_columns_by_type(name, _type):
+
+    # asset
+    if _type == 'asset':
+        if name == 'from':
+            name = '_from'
+        return [
+            f'{name} = Column(Numeric(20,6), nullable=False) # steem_type:asset',
+            f'{name}_symbol = Column(String(5)) # steem_type:{_type}']
+
+    # account_name_type
+    elif _type == 'account_name_type':
+        return [f'{name} = Column(String(50), index=True) # steem_type:{_type}']
+
+    # public_key_type
+    elif _type == 'public_key_type':
+        return [f'{name} = Column(String(60), nullable=False) # steem_type:{_type}']
+
+    # optional< public_key_type>
+    elif _type == 'optional< public_key_type>':
+        return [f'{name} = Column(String(60)) # steem_type:{_type}']
+
+    # string type
+    elif _type == 'string':
+        return [f'{name} = Column(Unicode(150)) # steem_type:{_type}']
+
+    # boolean
+    elif _type == 'bool':
+        return [f'{name} = Column(Boolean) # steem_type:{_type}']
+
+    # integers
+    elif _type in SMALL_INT_TYPES:
+        return [f'{name} = Column(SmallInteger) # steem_type:{_type}']
+    elif _type in INT_TYPES:
+        return [f'{name} = Column(Integer) # steem_type:{_type}']
+    elif _type in BIG_INT_TYPES:
+        return [f'{name} = Column(BigInteger) # steem_type:{_type}']
+
+    # vector< authority>
+    elif _type == 'vector< authority>':
+        return [f'{name} = Column(String(100)) # steem_type:{_type}']
+
+    # vector< char>
+    elif _type == 'vector< char>':
+        return [f'{name} = Column(String(100)) # steem_type:{_type}']
+
+    # block_id_type
+    elif _type == 'block_id_type':
+        return [f'{name} = Column(Integer) # steem_type:{_type}']
+
+    # vector< beneficiary_route_type>
+    elif _type == 'vector< beneficiary_route_type>':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # flat_set< account_name_type>
+    elif _type == 'flat_set< account_name_type>':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # time_point_sec
+    elif _type == 'time_point_sec':
+        return [f'{name} = Column(DateTime) # steem_type:{_type}']
+
+    # price
+    elif _type == 'price':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # extensions_type
+    elif _type == 'extensions_type' or _type == 'steemit::protocol::comment_options_extensions_type':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # authority
+    elif _type == 'authority':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # signed_block_header
+    elif _type == 'signed_block_header':
+        return [f'{name} = Column(String(500)) # steem_type:{_type}']
+
+    # chain_properties
+    elif _type == 'chain_properties':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # pow
+    elif _type == 'pow':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # steemit::protocol::pow2_work
+    elif _type == 'steemit::protocol::pow2_work':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # pow2_input
+    elif _type == 'pow2_input':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # fc::equihash::proof
+    elif _type == 'fc::equihash::proof':
+        return [f'{name} = Column(JSON) # steem_type:{_type}']
+
+    # default string
+    else:
+        return [f'{name} = Column(Unicode(100)) # steem_type:{_type} -> default']
 
 def read_json_file(ctx, param, f):
     return json.load(f)
@@ -251,9 +430,23 @@ def read_json_file(ctx, param, f):
 def op_file(cls):
     return cls['name'].replace('_operation','') + '.py'
 
-
 def op_class_name(cls):
     return ''.join(s.title() for s in cls['name'].split('_'))
+
+def op_old_table_name(op_name):
+    print(op_name)
+    table_name = OLD_TABLE_NAME_MAP.get(op_name)
+    if not table_name:
+        short_op_name = op_name.replace('_operation','')
+        table_name =  f'sbds_tx_{p.plural(short_op_name)}'
+    else:
+        print(table_name)
+
+    return table_name
+
+def op_table_name(op_name):
+    short_op_name = op_name.replace('_operation', '')
+    return f'sbds_op_{p.plural(short_op_name)}'
 
 def iter_classes(header):
     for cls in header['classes']:
@@ -267,17 +460,13 @@ def iter_properties_keys(cls, keys=None):
 def op_columns(cls):
     columns = []
     indent = '    '
+    op_name = cls['name']
     props = iter_properties_keys(cls)
     for prop in props:
         name = prop['name']
         _type = prop['type']
-        cols = name_to_column_map.get(name)
-        if not cols:
-            cols = type_to_column_map[_type]
-        columns.append(f'{indent}{name} = {cols[0]}')
-        if len(cols) > 1:
-            for col in cols[1:]:
-                columns.append(f'{indent}{col}')
+        cols = get_columns(name, _type, op_name)
+        columns.extend(f'{indent}{col}' for col in cols)
     return '\n'.join(columns)
 
 def op_fields(cls):
@@ -287,15 +476,8 @@ def op_fields(cls):
     for prop in props:
         name = prop['name']
         _type = prop['type']
-        if _type == 'asset':
-            # amount_field(x.get('amount'), num_func=float)
-            fields.append(f"{indent}{name}=lambda x: amount_field(x.get('{name}'), num_func=float),")
-            fields.append(f"{indent}{name}_symbol=lambda x: amount_symbol_field(x.get('{name}')),")
-        elif name == 'body':
-            #body = lambda x: comment_body_field(x['body']),
-            fields.append(f"{indent}{name}=lambda x: comment_body_field(x.get('{name}')),")
-        else:
-            fields.append(f"{indent}{name}=lambda x: x.get('{name}'),")
+        flds = get_fields(name, _type)
+        fields.extend(f'{indent}{fld}' for fld in flds)
     return '\n'.join(fields)
 
 def op_source(cls):
@@ -310,13 +492,35 @@ def op_source(cls):
     '''
     return ''
 
-
-
-def fix_bad_var_name(prop):
-    if prop['name'] == 'from':
-        prop['name'] = '_from'
-    return prop
-
+def get_op_example(op_name, db_url, table_name=None, cache_dir='build_dir/examples'):
+    if cache_dir:
+        try:
+            with open(f'{cache_dir}/{op_name}.json') as f:
+                return f.read()
+        except Exception as e:
+            pass
+    if not table_name:
+        table_name = op_old_table_name(op_name)
+    op_block_query = f'SELECT {table_name}.block_num, transaction_num, operation_num, raw FROM {table_name} JOIN sbds_core_blocks ON {table_name}.block_num=sbds_core_blocks.block_num LIMIT 1;'
+    proc_result = subprocess.run([
+        'mysqlsh',
+        '--json',
+        '--uri', db_url,
+        '--sqlc'],
+        input=op_block_query.encode(),
+        stdout=subprocess.PIPE)
+    try:
+        output = proc_result.stdout.decode().replace(BAD_MYSQLSH_OUTPUT,'')
+        result_json = json.loads(output)
+        transaction_num = result_json['rows'][0]['transaction_num']
+        operation_num = result_json['rows'][0]['operation_num']
+        block = json.loads(result_json['rows'][0]['raw'])
+        example = block['transactions'][transaction_num -1]['operations'][operation_num -1][1]
+        if example:
+            return json.dumps(example, indent=2)
+        return example
+    except Exception as e:
+        return ''
 
 def write_class(path, text):
     p = Path(path)
@@ -326,18 +530,27 @@ def write_class(path, text):
 @click.argument('infile', type=click.File(mode='r'), callback=read_json_file,
                 default='-')
 @click.argument('base_path', type=click.STRING)
-def cli(infile, base_path):
+@click.option('--db_url', type=click.STRING)
+def cli(infile, base_path, db_url):
+
     header = infile
     for op_name, cls in header['classes'].items():
         filename  = op_file(cls)
         path = os.path.join(base_path, filename)
+        if db_url:
+            op_example = get_op_example(op_name, db_url)
+        else:
+            op_example = ''
         text = class_template.format(op_name=op_name,
-                                     camel_op_name=op_class_name(cls),
-                                     op_columns=op_columns(cls),
-                                     op_fields=op_fields(cls),
-                                     op_source=op_source(cls)
+                                     op_class_name=op_class_name(cls),
+                                     op_table_name=op_table_name(op_name),
+                                     op_columns=reindent(str(op_columns(cls)),4),
+                                     op_fields=reindent(str(op_fields(cls)),8),
+                                     op_source=op_source(cls),
+                                     op_example=addindent(str(op_example),4)
                                      )
         write_class(path,text)
+
 
 if __name__ == '__main__':
     cli()

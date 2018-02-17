@@ -1,44 +1,59 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class ChangeRecoveryAccountOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
-
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "account_to_recover": "barrie",
-        "extensions": [],
-        "new_recovery_account": "boombastic"
+      "new_recovery_account": "boombastic",
+      "account_to_recover": "barrie",
+      "extensions": []
     }
-
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_change_recovery_accounts'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    account_to_recover = Column(Unicode(50))
-    new_recovery_account = Column(Unicode(50))
-
-    _fields = dict(
-        account_to_recover=lambda x: x.get('account_to_recover'),
-        new_recovery_account=lambda x: x.get('new_recovery_account'))
-
+    __operation_type__ = 'change_recovery_account_operation'
+    
+    account_to_recover = Column(String(50), index=True) # steem_type:account_name_type
+    new_recovery_account = Column(String(50), index=True) # steem_type:account_name_type
+    extensions = Column(JSON) # steem_type:extensions_type
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='change_recovery_account_operation')
+    
+    _fields = dict(
+        account_to_recover=lambda x: x.get('account_to_recover'),
+        new_recovery_account=lambda x: x.get('new_recovery_account'),
+        extensions=lambda x: x.get('extensions'),
+    )
+

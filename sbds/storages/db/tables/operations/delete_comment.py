@@ -1,64 +1,56 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class DeleteCommentOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-        "ref_block_prefix": 3023139187,
-        "expiration": "2016-06-06T19:34:27",
-        "operations": [
-            [
-                "delete_comment",
-                {
-                    "author": "jsc",
-                    "permlink": "tests-delete"
-                }
-            ]
-        ],
-        "signatures": [
-            "2044602e8a51a6f44827be54fb5fec8b53698fdf608a5fdd5943af71f288229fc078104b9798391989e15153f5f1aeb370d74ec027fefe4b5372a6c90d35b175f3"
-        ],
-        "ref_block_num": 12211,
-        "extensions": []
+      "permlink": "test-delete",
+      "author": "jsc"
     }
-
-
-    Prepared Format
-    ===============
-    {
-        "id": 1,
-        "tx_id": 309111,
-        "author": "jsc",
-        "permlink": "tests-delete"
-    }
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_delete_comments'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    author = Column(Unicode(50), nullable=False)
-    permlink = Column(Unicode(256), nullable=False)
-
-    _fields = dict(
-        author=lambda x: x.get('author'), permlink=lambda x: x.get('permlink'))
-
+    __operation_type__ = 'delete_comment_operation'
+    
+    author = Column(String(50), index=True) # steem_type:account_name_type
+    permlink = Column(Unicode(150)) # steem_type:string
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='delete_comment_operation')
+    
+    _fields = dict(
+        author=lambda x: x.get('author'),
+        permlink=lambda x: x.get('permlink'),
+    )
+

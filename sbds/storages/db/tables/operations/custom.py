@@ -1,65 +1,61 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
 from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-import sbds.sbds_json
+from sqlalchemy.dialects.mysql import JSON
 
-from .. import Base
-from ...enums import operation_types_enum
-from .base import BaseOperation
+from toolz import get_in
 
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class CustomOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
-    {
-        "ref_block_prefix": 449600556,
-        "ref_block_num": 54561,
-        "operations": [
-            [
-                "custom",
-                {
-                    "id": 777,
-                    "data": "066e6f69737932056c656e6b61032e0640ec51dbcfb761bd927a732e134deff42dbed04bc42300f27f3048b8b44802be956c36eef2e0d3594b794b428a21b48fe41874d41cf12feb8e421e11b3702f24e94b559f4505006dbafb90208bf88f7bb550f6db0713cbb4be6c214c50c16aa62413383f26f9efbb4fe5bf3f",
-                    "required_auths": [
-                        "noisy2"
-                    ]
-                }
-            ]
-        ],
-        "expiration": "2017-01-09T01:32:36",
-        "signatures": [
-            "1f38daabe10814c20f78bba5cbeed5f9115eb9d420278540bddf9e3c6e84fe3ca33da6b32127faf0d30cc0d618711edd294b95fa92787398cb7f0dfb7280509db3"
-        ],
-        "extensions": []
-    }
     """
+    
+    
+    Steem Blockchain Example
+    ======================
+    {
+      "id": 0,
+      "data": "276e1c988628df33",
+      "required_auths": [
+        "blocktrades"
+      ]
+    }
+    
 
+    """
+    
     __tablename__ = 'sbds_op_customs'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    tid = Column(Unicode(50), nullable=False)
-    required_auths = Column(Unicode(250))
-    data = Column(UnicodeText)
-
-    _fields = dict(
-        tid=lambda x: x.get('id'),
-        data=lambda x: x.get('data'),
-        required_auths=lambda x: x.get('required_auths'), )
-
+    __operation_type__ = 'custom_operation'
+    
+    required_auths = Column(JSON) # steem_type:flat_set< account_name_type>
+    id = Column(SmallInteger) # steem_type:uint16_t
+    data = Column(String(100)) # steem_type:vector< char>
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='custom_operation')
+    
+    _fields = dict(
+        required_auths=lambda x: x.get('required_auths'),
+        id=lambda x: x.get('id'),
+        data=lambda x: x.get('data'),
+    )
 
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('required_auths'), str) and decode_json:
-            data_dict['required_auths'] = sbds.sbds_json.loads(
-                data_dict['required_auths'])
-        return data_dict

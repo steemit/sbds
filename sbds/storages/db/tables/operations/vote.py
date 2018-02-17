@@ -1,73 +1,62 @@
-# coding=utf-8
 
+# coding=utf-8
 import os.path
 
+from sqlalchemy import DateTime
+from sqlalchemy import String
 from sqlalchemy import Column
-from sqlalchemy import Integer
+from sqlalchemy import Numeric
 from sqlalchemy import Unicode
+from sqlalchemy import UnicodeText
+from sqlalchemy import Boolean
+from sqlalchemy import SmallInteger
+from sqlalchemy import Integer
+from sqlalchemy import BigInteger
 
-from .. import Base
-from ...enums import operation_types_enum
-from .base import BaseOperation
+from sqlalchemy.dialects.mysql import JSON
 
+from toolz import get_in
+
+from ... import Base
+from ....enums import operation_types_enum
+from ....field_handlers import amount_field
+from ....field_handlers import amount_symbol_field
+from ....field_handlers import comment_body_field
+from ..base import BaseOperation
 
 class VoteOperation(Base, BaseOperation):
-    """Raw Format
-    ==========
+    """
+    
+    
+    Steem Blockchain Example
+    ======================
     {
-    "ref_block_prefix": 286809142,
-    "expiration": "2016-12-16T11:31:55",
-    "operations": [
-        [
-            "vote",
-            {
-                "voter": "a00",
-                "weight": 10000,
-                "author": "kibbjez",
-                "permlink": "t6wv1"
-            }
-        ]
-    ],
-    "signatures": [
-        "20795b036ba95df0b211bc6e79c3a1d0c2363e694aee62e79eeb60f5ed859d21b86dc2205f28e8779d369a8e9a1c898df0e62efbbaf3fc3ae0ac8c8679ed6b2d68"
-    ],
-    "ref_block_num": 32469,
-    "extensions": []
+      "voter": "steemit78",
+      "permlink": "firstpost",
+      "author": "steemit",
+      "weight": 10000
     }
-
-    Prepared Format
-    ===============
-    {
-        "id": 11326766,
-        "tx_id": 15964182,
-        "voter": "a00",
-        "author": "kibbjez",
-        "permlink": "t6wv1",
-        "weight": 10000
-    }
-
-    Args:
-
-    Returns:
+    
 
     """
-
+    
     __tablename__ = 'sbds_op_votes'
-    __operation_type__ = os.path.splitext(os.path.basename(__file__))[0]
-
-    voter = Column(Unicode(50), nullable=False, index=True)
-    author = Column(Unicode(50), nullable=False, index=True)
-    permlink = Column(Unicode(512), nullable=False)
-    weight = Column(Integer)
-
-    _fields = dict(
-        voter=lambda x: x.get('voter'),
-        author=lambda x: x.get('author'),
-        permlink=lambda x: x.get('permlink'),
-        weight=lambda x: x.get('weight'))
-
+    __operation_type__ = 'vote_operation'
+    
+    voter = Column(String(50), index=True) # steem_type:account_name_type
+    author = Column(String(50), index=True) # steem_type:account_name_type
+    permlink = Column(Unicode(150)) # steem_type:string
+    weight = Column(SmallInteger) # steem_type:int16_t
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default=__operation_type__)
+        default='vote_operation')
+    
+    _fields = dict(
+        voter=lambda x: x.get('voter'),
+        author=lambda x: x.get('author'),
+        permlink=lambda x: x.get('permlink'),
+        weight=lambda x: x.get('weight'),
+    )
+
