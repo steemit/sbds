@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class AccountCreateWithDelegationOperation(Base, BaseOperation):
     """
@@ -69,6 +69,7 @@ class AccountCreateWithDelegationOperation(Base, BaseOperation):
       "fee": "35.000 STEEM",
       "memo_key": "STM5Fj3bNfLCvhFC6U67kfNCg6d8CfpxW2AJRJ9KhELEaoBMK9Ltf"
     }
+
     
 
     """
@@ -76,16 +77,16 @@ class AccountCreateWithDelegationOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_account_create_with_delegations'
     __operation_type__ = 'account_create_with_delegation_operation'
     
-    fee = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
     fee_symbol = Column(String(5)) # steem_type:asset
-    delegation = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    delegation = Column(Numeric(20,6), nullable=False) # steem_type:asset
     delegation_symbol = Column(String(5)) # steem_type:asset
     creator = Column(String(50), index=True) # steem_type:account_name_type
     new_account_name = Column(String(50), index=True) # steem_type:account_name_type
     owner = Column(JSON) # name:owner
     active = Column(JSON) # name:active
     posting = Column(JSON) # name:posting
-    memo_key = Column(String(80), nullable=False) # steem_type:public_key_type
+    memo_key = Column(String(60), nullable=False) # steem_type:public_key_type
     json_metadata = Column(JSON) # name:json_metadata
     extensions = Column(JSON) # steem_type:extensions_type
     operation_type = Column(

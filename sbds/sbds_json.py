@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+from functools import singledispatch
 from functools import partial
 
 try:
@@ -6,22 +8,22 @@ try:
 except ImportError:
     import json
 
-class ToStringJSONEncoder(json.JSONEncoder):
-    """This encoder handles date, time, datetime, timedelta, and anything else
-    with a __str__ method"""
 
-    # pylint: disable=method-hidden
-    def default(self, o):
-        # pylint: disable=bare-except
-        try:
-            return str(o)
-        except BaseException:
-            return super(ToStringJSONEncoder, self).default(o)
-
-    # pylint: enable=method-hidden
+@singledispatch
+def to_serializable(val):
+    """Used by default."""
+    return str(val)
 
 
-dump = partial(json.dump, cls=ToStringJSONEncoder)
-dumps = partial(json.dumps, cls=ToStringJSONEncoder)
+# noinspection PyUnresolvedReferences
+@to_serializable.register(datetime)
+def ts_datetime(val):
+    """Used if *val* is an instance of datetime."""
+    return val.isoformat()
+
+
+
+dump = partial(json.dump, default=to_serializable)
+dumps = partial(json.dumps, default=to_serializable)
 load = json.load
 loads = json.loads

@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class ChangeRecoveryAccountOperation(Base, BaseOperation):
     """
@@ -35,6 +35,7 @@ class ChangeRecoveryAccountOperation(Base, BaseOperation):
       "account_to_recover": "barrie",
       "extensions": []
     }
+
     
 
     """

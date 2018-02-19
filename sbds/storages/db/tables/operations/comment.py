@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class CommentOperation(Base, BaseOperation):
     """
@@ -39,6 +39,7 @@ class CommentOperation(Base, BaseOperation):
       "json_metadata": "",
       "author": "steemit"
     }
+
     
 
     """
@@ -47,10 +48,10 @@ class CommentOperation(Base, BaseOperation):
     __operation_type__ = 'comment_operation'
     
     parent_author = Column(String(50), index=True) # steem_type:account_name_type
-    parent_permlink = Column(Unicode(150)) # steem_type:string
+    parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink
     author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(150)) # steem_type:string
-    title = Column(Unicode(150)) # steem_type:string
+    permlink = Column(Unicode(512), index=True) # name:permlink
+    title = Column(Unicode(512), index=True) # name:title,comment_operation
     body = Column(UnicodeText) # name:body
     json_metadata = Column(JSON) # name:json_metadata
     operation_type = Column(

@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,19 +16,21 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
+from ...import Base
 from ....enums import operation_types_enum
 from ....field_handlers import amount_field
 from ....field_handlers import amount_symbol_field
 from ....field_handlers import comment_body_field
 from ..base import BaseOperation
+from ..base import BaseVirtualOperation
 
-class CommentPayoutUpdateOperation(Base, BaseOperation):
+class CommentPayoutUpdateOperation(Base, BaseVirtualOperation):
     """
     
     
     Steem Blockchain Example
     ======================
+
 
     
 
@@ -39,7 +40,7 @@ class CommentPayoutUpdateOperation(Base, BaseOperation):
     __operation_type__ = 'comment_payout_update_operation'
     
     author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(150)) # steem_type:string
+    permlink = Column(Unicode(512), index=True) # name:permlink
     operation_type = Column(
         operation_types_enum,
         nullable=False,

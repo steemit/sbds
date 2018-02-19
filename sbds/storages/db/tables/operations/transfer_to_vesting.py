@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class TransferToVestingOperation(Base, BaseOperation):
     """
@@ -35,6 +35,7 @@ class TransferToVestingOperation(Base, BaseOperation):
       "from": "faddy",
       "to": ""
     }
+
     
 
     """
@@ -44,7 +45,7 @@ class TransferToVestingOperation(Base, BaseOperation):
     
     _from = Column('from', Unicode(50), index=True) # name:from
     to = Column(String(50), index=True) # steem_type:account_name_type
-    amount = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    amount = Column(Numeric(20,6), nullable=False) # steem_type:asset
     amount_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,

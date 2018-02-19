@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class WithdrawVestingOperation(Base, BaseOperation):
     """
@@ -34,6 +34,7 @@ class WithdrawVestingOperation(Base, BaseOperation):
       "vesting_shares": "200000.000000 VESTS",
       "account": "steemit"
     }
+
     
 
     """
@@ -42,7 +43,7 @@ class WithdrawVestingOperation(Base, BaseOperation):
     __operation_type__ = 'withdraw_vesting_operation'
     
     account = Column(String(50), index=True) # steem_type:account_name_type
-    vesting_shares = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    vesting_shares = Column(Numeric(20,6), nullable=False) # steem_type:asset
     vesting_shares_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,

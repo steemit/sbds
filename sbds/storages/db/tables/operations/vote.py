@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class VoteOperation(Base, BaseOperation):
     """
@@ -36,6 +36,7 @@ class VoteOperation(Base, BaseOperation):
       "author": "steemit",
       "weight": 10000
     }
+
     
 
     """
@@ -45,7 +46,7 @@ class VoteOperation(Base, BaseOperation):
     
     voter = Column(String(50), index=True) # steem_type:account_name_type
     author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(150)) # steem_type:string
+    permlink = Column(Unicode(512), index=True) # name:permlink
     weight = Column(SmallInteger) # steem_type:int16_t
     operation_type = Column(
         operation_types_enum,

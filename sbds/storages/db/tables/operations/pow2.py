@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class Pow2Operation(Base, BaseOperation):
     """
@@ -48,6 +48,7 @@ class Pow2Operation(Base, BaseOperation):
         }
       ]
     }
+
     
 
     """
@@ -56,7 +57,7 @@ class Pow2Operation(Base, BaseOperation):
     __operation_type__ = 'pow2_operation'
     
     work = Column(JSON) # steem_type:steemit::protocol::pow2_work
-    new_owner_key = Column(String(80)) # steem_type:optional< public_key_type>
+    new_owner_key = Column(String(60)) # steem_type:optional< public_key_type>
     props = Column(JSON) # steem_type:chain_properties
     operation_type = Column(
         operation_types_enum,

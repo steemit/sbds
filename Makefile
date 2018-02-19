@@ -15,12 +15,22 @@ ENVFILE := .env
 
 PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
 
-BUILD_DIR := build_dir
-BLOCKCHAIN_EXAMPLES_DIR := $(BUILD_DIR)/examples
+BUILD_DIR := $(ROOT_DIR)/build
+OPERATIONS_CACHE_DIR=$(BUILD_DIR)
+BLOCKCHAIN_EXAMPLES_DIR := $(OPERATIONS_CACHE_DIR)/examples
 
-OPERATIONS_FILE := sbds/storages/db/tables/operations/operations_header.json
+OPERATIONS_PREFIX := sbds/storages/db/tables/operations
+OPERATIONS_PATH := $(ROOT_DIR)/$(OPERATION_PREFIX)
+OPERATIONS_FILE := $(OPERATIONS_PATH)/operations_header.json
+OPERATIONS_NAMES := $(shell jq -r '.classes[].name' $(OPERATIONS_FILE))
+OPERATIONS_PYTHON_FILES := $(addprefix $(OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(OPERATIONS_NAMES))))
 
-OPERATIONS_PYTHON_FILES := $(addprefix 'sbds/storages/db/tables/operations', $(addsuffix '.py $(shell jq -r '.classes[].name' $(OPERATIONS_FILE))))
+VIRTUAL_OPERATION_PREFIX := $(OPERATIONS_PREFIX)/virtual
+VIRTUAL_OPERATIONS_PATH := $(ROOT_DIR)/$(VIRTUAL_OPERATION_PREFIX)
+VIRTUAL_OPERATIONS_FILE := $(VIRTUAL_OPERATIONS_PATH)/virtual_operations_header.json
+VIRTUAL_OPERATIONS_NAMES := $(shell jq -r '.classes[].name' $(VIRTUAL_OPERATIONS_FILE))
+VIRTUAL_OPERATIONS_PYTHON_FILES := $(addprefix $(VIRTUAL_OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(VIRTUAL_OPERATIONS_NAMES))))
+
 
 default: help
 
@@ -137,4 +147,19 @@ $(BLOCKCHAIN_EXAMPLES_DIR): $(BUILD_DIR)
 	mkdir $@
 
 $(BLOCKCHAIN_EXAMPLES_DIR)/%.json: $(BLOCKCHAIN_EXAMPLES_DIR)
-	pipenv run $(ROOT_DIR)/contrib/get_operation_example.py $(basename $(@F)) mysql://sbds_user:RDf2ckvahqNN%5Dghoq@sbds-dev-1.c5fwsnh29c0p.us-east-1.rds.amazonaws.com/sbds > $@
+	pipenv run ./contrib/codegen.py generate-class-example $(*F) $(DATABASE_URL) > $@
+
+$(VIRTUAL_OPERATIONS_PATH)/%.py: $(VIRTUAL_OPERATIONS_FILE)
+	pipenv run ./contrib/codegen.py generate-class $(*F) \
+		$(VIRTUAL_OPERATIONS_FILE) \
+		--cache_dir $(OPERATIONS_CACHE_DIR) \
+		--db_url $(DATABASE_URL) > $@
+
+$(OPERATIONS_PATH)/%.py: $(OPERATIONS_FILE)
+	pipenv run ./contrib/codegen.py generate-class $(*F) \
+		$(OPERATIONS_FILE) \
+		--cache_dir $(OPERATIONS_CACHE_DIR) \
+		--db_url $(DATABASE_URL) > $@
+
+.PHONY: virtual-ops-classes
+virtual-ops-classes: $(VIRTUAL_OPERATIONS_PYTHON_FILES)

@@ -3,8 +3,9 @@
 # coding=utf-8
 import json
 import os.path
-import string
 import subprocess
+import sys
+import textwrap
 
 from pathlib import Path
 
@@ -22,7 +23,6 @@ def reindent(s, numSpaces):
         s = '\n'.join(s)
     return s
 
-
 def addindent(s, numSpaces):
     if s:
         s = '\n'.join([(numSpaces * ' ') + line for line in s.splitlines()])
@@ -30,6 +30,23 @@ def addindent(s, numSpaces):
 
 BAD_MYSQLSH_OUTPUT = '''{\n    "info": "mysqlx: [Warning] Using a password on the command line interface can be insecure."\n}\n'''
 
+VIRTUAL_OPS_NAMES = (
+    'author_reward_operation',
+    'comment_benefactor_reward_operation',
+    'comment_payout_update_operation',
+    'comment_reward_operation',
+    'curation_reward_operation',
+    'fill_convert_request_operation',
+    'fill_order_operation',
+    'fill_transfer_from_savings_operation',
+    'fill_vesting_withdraw_operation',
+    'hardfork_operation',
+    'interest_operation',
+    'liquidity_reward_operation',
+    'producer_reward_operation',
+    'return_vesting_delegation_operation',
+    'shutdown_witness_operation'
+)
 
 # virtual operations
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_virtual_operations.hpp
@@ -197,7 +214,7 @@ virtual_op_source_map = {
 }
 
 
-class_template = '''
+class_template = '''\
 # coding=utf-8
 import os.path
 
@@ -216,20 +233,22 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..{op_rel_import_dot}import Base
+from ...{op_rel_import_dot}enums import operation_types_enum
+from ...{op_rel_import_dot}field_handlers import amount_field
+from ...{op_rel_import_dot}field_handlers import amount_symbol_field
+from ...{op_rel_import_dot}field_handlers import comment_body_field
+from .{op_rel_import_dot}base import BaseOperation
+from .{op_rel_import_dot}base import BaseVirtualOperation
 
-class {op_class_name}(Base, BaseOperation):
+class {op_class_name}(Base, {op_class_operation_base}):
     """
     
     
     Steem Blockchain Example
     ======================
 {op_example}
+
     
 
     """
@@ -260,7 +279,10 @@ name_to_columns_map.update({
     'active': ['active = Column(JSON) # name:active'],
     'body': ['body = Column(UnicodeText) # name:body'],
     'json_meta': ['json_meta = Column(JSON) # name:json_meta'],
-    'memo': ['memo = Column(UnicodeText) # name:memo']
+    'memo': ['memo = Column(UnicodeText) # name:memo'],
+    'permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
+    'parent_permlink': ['parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink'],
+    'title,comment_operation': ['title = Column(Unicode(512), index=True) # name:title,comment_operation'],
 
 })
 
@@ -492,15 +514,24 @@ def op_source(cls):
     '''
     return ''
 
-def get_op_example(op_name, db_url, table_name=None, cache_dir='build_dir/examples'):
+def get_op_example(op_name, db_url, table_name=None, cache_dir=None):
     if cache_dir:
         try:
-            with open(f'{cache_dir}/{op_name}.json') as f:
-                return f.read()
+            return _get_op_example_from_cache(op_name, cache_dir)
         except Exception as e:
             pass
     if not table_name:
         table_name = op_old_table_name(op_name)
+    try:
+        _get_op_exmaple_from_db(op_name, table_name, db_url)
+    except Exception as e:
+        return ''
+
+def _get_op_example_from_cache(op_name, cache_dir):
+    with open(f'{cache_dir}/examples/{op_name}.json') as f:
+        return f.read()
+
+def _get_op_exmaple_from_db(op_name, table_name, db_url):
     op_block_query = f'SELECT {table_name}.block_num, transaction_num, operation_num, raw FROM {table_name} JOIN sbds_core_blocks ON {table_name}.block_num=sbds_core_blocks.block_num LIMIT 1;'
     proc_result = subprocess.run([
         'mysqlsh',
@@ -509,48 +540,95 @@ def get_op_example(op_name, db_url, table_name=None, cache_dir='build_dir/exampl
         '--sqlc'],
         input=op_block_query.encode(),
         stdout=subprocess.PIPE)
-    try:
-        output = proc_result.stdout.decode().replace(BAD_MYSQLSH_OUTPUT,'')
-        result_json = json.loads(output)
-        transaction_num = result_json['rows'][0]['transaction_num']
-        operation_num = result_json['rows'][0]['operation_num']
-        block = json.loads(result_json['rows'][0]['raw'])
-        example = block['transactions'][transaction_num -1]['operations'][operation_num -1][1]
-        if example:
-            return json.dumps(example, indent=2)
-        return example
-    except Exception as e:
-        return ''
+
+    output = proc_result.stdout.decode().replace(BAD_MYSQLSH_OUTPUT, '')
+    result_json = json.loads(output)
+    transaction_num = result_json['rows'][0]['transaction_num']
+    operation_num = result_json['rows'][0]['operation_num']
+    block = json.loads(result_json['rows'][0]['raw'])
+    example = block['transactions'][transaction_num - 1]['operations'][
+        operation_num - 1][1]
+    if example:
+        return json.dumps(example, indent=2)
+    return example
+
+def op_class_operation_base(cls):
+    name = cls['name']
+    if name in VIRTUAL_OPS_NAMES:
+        return 'BaseVirtualOperation'
+    return 'BaseOperation'
+
+def op_rel_import_dot(cls):
+    name = cls['name']
+    if name in VIRTUAL_OPS_NAMES:
+        return '.'
+    return ''
 
 def write_class(path, text):
     p = Path(path)
     p.write_text(text)
 
-@click.command(name='generate_classes')
-@click.argument('infile', type=click.File(mode='r'), callback=read_json_file,
-                default='-')
-@click.argument('base_path', type=click.STRING)
-@click.option('--db_url', type=click.STRING)
-def cli(infile, base_path, db_url):
+def _generate_class(op_name, cls, cache_dir=None, db_url=None):
+    if db_url:
+        op_example = get_op_example(op_name, db_url)
+    else:
+        op_example = ''
 
-    header = infile
+    return class_template.format(
+        op_name=op_name,
+        op_class_name=op_class_name(cls),
+        op_table_name=op_table_name(op_name),
+        op_columns=reindent(str(op_columns(cls)),4),
+        op_fields=reindent(str(op_fields(cls)), 8),
+        op_source=op_source(cls),
+        op_example=addindent(str(op_example), 4),
+        op_class_operation_base=op_class_operation_base(cls),
+        op_rel_import_dot=op_rel_import_dot(cls)
+        )
+
+
+@click.group()
+def codegen():
+    """Query the Steem blockchain"""
+
+
+@codegen.command(name='generate-classes')
+@click.argument('header_file', type=click.File(mode='r'))
+@click.option('--cache_dir', type=click.Path(file_okay=False))
+@click.option('--db_url', type=click.STRING)
+def generate_classes(header_file, cache_dir, db_url):
+    header = json.load(header_file)
+    base_path = os.path.dirname(header_file)
     for op_name, cls in header['classes'].items():
         filename  = op_file(cls)
         path = os.path.join(base_path, filename)
-        if db_url:
-            op_example = get_op_example(op_name, db_url)
-        else:
-            op_example = ''
-        text = class_template.format(op_name=op_name,
-                                     op_class_name=op_class_name(cls),
-                                     op_table_name=op_table_name(op_name),
-                                     op_columns=reindent(str(op_columns(cls)),4),
-                                     op_fields=reindent(str(op_fields(cls)),8),
-                                     op_source=op_source(cls),
-                                     op_example=addindent(str(op_example),4)
-                                     )
+        text = _generate_class(op_name, cls, cache_dir, db_url)
         write_class(path,text)
 
+@codegen.command(name='generate-class')
+@click.argument('op_name', type=click.STRING)
+@click.argument('header_file', type=click.File(mode='r'))
+@click.option('--cache_dir', type=click.Path(file_okay=False))
+@click.option('--db_url', type=click.STRING)
+def generate_class(op_name, header_file, cache_dir, db_url):
+    header = json.load(header_file)
+    base_path = os.path.dirname(header_file)
+    if not op_name.endswith('_operation'):
+        op_name = op_name + '_operation'
+    cls = header['classes'][op_name]
+    text = _generate_class(op_name, cls, cache_dir, db_url)
+    #filename = op_file(cls)
+    #path = os.path.join(base_path, filename)
+    #write_class(path, text)
+    click.echo(text,file=sys.stdout)
+
+
+@codegen.command(name='generate-class-example')
+@click.argument('op_name', type=click.STRING)
+@click.argument('db_url', type=click.STRING)
+def generate_class_example(op_name, db_url):
+    op_example = get_op_example(op_name, db_url)
+    click.echo(op_example, file=sys.stdout)
 
 if __name__ == '__main__':
-    cli()
+    codegen()

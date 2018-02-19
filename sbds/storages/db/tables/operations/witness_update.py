@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class WitnessUpdateOperation(Base, BaseOperation):
     """
@@ -41,6 +41,7 @@ class WitnessUpdateOperation(Base, BaseOperation):
       "owner": "steempty",
       "block_signing_key": "STM8LoQjQqJHvotqBo7HjnqmUbFW9oJ2theyqonzUd9DdJ7YYHsvD"
     }
+
     
 
     """
@@ -50,9 +51,9 @@ class WitnessUpdateOperation(Base, BaseOperation):
     
     owner = Column(JSON) # name:owner
     url = Column(Unicode(150)) # steem_type:string
-    block_signing_key = Column(String(80), nullable=False) # steem_type:public_key_type
+    block_signing_key = Column(String(60), nullable=False) # steem_type:public_key_type
     props = Column(JSON) # steem_type:chain_properties
-    fee = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
     fee_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,

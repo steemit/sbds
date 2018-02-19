@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class EquihashPow(Base, BaseOperation):
     """
@@ -31,6 +31,7 @@ class EquihashPow(Base, BaseOperation):
     Steem Blockchain Example
     ======================
 
+
     
 
     """
@@ -38,8 +39,8 @@ class EquihashPow(Base, BaseOperation):
     __tablename__ = 'sbds_op_equihash_pows'
     __operation_type__ = 'equihash_pow'
     
-    input = Column(Unicode(100)) # steem_type:pow2_input -> default
-    proof = Column(Unicode(100)) # steem_type:fc::equihash::proof -> default
+    input = Column(JSON) # steem_type:pow2_input
+    proof = Column(JSON) # steem_type:fc::equihash::proof
     prev_block = Column(Integer) # steem_type:block_id_type
     pow_summary = Column(Integer) # steem_type:uint32_t
     operation_type = Column(

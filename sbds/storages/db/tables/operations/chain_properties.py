@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class ChainProperties(Base, BaseOperation):
     """
@@ -31,6 +31,7 @@ class ChainProperties(Base, BaseOperation):
     Steem Blockchain Example
     ======================
 
+
     
 
     """
@@ -38,7 +39,7 @@ class ChainProperties(Base, BaseOperation):
     __tablename__ = 'sbds_op_chain_property'
     __operation_type__ = 'chain_properties'
     
-    account_creation_fee = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    account_creation_fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
     account_creation_fee_symbol = Column(String(5)) # steem_type:asset
     maximum_block_size = Column(Integer) # steem_type:uint32_t
     sbd_interest_rate = Column(SmallInteger) # steem_type:uint16_t

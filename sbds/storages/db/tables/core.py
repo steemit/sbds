@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from copy import copy
+
 from copy import deepcopy
+from functools import singledispatch
 from itertools import chain
 
 import maya
@@ -37,32 +38,59 @@ def from_raw_block(raw_block, session=None):
 
 def prepare_raw_block(raw_block):
     """
-    Convert raw block to dict, adding block_num.
+        Convert raw block to dict, adding block_num.
 
-    Args:
-        raw_block (Union[Dict[str, List], Dict[str, str]]):
+        Args:
+            raw_block (Union[Dict[str, List], Dict[str, str]]):
 
-    Returns:
-        Union[Dict[str, List], None]:
+        Returns:
+            Union[Dict[str, List], None]:
     """
+    block_dict = load_raw_block(raw_block)
+    block_dict = add_block_num(block_dict)
+    block_dict = parse_timestamp(block_dict)
+    return block_dict
+
+
+@singledispatch
+def load_raw_block(raw_block):
+    raise TypeError(f'Unsupported raw block type: {type(raw_block)}')
+
+
+# noinspection PyUnresolvedReferences
+@load_raw_block.register(dict)
+def load_raw_block_from_dict(raw_block):
     block_dict = dict()
-    if isinstance(raw_block, dict):
-        block = deepcopy(raw_block)
-        block_dict.update(**block)
-        block_dict['raw'] = sbds.sbds_json.dumps(block, ensure_ascii=True)
-    elif isinstance(raw_block, str):
-        block_dict.update(**sbds.sbds_json.loads(raw_block))
-        block_dict['raw'] = copy(raw_block)
-    elif isinstance(raw_block, bytes):
-        block = deepcopy(raw_block)
-        raw = block.decode('utf8')
-        block_dict.update(**sbds.sbds_json.loads(raw))
-        block_dict['raw'] = copy(raw)
-    else:
-        raise TypeError('Unsupported raw block type')
+    block = deepcopy(raw_block)
+    block_dict.update(**block)
+    block_dict['raw'] = sbds.sbds_json.dumps(block, ensure_ascii=True)
+    return block_dict
+
+
+# noinspection PyUnresolvedReferences
+@load_raw_block.register(str)
+def load_raw_block_from_str(raw_block):
+    block_dict = dict()
+    block_dict.update(**sbds.sbds_json.loads(raw_block))
+    block_dict['raw'] = raw_block
+
+
+# noinspection PyUnresolvedReferences
+@load_raw_block.register(bytes)
+def load_raw_block_from_bytes(raw_block):
+    block_dict = dict()
+    block_dict['raw'] = raw_block.decode('utf8')
+    block_dict.update(**sbds.sbds_json.loads(block_dict['raw']))
+    return block_dict
+
+
+def add_block_num(block_dict):
     if 'block_num' not in block_dict:
         block_num = block_num_from_previous(block_dict['previous'])
         block_dict['block_num'] = block_num
+    return block_dict
+
+def parse_timestamp(block_dict):
     if isinstance(block_dict.get('timestamp'), str):
         timestamp = maya.dateparser.parse(block_dict['timestamp'])
         block_dict['timestamp'] = timestamp

@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,12 +16,13 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
-from ....enums import operation_types_enum
-from ....field_handlers import amount_field
-from ....field_handlers import amount_symbol_field
-from ....field_handlers import comment_body_field
-from ..base import BaseOperation
+from ..import Base
+from ...enums import operation_types_enum
+from ...field_handlers import amount_field
+from ...field_handlers import amount_symbol_field
+from ...field_handlers import comment_body_field
+from .base import BaseOperation
+from .base import BaseVirtualOperation
 
 class DeleteCommentOperation(Base, BaseOperation):
     """
@@ -34,6 +34,7 @@ class DeleteCommentOperation(Base, BaseOperation):
       "permlink": "test-delete",
       "author": "jsc"
     }
+
     
 
     """
@@ -42,7 +43,7 @@ class DeleteCommentOperation(Base, BaseOperation):
     __operation_type__ = 'delete_comment_operation'
     
     author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(150)) # steem_type:string
+    permlink = Column(Unicode(512), index=True) # name:permlink
     operation_type = Column(
         operation_types_enum,
         nullable=False,

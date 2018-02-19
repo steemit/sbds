@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,19 +16,21 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
+from ...import Base
 from ....enums import operation_types_enum
 from ....field_handlers import amount_field
 from ....field_handlers import amount_symbol_field
 from ....field_handlers import comment_body_field
 from ..base import BaseOperation
+from ..base import BaseVirtualOperation
 
-class FillOrderOperation(Base, BaseOperation):
+class FillOrderOperation(Base, BaseVirtualOperation):
     """
     
     
     Steem Blockchain Example
     ======================
+
 
     
 
@@ -40,11 +41,11 @@ class FillOrderOperation(Base, BaseOperation):
     
     current_owner = Column(String(50), index=True) # steem_type:account_name_type
     current_orderid = Column(Integer) # steem_type:uint32_t
-    current_pays = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    current_pays = Column(Numeric(20,6), nullable=False) # steem_type:asset
     current_pays_symbol = Column(String(5)) # steem_type:asset
     open_owner = Column(String(50), index=True) # steem_type:account_name_type
     open_orderid = Column(Integer) # steem_type:uint32_t
-    open_pays = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    open_pays = Column(Numeric(20,6), nullable=False) # steem_type:asset
     open_pays_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,

@@ -61,27 +61,8 @@ class UndefinedTransactionType(Exception):
 
 
 # noinspection PyMethodParameters
-class BaseOperation(UniqueMixin):
+class OperationMixin(UniqueMixin):
     # pylint: disable=no-self-argument
-
-    @declared_attr
-    def __table_args__(cls):
-        args = (PrimaryKeyConstraint('block_num', 'transaction_num',
-                                     'operation_num'), {
-                                         'mysql_engine': 'InnoDB',
-                                         'mysql_charset': 'utf8mb4',
-                                         'mysql_collate': 'utf8mb4_general_ci'
-        })
-        return getattr(cls, '__extra_table_args__', tuple()) + args
-
-    # pylint: enable=no-self-argument
-
-    block_num = Column(Integer, nullable=False, index=True)
-    transaction_num = Column(SmallInteger, nullable=False)
-    operation_num = Column(SmallInteger, nullable=False)
-    timestamp = Column(DateTime(timezone=False), index=True)
-
-    _fields = dict()
 
     @classmethod
     def _prepare_for_storage(cls, **kwargs):
@@ -249,6 +230,50 @@ class BaseOperation(UniqueMixin):
 
     def __str__(self):
         return str(self.dump())
+
+# noinspection PyMethodParameters
+class BaseOperation(OperationMixin):
+    # pylint: disable=no-self-argument
+
+    @declared_attr
+    def __table_args__(cls):
+        args = (PrimaryKeyConstraint('block_num', 'transaction_num',
+                                     'operation_num'), {
+                                         'mysql_engine': 'InnoDB',
+                                         'mysql_charset': 'utf8mb4',
+                                         'mysql_collate': 'utf8mb4_general_ci'
+        })
+        return getattr(cls, '__extra_table_args__', tuple()) + args
+
+    # pylint: enable=no-self-argument
+
+    block_num = Column(Integer, nullable=False, index=True)
+    transaction_num = Column(SmallInteger, nullable=False)
+    operation_num = Column(SmallInteger, nullable=False)
+    timestamp = Column(DateTime(timezone=False), index=True)
+
+    _fields = dict()
+
+
+
+
+class BaseVirtualOperation(OperationMixin):
+    # pylint: disable=no-self-argument
+
+    __table_args__ = ({
+                          'mysql_engine':  'InnoDB',
+                          'mysql_charset': 'utf8mb4',
+                          'mysql_collate': 'utf8mb4_general_ci'
+                      },)
+
+    # pylint: enable=no-self-argument
+
+    block_num = Column(Integer, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=False), nullable=False, index=True)
+
+    _fields = dict()
+
+
 
 
 # pylint: disable=line-too-long, bad-continuation, too-many-lines, no-self-argument

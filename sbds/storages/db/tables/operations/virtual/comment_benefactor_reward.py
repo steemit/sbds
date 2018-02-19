@@ -1,4 +1,3 @@
-
 # coding=utf-8
 import os.path
 
@@ -17,19 +16,21 @@ from sqlalchemy.dialects.mysql import JSON
 
 from toolz import get_in
 
-from ... import Base
+from ...import Base
 from ....enums import operation_types_enum
 from ....field_handlers import amount_field
 from ....field_handlers import amount_symbol_field
 from ....field_handlers import comment_body_field
 from ..base import BaseOperation
+from ..base import BaseVirtualOperation
 
-class CommentBenefactorRewardOperation(Base, BaseOperation):
+class CommentBenefactorRewardOperation(Base, BaseVirtualOperation):
     """
     
     
     Steem Blockchain Example
     ======================
+
 
     
 
@@ -40,8 +41,8 @@ class CommentBenefactorRewardOperation(Base, BaseOperation):
     
     benefactor = Column(String(50), index=True) # steem_type:account_name_type
     author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(150)) # steem_type:string
-    reward = Column(Numeric(15,6), nullable=False) # steem_type:asset
+    permlink = Column(Unicode(512), index=True) # name:permlink
+    reward = Column(Numeric(20,6), nullable=False) # steem_type:asset
     reward_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,
