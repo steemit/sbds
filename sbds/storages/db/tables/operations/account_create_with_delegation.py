@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -83,11 +82,11 @@ class AccountCreateWithDelegationOperation(Base, BaseOperation):
     delegation_symbol = Column(String(5)) # steem_type:asset
     creator = Column(String(50), index=True) # steem_type:account_name_type
     new_account_name = Column(String(50), index=True) # steem_type:account_name_type
-    owner = Column(JSON) # name:owner
-    active = Column(JSON) # name:active
-    posting = Column(JSON) # name:posting
+    owner = Column(JSONB) # name:owner
+    active = Column(JSONB) # name:active
+    posting = Column(JSONB) # name:posting
     memo_key = Column(String(60), nullable=False) # steem_type:public_key_type
-    json_metadata = Column(JSON) # name:json_metadata
+    json_metadata = Column(JSONB) # name:json_metadata
     extensions = Column(JSON) # steem_type:extensions_type
     operation_type = Column(
         operation_types_enum,
@@ -109,4 +108,5 @@ class AccountCreateWithDelegationOperation(Base, BaseOperation):
         json_metadata=lambda x: x.get('json_metadata'),
         extensions=lambda x: x.get('extensions'),
     )
+
 

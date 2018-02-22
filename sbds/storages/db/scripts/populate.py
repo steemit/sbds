@@ -1,17 +1,30 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import os
-
-import aiomysql.sa
+import functools
+import aiopg.sa
 import click
+import sys
+import logging
+from asyncio import Queue
+
 import janus
 import uvloop
-from sqlalchemy.engine.url import make_url
+from tqdm import tqdm
 
+
+from sqlalchemy.engine.url import make_url
+import rapidjson as json
 import structlog
-from sbds.async_http_client import AsyncClient
-from sbds.http_client import SimpleSteemAPIClient
+import aiohttp
+import concurrent.futures
+from jsonrpcclient.aiohttp_client import aiohttpClient
+import jsonrpcclient.config
+
+jsonrpcclient.config.validate = False
+
 from sbds.storages.db import add_blocks
+from sbds.storages.db.tables.core import prepare_raw_block
 from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
@@ -19,6 +32,9 @@ from sbds.storages.db.tables import test_connection
 from sbds.storages.db.tables.block import Block
 from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
+
+import sbds.sbds_logging
+
 
 # pylint: skip-file
 logger = structlog.get_logger(__name__)
@@ -28,11 +44,13 @@ TOTAL_TASKS = 6
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 loop = asyncio.get_event_loop()
 
-missing_blocks_q = janus.Queue(loop=loop)
-fetched_blocks_q = janus.Queue(loop=loop)
-fetched_ops_q = janus.Queue(loop=loop)
 
-progress_bar_kwargs = dict(
+
+missing_block_nums = list()
+stored_blocks_q = Queue(loop=loop)
+
+
+pbar_kwargs = dict(
     color=True,
     show_eta=False,
     show_percent=False,
@@ -46,52 +64,32 @@ def create_async_engine(database_url, **kwargs):
     sa_db_url = make_url(database_url)
     loop = asyncio.get_event_loop()
     async_engine = loop.run_until_complete(
-        aiomysql.sa.create_engine(
+        aiopg.sa.create_engine(
             user=sa_db_url.username,
             password=sa_db_url.password,
             host=sa_db_url.host,
             port=sa_db_url.port,
-            db=sa_db_url.database,
-            charset='utf8mb4',
+            dbname=sa_db_url.database,
             **kwargs))
     return async_engine
-
 
 def create_async_pool(database_url, **kwargs):
     sa_db_url = make_url(database_url)
     loop = asyncio.get_event_loop()
     pool = loop.run_until_complete(
-        aiomysql.create_pool(
+        aiopg.create_pool(
             loop=loop,
             host=sa_db_url.host,
             user=sa_db_url.username,
             password=sa_db_url.password,
-            db=sa_db_url.database,
-            charset='utf8mb4',
+            dbname=sa_db_url.database,
             **kwargs))
     return pool
-
-
-def create_async_connection(database_url, **kwargs):
-    sa_db_url = make_url(database_url)
-    loop = asyncio.get_event_loop()
-    pool = loop.run_until_complete(
-        aiomysql.connect(
-            loop=loop,
-            host=sa_db_url.host,
-            user=sa_db_url.username,
-            password=sa_db_url.password,
-            db=sa_db_url.database,
-            charset='utf8mb4',
-            **kwargs))
-    return pool
-
 
 def fmt_success_message(msg, *args):
     base_msg = msg % args
     return '{success} {msg}'.format(
         success=click.style('success', fg='green'), msg=base_msg)
-
 
 def fmt_task_message(task_msg,
                      emoji_code_point=None,
@@ -111,13 +109,7 @@ def fmt_task_message(task_msg,
         task_msg=task_msg)
 
 
-def task_confirm_db_connectivity(database_url, task_num=1):
-    task_message = fmt_task_message(
-        'Confirm database connectivity',
-        emoji_code_point=u'\U0001F4DE',
-        task_num=task_num)
-    click.echo(task_message)
-
+def task_confirm_db_connectivity(database_url):
     url, table_count = test_connection(database_url)
 
     if url:
@@ -128,119 +120,114 @@ def task_confirm_db_connectivity(database_url, task_num=1):
     if not url:
         raise Exception('Unable to connect to database')
 
+def task_init_db_if_required(database_url):
 
-def task_init_db_if_required(database_url, task_num=2):
-    task_message = fmt_task_message(
-        'Initialising db if required',
-        emoji_code_point=u'\U0001F50C',
-        task_num=task_num)
-    click.echo(task_message)
     init_tables(database_url, Base.metadata)
 
+def task_load_db_meta(database_url):
+    with isolated_engine(db_url) as engine:
+        from sqlalchemy import MetaData
+        m = MetaData()
+        m.reflect(bind=engine)
+    return m
 
-def task_get_last_irreversible_block(steemd_http_url, task_num=3):
-    rpc = SimpleSteemAPIClient(steemd_http_url)
-    last_chain_block = rpc.last_irreversible_block_num()
-    task_message = fmt_task_message(
-        'Finding highest blockchain block',
-        emoji_code_point='\U0001F50E',
-        task_num=task_num)
-    click.echo(task_message)
+def task_get_last_irreversible_block(steemd_http_url):
+    from jsonrpcclient.http_client import HTTPClient
+    rpc = HTTPClient(steemd_http_url)
+    rpc._request_log.level = 50
+    rpc._response_log.level = 50
+    response = rpc.request('get_dynamic_global_properties')
+    last_chain_block = response['last_irreversible_block_num']
+
     return last_chain_block
 
+async def get_missing_count(engine, last_chain_block,):
+    async with engine.acquire() as conn:
+        existing_count = await conn.scalar('SELECT COUNT(*) from sbds_core_blocks')
+    missing_count = last_chain_block - existing_count
+    return missing_count
 
-async def enqueue_missing_block_nums(database_url, last_chain_block):
-    connection = create_async_connection(
-        database_url, cursorclass=aiomysql.SSCursor)
-    async_client = AsyncClient()
+async def enqueue_missing_block_nums(engine, last_chain_block, missing_count, pbar=None):
+    complete_block_nums = range(1, last_chain_block + 1)
 
-    with connection.cursor() as cursor:
-        existing_count = asyncio.ensure_future(
-            cursor.execute('SELECT COUNT(timestamp) from sbds_core_blocks')
-            .fetchone())
+    if missing_count < last_chain_block:
+        logger.debug('enq',missing=missing_count, last_chain_block=last_chain_block)
+        async with engine.acquire() as conn:
+            rows = await conn.execute('SELECT block_num from sbds_core_blocks')
+            for i,complete_block_num_chunk in enumerate(chunkify(complete_block_nums, 10_000)):
+                complete_block_num_chunk = set(complete_block_num_chunk)
+                block_nums_in_db_chunk = await rows.fetchmany(10_000)
+                if block_nums_in_db_chunk:
+                    missing_in_chunk = complete_block_num_chunk.difference(b['block_num'] for b in block_nums_in_db_chunk)
+                    missing_block_nums.extend(missing_in_chunk)
+                else:
+                    start = sorted(list(complete_block_num_chunk))[0]
+                    end = last_chain_block + 1
+                    missing_block_nums.extend(i for i in range(start, end))
+                    break
+    else:
+        missing_block_nums.extend(complete_block_nums)
+    return missing_block_nums
 
-    with connection.cursor() as cursor:
-        missing_count = last_chain_block - existing_count
-
-    with click.progressbar(
-            length=missing_count,
-            label='Finding missing block_nums',
-            **progress_bar_kwargs) as pbar:
-
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT block_num from sbds_core_blocks')
-            existing_block_nums = cursor.fetchall()
-            complete_block_nums = iter(range(1, last_chain_block + 1))
-            next_block_num = 1
-            missing_blocks = []
-            try:
-                next_existing_block_num = next(existing_block_nums)
-                for next_block_num in complete_block_nums:
-                    while next_existing_block_num > next_block_num:
-                        missing_blocks.append(next_block_num)
-                        next_block_num = next(complete_block_nums)
-                    next_existing_block_num = next(existing_block_nums)
-                    if len(missing_blocks) >= 150:
-                        asyncio.ensure_future(
-                            async_client.get_blocks(missing_blocks,
-                                                    fetched_blocks_q))
-                        asyncio.ensure_future(
-                            add_blocks_from_q(fetched_blocks_q))
-                        missing_blocks = []
-
-            except StopIteration:
-                for chunk in chunkify(missing_blocks, 150):
-                    asyncio.ensure_future(
-                        async_client.get_blocks(chunk, fetched_blocks_q))
-                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
-                for chunk in chunkify(
-                        range(next_block_num, last_chain_block + 1)):
-                    asyncio.ensure_future(
-                        async_client.get_blocks(chunk, fetched_blocks_q))
-                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
+async def fetch_block(url, client, block_num):
+    response = await client.post(url, data=f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_block","params":[{block_num}]}}'.encode())
+    jsonrpc_response = await response.json()
+    return jsonrpc_response['result']
 
 
-def task_find_missing_block_nums(database_url, last_chain_block, task_num=4):
-    task_message = fmt_task_message(
-        'Finding blocks missing from db',
-        emoji_code_point=u'\U0001F52D',
-        task_num=task_num)
-    click.echo(task_message)
-    connection = create_async_connection(
-        database_url, cursorclass=aiomysql.SSCursor)
-    async_client = AsyncClient()
-    missing_block_nums = []
+async def prepare_block_for_storage(raw_block):
+    return await loop.run_in_executor(None, Block._prepare_for_storage,
+                                          raw_block)
 
-    with connection.cursor() as cursor:
-        cursor.execute('SELECT block_num from sbds_core_blocks')
-
-        existing_block_nums = cursor.fetchall()
-        for bn in range(1, last_chain_block + 1):
-            next_existing_block_num = 0
-            try:
-                while bn > next_existing_block_num:
-                    next_existing_block_num = next(existing_block_nums)
-
-                    if len(missing_block_nums) >= 150:
-                        asyncio.ensure_future(
-                            async_client.get_blocks(missing_block_nums,
-                                                    fetched_blocks_q))
-                    asyncio.ensure_future(add_blocks_from_q(fetched_blocks_q))
-
-            except StopIteration:
-                pass
-
-        success_msg = fmt_success_message('completed adding missing blocks')
-        click.echo(success_msg)
+async def store_block(engine, blocks_table, prepared_block, pbar=None):
+    async with engine.acquire() as conn:
+        await conn.execute(blocks_table.insert().values(**prepared_block))
+        if pbar:
+            pbar.update(1)
 
 
-async def add_blocks_from_q(q):
+async def process_block(block_num, url, client, engine, blocks_table, pbar=None):
+    raw_block = await fetch_block(url, client, block_num)
+    prepared_block = await prepare_block_for_storage(raw_block)
+    await store_block(engine, blocks_table, prepared_block, pbar=pbar)
+    return (block_num, raw_block, prepared_block)
+
+
+async def process_blocks(missing_block_nums, url, client, engine, db_meta, pbar=None):
+    blocks_table = db_meta.tables['sbds_core_blocks']
+    for block_num_chunk in chunkify(missing_block_nums, 100):
+        request_tasks = [process_block(block_num, url, client, engine, blocks_table, pbar=pbar) for block_num in block_num_chunk]
+        done, pending = await asyncio.wait(request_tasks)
+        for task in done:
+            result = task.result()
+            stored_blocks_q.put_nowait(result)
+            pbar.update(1)
+
+
+# --- Operations ---
+async def fetch_ops_in_block(block_num, url, client):
     try:
-        while True:
-            block = await q.async_q.get_nowait()
-            print(block)
-    except asyncio.QueueEmpty:
-        pass
+        response = await client.post(url, data=f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_inblock","params":[{block_num},true]}}'.encode())
+        jsonrpc_response = await response.json()
+        return jsonrpc_response['result']
+    except Exception as e:
+        logger.exception('error fetching block', block_num=block_num)
+
+async def prepare_operation_for_storage(raw_operation):
+    return await loop.run_in_executor(None, Block._prepare_for_storage,
+                                      raw_operation)
+
+async def store_operation(engine, operations_table, prepared_operation, pbar=None):
+    async with engine.acquire() as conn:
+        await conn.execute(operations_table.insert().values(**prepared_operation))
+        if pbar:
+            pbar.update(1)
+
+
+async def async_q_gen(q):
+    while True:
+        item = await q.get()
+        yield item
 
 
 def task_stream_blocks(database_url, steemd_http_url, task_num=6):
@@ -281,20 +268,72 @@ def populate(database_url, steemd_http_url, jsonrpc_batch_size):
 
 
 def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
+    AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
+                                            json_serialize=json.dumps,
+                                            headers={'Content-Type':'application/json'})
+
     try:
+        engine = create_async_engine(database_url)
+        task_num = 0
         # [1/6] confirm db connectivity
-        task_confirm_db_connectivity(database_url, task_num=1)
+        task_num += 1
+        task_message = fmt_task_message(
+            'Confirm database connectivity',
+            emoji_code_point=u'\U0001F4DE',
+            task_num=task_num)
+        click.echo(task_message)
+        #task_confirm_db_connectivity(database_url, task_num=1)
+
 
         # [2/6] init db if required
-        task_init_db_if_required(database_url=database_url, task_num=2)
+        task_num += 1
+        task_message = fmt_task_message(
+            'Initialising db if required',
+            emoji_code_point=u'\U0001F50C',
+            task_num=task_num)
+        click.echo(task_message)
+        #task_init_db_if_required(database_url=database_url, task_num=2)
 
         # [3/6] find last irreversible block
-        last_chain_block = task_get_last_irreversible_block(
-            steemd_http_url, task_num=3)
+        task_num += 1
+        task_message = fmt_task_message(
+            'Finding highest blockchain block',
+            emoji_code_point='\U0001F50E',
+            task_num=task_num)
+        click.echo(task_message)
+        last_chain_block = task_get_last_irreversible_block(steemd_http_url)
+        last_chain_block = 100_000
 
-        # [4/6] get missing block_nums
-        missing_block_nums = task_find_missing_block_nums(
-            database_url, last_chain_block, task_num=4)
+        # [4/6] build list of blocks missing from db
+        missing_count = loop.run_until_complete(get_missing_count(engine, last_chain_block))
+        task_message = fmt_task_message(
+            'Building list of blocks missing from db',
+            emoji_code_point=u'\U0001F52D',
+            task_num=4)
+        click.echo(task_message)
+        with click.progressbar(length=missing_count, **pbar_kwargs) as pbar:
+            missing_block_nums = loop.run_until_complete(enqueue_missing_block_nums(engine, last_chain_block, missing_count, pbar=pbar))
+
+        task_message = fmt_task_message(
+            'Adding missing blocks to db',
+            emoji_code_point=u'\U0001F52D',
+            task_num=5)
+        click.echo(task_message)
+
+        db_meta = task_load_db_meta(database_url)
+
+        pbar = tqdm(total=missing_count,unit='blocks',bar_format='''{bar}{r_bar}''')
+
+        loop.run_until_complete(process_blocks(missing_block_nums,
+                                             steemd_http_url,
+                                             AIOHTTP_SESSION,
+                                             engine,
+                                             db_meta,
+                                             pbar=pbar))
+
+        # [5/6] stream new blocks
+
+
 
     except KeyboardInterrupt:
         pass
@@ -306,6 +345,6 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
 if __name__ == '__main__':
-    db_url = os.environ['DATABASE_URL']
-    rpc_url = os.environ['STEEMD_HTTP_URL']
+    db_url = os.environ.get('DATABASE_URL', 'postgresql+psycopg2://user:password@localhost/sbds')
+    rpc_url = os.environ.get('STEEMD_HTTP_URL','https://api.steemit.com')
     _populate(db_url, rpc_url, jsonrpc_batch_size=100)

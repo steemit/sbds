@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class FillOrderOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_fill_orders'
+    __tablename__ = 'sbds_op_virtual_fill_orders'
     __operation_type__ = 'fill_order_operation'
     
     current_owner = Column(String(50), index=True) # steem_type:account_name_type
@@ -63,4 +62,5 @@ class FillOrderOperation(Base, BaseVirtualOperation):
         open_pays=lambda x: amount_field(x.get('open_pays'), num_func=float),
         open_pays_symbol=lambda x: amount_symbol_field(x.get('open_pays')),
     )
+
 

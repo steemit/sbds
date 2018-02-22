@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -42,7 +41,7 @@ class LimitOrderCancelOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_limit_order_cancels'
     __operation_type__ = 'limit_order_cancel_operation'
     
-    owner = Column(JSON) # name:owner
+    owner = Column(JSONB) # name:owner
     orderid = Column(Integer) # steem_type:uint32_t
     operation_type = Column(
         operation_types_enum,
@@ -54,4 +53,5 @@ class LimitOrderCancelOperation(Base, BaseOperation):
         owner=lambda x: x.get('owner'),
         orderid=lambda x: x.get('orderid'),
     )
+
 

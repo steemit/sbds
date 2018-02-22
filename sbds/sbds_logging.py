@@ -17,7 +17,8 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer(serializer=dumps)
+        #structlog.processors.JSONRenderer(serializer=dumps)
+        structlog.dev.ConsoleRenderer()
     ],
     context_class=dict,
     logger_factory=structlog.stdlib.LoggerFactory(),
@@ -29,7 +30,7 @@ structlog.configure(
 logging.basicConfig(
     format="%(message)s",
     stream=sys.stdout,
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 
 def session_to_dict(session):

@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -49,7 +48,7 @@ class WitnessUpdateOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_witness_updates'
     __operation_type__ = 'witness_update_operation'
     
-    owner = Column(JSON) # name:owner
+    owner = Column(JSONB) # name:owner
     url = Column(Unicode(150)) # steem_type:string
     block_signing_key = Column(String(60), nullable=False) # steem_type:public_key_type
     props = Column(JSON) # steem_type:chain_properties
@@ -69,4 +68,5 @@ class WitnessUpdateOperation(Base, BaseOperation):
         fee=lambda x: amount_field(x.get('fee'), num_func=float),
         fee_symbol=lambda x: amount_symbol_field(x.get('fee')),
     )
+
 

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import click
 
-from sbds.chain.cli import chain
-from sbds.server.cli import server
+#from sbds.chain.cli import chain
+#from sbds.server.cli import server
 from sbds.storages.db.cli import db
 
 
@@ -20,6 +20,9 @@ def sbds():
     """
 
 
-sbds.add_command(chain)
+#sbds.add_command(chain)
 sbds.add_command(db)
-sbds.add_command(server)
+#sbds.add_command(server)
+
+if __name__ == '__main__':
+    sbds()

@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,10 +35,10 @@ class FillConvertRequestOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_fill_convert_requests'
+    __tablename__ = 'sbds_op_virtual_fill_convert_requests'
     __operation_type__ = 'fill_convert_request_operation'
     
-    owner = Column(JSON) # name:owner
+    owner = Column(JSONB) # name:owner
     requestid = Column(Integer) # steem_type:uint32_t
     amount_in = Column(Numeric(20,6), nullable=False) # steem_type:asset
     amount_in_symbol = Column(String(5)) # steem_type:asset
@@ -59,4 +58,5 @@ class FillConvertRequestOperation(Base, BaseVirtualOperation):
         amount_out=lambda x: amount_field(x.get('amount_out'), num_func=float),
         amount_out_symbol=lambda x: amount_symbol_field(x.get('amount_out')),
     )
+
 

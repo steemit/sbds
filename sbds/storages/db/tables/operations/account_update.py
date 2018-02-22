@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -58,11 +57,11 @@ class AccountUpdateOperation(Base, BaseOperation):
     __operation_type__ = 'account_update_operation'
     
     account = Column(String(50), index=True) # steem_type:account_name_type
-    owner = Column(JSON) # name:owner
-    active = Column(JSON) # name:active
-    posting = Column(JSON) # name:posting
+    owner = Column(JSONB) # name:owner
+    active = Column(JSONB) # name:active
+    posting = Column(JSONB) # name:posting
     memo_key = Column(String(60), nullable=False) # steem_type:public_key_type
-    json_metadata = Column(JSON) # name:json_metadata
+    json_metadata = Column(JSONB) # name:json_metadata
     operation_type = Column(
         operation_types_enum,
         nullable=False,
@@ -77,4 +76,5 @@ class AccountUpdateOperation(Base, BaseOperation):
         memo_key=lambda x: x.get('memo_key'),
         json_metadata=lambda x: x.get('json_metadata'),
     )
+
 

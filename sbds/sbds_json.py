@@ -3,10 +3,7 @@ from datetime import datetime
 from functools import singledispatch
 from functools import partial
 
-try:
-    import rapidjson as json
-except ImportError:
-    import json
+import rapidjson as json
 
 
 @singledispatch

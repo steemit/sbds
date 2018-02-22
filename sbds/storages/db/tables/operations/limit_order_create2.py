@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -39,7 +38,7 @@ class LimitOrderCreate2Operation(Base, BaseOperation):
     __tablename__ = 'sbds_op_limit_order_create2s'
     __operation_type__ = 'limit_order_create2_operation'
     
-    owner = Column(JSON) # name:owner
+    owner = Column(JSONB) # name:owner
     orderid = Column(Integer) # steem_type:uint32_t
     amount_to_sell = Column(Numeric(20,6), nullable=False) # steem_type:asset
     amount_to_sell_symbol = Column(String(5)) # steem_type:asset
@@ -61,4 +60,5 @@ class LimitOrderCreate2Operation(Base, BaseOperation):
         exchange_rate=lambda x: x.get('exchange_rate'),
         expiration=lambda x: x.get('expiration'),
     )
+
 

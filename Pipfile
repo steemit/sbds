@@ -56,6 +56,10 @@ uvloop = "*"
 "w3lib" = "*"
 jsonrpcclient = "*"
 python-rapidjson = "*"
+aiopg = "*"
+"psycopg2" = "*"
+colorama = "*"
+tqdm = "*"
 
 
 [requires]

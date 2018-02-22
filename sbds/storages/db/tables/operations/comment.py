@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -53,7 +52,7 @@ class CommentOperation(Base, BaseOperation):
     permlink = Column(Unicode(512), index=True) # name:permlink
     title = Column(Unicode(512), index=True) # name:title,comment_operation
     body = Column(UnicodeText) # name:body
-    json_metadata = Column(JSON) # name:json_metadata
+    json_metadata = Column(JSONB) # name:json_metadata
     operation_type = Column(
         operation_types_enum,
         nullable=False,
@@ -69,4 +68,5 @@ class CommentOperation(Base, BaseOperation):
         body=lambda x: comment_body_field(x.get('body')),
         json_metadata=lambda x: x.get('json_metadata'),
     )
+
 

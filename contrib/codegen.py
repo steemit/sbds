@@ -216,7 +216,6 @@ virtual_op_source_map = {
 
 class_template = '''\
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -229,9 +228,7 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+from sqlalchemy.dialects.postgresql import JSONB
 
 from ..{op_rel_import_dot}import Base
 from ...{op_rel_import_dot}enums import operation_types_enum
@@ -271,22 +268,20 @@ class {op_class_name}(Base, {op_class_operation_base}):
 
 name_to_columns_map = defaultdict(lambda: [])
 name_to_columns_map.update({
-    'json_metadata': ['json_metadata = Column(JSON) # name:json_metadata'],
+    'json_metadata': ['json_metadata = Column(JSONB) # name:json_metadata'],
     'from': ["_from = Column('from', Unicode(50), index=True) # name:from"],
-    'json': ['json = Column(JSON) # name:json'],
-    'posting': ['posting = Column(JSON) # name:posting'],
-    'owner': ['owner = Column(JSON) # name:owner'],
-    'active': ['active = Column(JSON) # name:active'],
+    'json': ['json = Column(JSONB) # name:json'],
+    'posting': ['posting = Column(JSONB) # name:posting'],
+    'owner': ['owner = Column(JSONB) # name:owner'],
+    'active': ['active = Column(JSONB) # name:active'],
     'body': ['body = Column(UnicodeText) # name:body'],
-    'json_meta': ['json_meta = Column(JSON) # name:json_meta'],
+    'json_meta': ['json_meta = Column(JSONB) # name:json_meta'],
     'memo': ['memo = Column(UnicodeText) # name:memo'],
     'permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
     'parent_permlink': ['parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink'],
     'title,comment_operation': ['title = Column(Unicode(512), index=True) # name:title,comment_operation'],
 
 })
-
-
 
 
 OLD_TABLE_NAME_MAP = {
@@ -345,7 +340,6 @@ def get_columns(name, _type, op_name):
     return cols
 
 def _get_columns_by_type(name, _type):
-
     # asset
     if _type == 'asset':
         if name == 'from':
@@ -446,9 +440,6 @@ def _get_columns_by_type(name, _type):
     else:
         return [f'{name} = Column(Unicode(100)) # steem_type:{_type} -> default']
 
-def read_json_file(ctx, param, f):
-    return json.load(f)
-
 def op_file(cls):
     return cls['name'].replace('_operation','') + '.py'
 
@@ -456,18 +447,16 @@ def op_class_name(cls):
     return ''.join(s.title() for s in cls['name'].split('_'))
 
 def op_old_table_name(op_name):
-    print(op_name)
     table_name = OLD_TABLE_NAME_MAP.get(op_name)
     if not table_name:
         short_op_name = op_name.replace('_operation','')
         table_name =  f'sbds_tx_{p.plural(short_op_name)}'
-    else:
-        print(table_name)
-
     return table_name
 
 def op_table_name(op_name):
     short_op_name = op_name.replace('_operation', '')
+    if op_name in VIRTUAL_OPS_NAMES:
+        return f'sbds_op_virtual_{p.plural(short_op_name)}'
     return f'sbds_op_{p.plural(short_op_name)}'
 
 def iter_classes(header):
@@ -523,15 +512,17 @@ def get_op_example(op_name, db_url, table_name=None, cache_dir=None):
     if not table_name:
         table_name = op_old_table_name(op_name)
     try:
-        _get_op_exmaple_from_db(op_name, table_name, db_url)
+        _get_op_exmaple_from_db(table_name, db_url)
     except Exception as e:
         return ''
 
 def _get_op_example_from_cache(op_name, cache_dir):
     with open(f'{cache_dir}/examples/{op_name}.json') as f:
+        print(f'loading {op_name} example from cache', file=sys.stderr)
         return f.read()
 
-def _get_op_exmaple_from_db(op_name, table_name, db_url):
+def _get_op_exmaple_from_db(table_name, db_url):
+    print('loading example from db', file=sys.stderr)
     op_block_query = f'SELECT {table_name}.block_num, transaction_num, operation_num, raw FROM {table_name} JOIN sbds_core_blocks ON {table_name}.block_num=sbds_core_blocks.block_num LIMIT 1;'
     proc_result = subprocess.run([
         'mysqlsh',
@@ -568,9 +559,9 @@ def write_class(path, text):
     p = Path(path)
     p.write_text(text)
 
-def _generate_class(op_name, cls, cache_dir=None, db_url=None):
+def _generate_class(op_name, cls, db_url=None, cache_dir=None):
     if db_url:
-        op_example = get_op_example(op_name, db_url)
+        op_example = get_op_example(op_name, db_url, cache_dir=cache_dir)
     else:
         op_example = ''
 
@@ -598,11 +589,11 @@ def codegen():
 @click.option('--db_url', type=click.STRING)
 def generate_classes(header_file, cache_dir, db_url):
     header = json.load(header_file)
-    base_path = os.path.dirname(header_file)
+    base_path = os.path.dirname(header_file.name)
     for op_name, cls in header['classes'].items():
         filename  = op_file(cls)
         path = os.path.join(base_path, filename)
-        text = _generate_class(op_name, cls, cache_dir, db_url)
+        text = _generate_class(op_name, cls, db_url=db_url, cache_dir=cache_dir)
         write_class(path,text)
 
 @codegen.command(name='generate-class')
@@ -612,11 +603,12 @@ def generate_classes(header_file, cache_dir, db_url):
 @click.option('--db_url', type=click.STRING)
 def generate_class(op_name, header_file, cache_dir, db_url):
     header = json.load(header_file)
-    base_path = os.path.dirname(header_file)
+    base_path = os.path.dirname(header_file.name)
+
     if not op_name.endswith('_operation'):
         op_name = op_name + '_operation'
     cls = header['classes'][op_name]
-    text = _generate_class(op_name, cls, cache_dir, db_url)
+    text = _generate_class(op_name, cls, db_url=db_url, cache_dir=cache_dir)
     #filename = op_file(cls)
     #path = os.path.join(base_path, filename)
     #write_class(path, text)

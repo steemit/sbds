@@ -13,6 +13,8 @@ from ..utils import isolated_nullpool_engine
 
 def init_tables(database_url, _metadata, checkfirst=True):
     """Create any missing tables on the database"""
+    import sbds.storages.db.tables.operations
+    import sbds.storages.db.tables.block
     with isolated_nullpool_engine(database_url) as engine:
         _metadata.create_all(bind=engine, checkfirst=checkfirst)
 

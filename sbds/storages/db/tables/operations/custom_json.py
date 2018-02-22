@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -49,7 +48,7 @@ class CustomJsonOperation(Base, BaseOperation):
     required_auths = Column(JSON) # steem_type:flat_set< account_name_type>
     required_posting_auths = Column(JSON) # steem_type:flat_set< account_name_type>
     id = Column(Unicode(150)) # steem_type:string
-    json = Column(JSON) # name:json
+    json = Column(JSONB) # name:json
     operation_type = Column(
         operation_types_enum,
         nullable=False,
@@ -62,4 +61,5 @@ class CustomJsonOperation(Base, BaseOperation):
         id=lambda x: x.get('id'),
         json=lambda x: x.get('json'),
     )
+
 

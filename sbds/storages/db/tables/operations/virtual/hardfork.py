@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class HardforkOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_hardforks'
+    __tablename__ = 'sbds_op_virtual_hardforks'
     __operation_type__ = 'hardfork_operation'
     
     hardfork_id = Column(Integer) # steem_type:uint32_t
@@ -49,4 +48,5 @@ class HardforkOperation(Base, BaseVirtualOperation):
     _fields = dict(
         hardfork_id=lambda x: x.get('hardfork_id'),
     )
+
 

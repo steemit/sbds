@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -62,7 +61,7 @@ class EscrowTransferOperation(Base, BaseOperation):
     fee_symbol = Column(String(5)) # steem_type:asset
     ratification_deadline = Column(DateTime) # steem_type:time_point_sec
     escrow_expiration = Column(DateTime) # steem_type:time_point_sec
-    json_meta = Column(JSON) # name:json_meta
+    json_meta = Column(JSONB) # name:json_meta
     operation_type = Column(
         operation_types_enum,
         nullable=False,
@@ -84,4 +83,5 @@ class EscrowTransferOperation(Base, BaseOperation):
         escrow_expiration=lambda x: x.get('escrow_expiration'),
         json_meta=lambda x: x.get('json_meta'),
     )
+
 

@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class CommentRewardOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_comment_rewards'
+    __tablename__ = 'sbds_op_virtual_comment_rewards'
     __operation_type__ = 'comment_reward_operation'
     
     author = Column(String(50), index=True) # steem_type:account_name_type
@@ -55,4 +54,5 @@ class CommentRewardOperation(Base, BaseVirtualOperation):
         payout=lambda x: amount_field(x.get('payout'), num_func=float),
         payout_symbol=lambda x: amount_symbol_field(x.get('payout')),
     )
+
 

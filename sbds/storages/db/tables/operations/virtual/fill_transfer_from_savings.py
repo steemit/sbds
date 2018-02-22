@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class FillTransferFromSavingsOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_fill_transfer_from_saving'
+    __tablename__ = 'sbds_op_virtual_fill_transfer_from_saving'
     __operation_type__ = 'fill_transfer_from_savings_operation'
     
     _from = Column('from', Unicode(50), index=True) # name:from
@@ -59,4 +58,5 @@ class FillTransferFromSavingsOperation(Base, BaseVirtualOperation):
         request_id=lambda x: x.get('request_id'),
         memo=lambda x: x.get('memo'),
     )
+
 

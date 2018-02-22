@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class ProducerRewardOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_producer_rewards'
+    __tablename__ = 'sbds_op_virtual_producer_rewards'
     __operation_type__ = 'producer_reward_operation'
     
     producer = Column(String(50), index=True) # steem_type:account_name_type
@@ -53,4 +52,5 @@ class ProducerRewardOperation(Base, BaseVirtualOperation):
         vesting_shares=lambda x: amount_field(x.get('vesting_shares'), num_func=float),
         vesting_shares_symbol=lambda x: amount_symbol_field(x.get('vesting_shares')),
     )
+
 

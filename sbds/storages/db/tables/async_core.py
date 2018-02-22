@@ -1,17 +1,26 @@
 # -*- coding: utf-8 -*-
 
-
+import asyncio
+import concurrent.futures
 from copy import deepcopy
 from functools import singledispatch
 from itertools import chain
+
+
 import dateutil.parser
 
-import sbds.sbds_json
-import structlog
 
+import structlog
+import uvloop
+
+import sbds.sbds_json
 from sbds.utils import block_num_from_previous
 
 logger = structlog.get_logger(__name__)
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+LOOP = asyncio.get_event_loop()
+EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 
 # pylint: disable=line-too-long
 def from_raw_block(raw_block, session=None):
@@ -35,7 +44,7 @@ def from_raw_block(raw_block, session=None):
     return block, tx_transactions
 
 
-def prepare_raw_block(raw_block):
+async def prepare_raw_block(raw_block):
     """
         Convert raw block to dict, adding block_num.
 
@@ -45,18 +54,20 @@ def prepare_raw_block(raw_block):
         Returns:
             Union[Dict[str, List], None]:
     """
-    return parse_timestamp(add_block_num(load_raw_block(raw_block)))
+    if isinstance(raw_block, dict):
+        block_dict = await load_raw_block_from_dict(raw_block)
+    elif isinstance(raw_block, str):
+        block_dict = await load_raw_block_from_str(raw_block)
+    elif isinstance(raw_block, bytes):
+        block_dict = await load_raw_block_from_bytes(raw_block)
+    else:
+        raise TypeError(f'Unsupported raw_block type: {type(raw_block)}')
+    
 
 
 
-@singledispatch
-def load_raw_block(raw_block):
-    raise TypeError(f'Unsupported raw block type: {type(raw_block)}')
 
-
-# noinspection PyUnresolvedReferences
-@load_raw_block.register(dict)
-def load_raw_block_from_dict(raw_block):
+async def load_raw_block_from_dict(raw_block):
     block_dict = dict()
     block_dict.update(raw_block)
     block_dict['raw'] = sbds.sbds_json.dumps(block_dict, ensure_ascii=True)
@@ -69,37 +80,35 @@ def load_raw_block_from_dict(raw_block):
     return block_dict
 
 
-# noinspection PyUnresolvedReferences
-@load_raw_block.register(str)
-def load_raw_block_from_str(raw_block):
+
+async def load_raw_block_from_str(raw_block):
     block_dict = dict()
     block_dict.update(sbds.sbds_json.loads(raw_block))
     block_dict['raw'] = raw_block
     return block_dict
 
-# noinspection PyUnresolvedReferences
-@load_raw_block.register(bytes)
-def load_raw_block_from_bytes(raw_block):
+
+async def load_raw_block_from_bytes(raw_block):
     block_dict = dict()
     block_dict['raw'] = raw_block.decode('utf8')
     block_dict.update(**sbds.sbds_json.loads(block_dict['raw']))
     return block_dict
 
 
-def add_block_num(block_dict):
-    if 'block_num' not in block_dict:
-        block_num = block_num_from_previous(block_dict['previous'])
-        block_dict['block_num'] = block_num
-    return block_dict
+async def get_block_num(block_dict):
+    block_num = block_dict.get('block_num')
+    if not block_num:
+        return block_num_from_previous(block_dict['previous'])
+    return block_num
 
-def parse_timestamp(block_dict):
-    if isinstance(block_dict.get('timestamp'), str):
-        timestamp = maya.dateparser.parse(block_dict['timestamp'])
-        block_dict['timestamp'] = timestamp
-    return block_dict
+async def get_parsed_timestamp(block_dict):
+    timestamp = block_dict.get('timestamp')
+    if isinstance(timestamp, str):
+        return LOOP.run_in_executor(EXECUTOR, dateutil.parser.parse,timestamp)
+    return timestamp
 
 
-def extract_transactions_from_blocks(blocks):
+async def extract_transactions_from_blocks(blocks):
     """
 
     Args:

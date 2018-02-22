@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,7 +35,7 @@ class AuthorRewardOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_author_rewards'
+    __tablename__ = 'sbds_op_virtual_author_rewards'
     __operation_type__ = 'author_reward_operation'
     
     author = Column(String(50), index=True) # steem_type:account_name_type
@@ -63,4 +62,5 @@ class AuthorRewardOperation(Base, BaseVirtualOperation):
         vesting_payout=lambda x: amount_field(x.get('vesting_payout'), num_func=float),
         vesting_payout_symbol=lambda x: amount_symbol_field(x.get('vesting_payout')),
     )
+
 

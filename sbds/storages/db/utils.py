@@ -193,9 +193,9 @@ def configure_engine(database_url, **kwargs):
         engine_kwargs = base_engine_kwargs
         engine_kwargs.update(server_side_cursors=True, encoding='utf8')
     else:
-        logger.debug('configuring %s backend', backend)
+        logger.debug('configuring backend', backend=backend)
         engine_kwargs = base_engine_kwargs
-    logger.debug('engine_kwargs: %s', engine_kwargs)
+    logger.debug('engine_kwargs', **engine_kwargs)
 
     engine = create_engine(url, **engine_kwargs)
 

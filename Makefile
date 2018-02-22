@@ -20,15 +20,15 @@ OPERATIONS_CACHE_DIR=$(BUILD_DIR)
 BLOCKCHAIN_EXAMPLES_DIR := $(OPERATIONS_CACHE_DIR)/examples
 
 OPERATIONS_PREFIX := sbds/storages/db/tables/operations
-OPERATIONS_PATH := $(ROOT_DIR)/$(OPERATION_PREFIX)
+OPERATIONS_PATH := $(ROOT_DIR)/$(OPERATIONS_PREFIX)
 OPERATIONS_FILE := $(OPERATIONS_PATH)/operations_header.json
-OPERATIONS_NAMES := $(shell jq -r '.classes[].name' $(OPERATIONS_FILE))
+OPERATIONS_NAMES := $(filter %_operation, $(shell jq -r '.classes[].name' $(OPERATIONS_FILE)))
 OPERATIONS_PYTHON_FILES := $(addprefix $(OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(OPERATIONS_NAMES))))
 
 VIRTUAL_OPERATION_PREFIX := $(OPERATIONS_PREFIX)/virtual
 VIRTUAL_OPERATIONS_PATH := $(ROOT_DIR)/$(VIRTUAL_OPERATION_PREFIX)
 VIRTUAL_OPERATIONS_FILE := $(VIRTUAL_OPERATIONS_PATH)/virtual_operations_header.json
-VIRTUAL_OPERATIONS_NAMES := $(shell jq -r '.classes[].name' $(VIRTUAL_OPERATIONS_FILE))
+VIRTUAL_OPERATIONS_NAMES := $(filter %operation, $(shell jq -r '.classes[].name' $(VIRTUAL_OPERATIONS_FILE)))
 VIRTUAL_OPERATIONS_PYTHON_FILES := $(addprefix $(VIRTUAL_OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(VIRTUAL_OPERATIONS_NAMES))))
 
 
@@ -154,12 +154,36 @@ $(VIRTUAL_OPERATIONS_PATH)/%.py: $(VIRTUAL_OPERATIONS_FILE)
 		$(VIRTUAL_OPERATIONS_FILE) \
 		--cache_dir $(OPERATIONS_CACHE_DIR) \
 		--db_url $(DATABASE_URL) > $@
+	#pipenv run isort --verbose  --atomic --settings-path  .editorconfig --virtual-env .venv $@
+	#pipenv run autoflake --in-place --remove-all-unused-imports $@
+	#pipenv run yapf --in-place --style pep8 $@
 
 $(OPERATIONS_PATH)/%.py: $(OPERATIONS_FILE)
-	pipenv run ./contrib/codegen.py generate-class $(*F) \
+	-pipenv run ./contrib/codegen.py generate-class $(*F) \
 		$(OPERATIONS_FILE) \
 		--cache_dir $(OPERATIONS_CACHE_DIR) \
 		--db_url $(DATABASE_URL) > $@
 
+
 .PHONY: virtual-ops-classes
 virtual-ops-classes: $(VIRTUAL_OPERATIONS_PYTHON_FILES)
+
+.PHONY: ops-classes
+ops-classes: $(OPERATIONS_PYTHON_FILES)
+
+.PHONY: delete-virtual-ops
+delete-virtual-ops:
+	-rm $(VIRTUAL_OPERATIONS_PYTHON_FILES)
+
+.PHONY: delete-ops
+delete-ops:
+	-rm $(OPERATIONS_PYTHON_FILES)
+
+.PHONY: debug
+debug:
+	@clear
+	@echo v_ops_prefix:$(VIRTUAL_OPERATIONS_PREFIX)
+	@echo v_ops_path:$(VIRTUAL_OPERATIONS_PATH)
+	#-echo v_ops_file:$(VIRTUAL_OPERATIONS_FILE)
+	#echo $(VIRTUAL_OPERATIONS_NAMES)
+	#echo $(VIRTUAL_OPERATIONS_PYTHON_FILES)

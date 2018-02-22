@@ -153,7 +153,7 @@ class Block(Base, UniqueMixin):
         'mysql_collate': 'utf8mb4_general_ci'
     }, )
 
-    raw = Column(UnicodeText().with_variant(sqlalchemy.dialects.mysql, 'mysql'))
+    raw = Column(UnicodeText())
     block_num = Column(
         Integer, primary_key=True, nullable=False, autoincrement=False)
     previous = Column(Unicode(50))
@@ -182,7 +182,7 @@ class Block(Base, UniqueMixin):
     @classmethod
     def _prepare_for_storage(cls, raw_block):
         """
-        Convert raw block tp dict formatted for storage.
+        Convert raw block to dict formatted for storage.
 
         Args:
             raw_block (Union[Dict[str, str], Dict[str, List]]):

@@ -1,5 +1,4 @@
 # coding=utf-8
-import os.path
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -12,9 +11,9 @@ from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
 
-from sqlalchemy.dialects.mysql import JSON
-
-from toolz import get_in
+#from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSON
 
 from ...import Base
 from ....enums import operation_types_enum
@@ -36,10 +35,10 @@ class InterestOperation(Base, BaseVirtualOperation):
 
     """
     
-    __tablename__ = 'sbds_op_interests'
+    __tablename__ = 'sbds_op_virtual_interests'
     __operation_type__ = 'interest_operation'
     
-    owner = Column(JSON) # name:owner
+    owner = Column(JSONB) # name:owner
     interest = Column(Numeric(20,6), nullable=False) # steem_type:asset
     interest_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
@@ -53,4 +52,5 @@ class InterestOperation(Base, BaseVirtualOperation):
         interest=lambda x: amount_field(x.get('interest'), num_func=float),
         interest_symbol=lambda x: amount_symbol_field(x.get('interest')),
     )
+
 

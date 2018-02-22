@@ -2,16 +2,16 @@ version: '3'
 
 services:
    db:
-     image: mysql:5.7
-     volumes:
-       - db_data:/var/lib/mysql
-     restart: always
-     environment:
-       MYSQL_ROOT_PASSWORD: password
-       MYSQL_DATABASE: sbds
-       MYSQL_USER: user
-       MYSQL_PASSWORD: password
-
+    image: postgres:9.6.7-alpine
+    restart: always
+    volumes:
+       - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_DB: sbds
+    ports:
+       - "5432:5432"
    sbds:
      depends_on:
        - db
@@ -20,9 +20,8 @@ services:
        - "8080:80"
      restart: always
      environment:
-       DATABASE_URL: mysql+mysqldb://user:password@db/sbds?charset=utf8mb4
+       DATABASE_URL: postgresql+psycopg2://user:password@db/sbds
        STEEMD_HTTP_URL: https://api.steemit.com
        SBDS_LOG_LEVEL: DEBUG
-
 volumes:
     db_data:
