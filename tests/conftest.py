@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import tempfile
+
 
 import pytest
 import requests
@@ -9,27 +9,28 @@ from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db.tables import Session
 from sbds.storages.db.utils import configure_engine
 
+import sbds
+import sbds.chain
+import sbds.chain.cli
+import sbds.server
+import sbds.server.cli
+import sbds.server.methods
+import sbds.server.serve
+import sbds.storages
+import sbds.storages.db
+import sbds.storages.db.cli
+import sbds.storages.db.data_types
+import sbds.storages.db.enums
+import sbds.storages.db.field_handlers
+import sbds.storages.db.query_helpers
+import sbds.storages.db.utils
+import sbds.storages.db.scripts
+import sbds.storages.db.scripts.populate
+import sbds.storages.db.tables.async_core
+import sbds.storages.db.tables.block
+import sbds.storages.db.tables.core
+import sbds.storages.db.tables.operations
 
-# pylint: skip-file
-@pytest.fixture()
-def sqlitedb_session(sqlite_db_url=None):
-    sqlite_db_url = sqlite_db_url or 'sqlite://'
-    engine_config = configure_engine(sqlite_db_url)
-    session = Session(bind=engine_config.engine)
-    return session
-
-
-@pytest.fixture()
-def sqlitedb_engine_config(sqlite_db_url=None):
-    sqlite_db_url = sqlite_db_url or 'sqlite://'
-    sqlite_engine_config = configure_engine(sqlite_db_url)
-
-
-@pytest.fixture()
-def sqlitedb_tmpfile_db_url():
-    fh, tmp_db_path = tempfile.mkstemp()
-    sqlite_db_url = 'sqlite:///%s' % tmp_db_path
-    return sqlite_db_url
 
 
 @pytest.fixture()
