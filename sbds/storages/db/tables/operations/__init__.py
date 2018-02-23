@@ -136,8 +136,5 @@ combined_ops_class_map = dict(**op_class_map, **virtual_op_class_map)
 class UndefinedTransactionType(Exception):
     """Exception raised when undefined transction is encountered"""
 
-def tx_class_for_type(tx_type):
-    try:
-        return op_class_map[tx_type]
-    except KeyError:
-        raise UndefinedTransactionType(tx_type)
+def op_class_for_type(op_type):
+    return combined_ops_class_map[op_type]

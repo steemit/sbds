@@ -7,10 +7,11 @@ DOCS_BUILD_DIR := $(DOCS_DIR)/_build
 PROJECT_NAME := $(notdir $(ROOT_DIR))
 PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
 
+PYTHON_VERSION := 3.6
 PYTHON := $(shell which python$(PYTHON_VERSION))
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
-PYTHON_VERSION := 3.6
+
 ENVFILE := .env
 
 PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
@@ -42,11 +43,12 @@ help:
 init: clean ## install project requrements into .venv
 	pip3 install --upgrade pipenv
 	-pipenv --rm
+
 	if [[ $(shell uname) == 'Darwin' ]]; then \
-	brew install openssl; \
+	brew install openssl postgresql; \
 	env LDFLAGS="-L$(shell brew --prefix openssl)/lib" CFLAGS="-I$(shell brew --prefix openssl)/include" pipenv update --python $(PYTHON) --dev; \
 	else \
-		pipenv update --python $(PYTHON) --dev; \
+		pipenv update --python 3.6 --dev; \
 	fi
 	pipenv run pre-commit install
 

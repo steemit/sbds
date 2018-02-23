@@ -20,7 +20,7 @@ def ts_datetime(val):
 
 
 
-dump = partial(json.dump, default=to_serializable)
-dumps = partial(json.dumps, default=to_serializable)
+dump = partial(json.dump, default=to_serializable, ensure_ascii=True)
+dumps = partial(json.dumps, default=to_serializable, ensure_ascii=True)
 load = json.load
 loads = json.loads

@@ -110,66 +110,7 @@ class OperationMixin(UniqueMixin):
 
     # pylint: enable=unused-argument
 
-    @classmethod
-    def from_to_filter(cls, query, _from=None, to=None):
-        if isinstance(_from, int):
-            query = cls.block_num_window_filter(query, _from=_from)
-        elif isinstance(_from, datetime):
-            query = cls.datetime_window_filter(query, _from=_from)
 
-        if isinstance(to, int):
-            query = cls.block_num_window_filter(query, to=to)
-        elif isinstance(to, datetime):
-            query = cls.datetime_window_filter(query, to=to)
-
-        return query
-
-    @classmethod
-    def block_num_window_filter(cls, query, _from=None, to=None):
-        if _from:
-            query = query.filter(cls.block_num >= _from)
-        if to:
-            query = query.filter(cls.block_num <= to)
-        return query
-
-    @classmethod
-    def datetime_window_filter(cls, query, _from=None, to=None):
-        if _from:
-            query = query.filter(cls.timestamp >= _from)
-        if to:
-            query = query.filter(cls.timestamp <= to)
-        return query
-
-    @classmethod
-    def standard_trailing_windowed_queries(cls, query):
-        """
-
-        Args:
-            query (sqlalchemy.orm.query.Query):
-
-        Yields:
-            sqlalchemy.orm.query.Query
-        """
-        for window in standard_trailing_windows():
-            yield cls.datetime_window_filter(query, **window)
-
-    @classmethod
-    def standard_windowed_count(cls, session):
-        count_query = cls.count_query(session)
-        for window_query in cls.standard_trailing_windowed_queries(
-                count_query):
-            yield window_query.scalar()
-
-    @classmethod
-    def _count_index_name(cls):
-        # pylint: disable=no-member
-        return 'ix_%s_timestamp' % cls.__tablename__
-
-    @classmethod
-    def count_query(cls, session):
-        ix = cls._count_index_name()
-        ix_stmt = 'USE INDEX(%s)' % ix
-        return session.query(func.count(cls.timestamp)).with_hint(cls, ix_stmt)
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')

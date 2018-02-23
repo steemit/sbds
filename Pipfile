@@ -60,6 +60,8 @@ aiopg = "*"
 "psycopg2" = "*"
 colorama = "*"
 tqdm = "*"
+python-dateutil = "*"
+requests = "*"
 
 
 [requires]

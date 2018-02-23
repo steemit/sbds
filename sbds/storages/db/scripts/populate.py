@@ -8,23 +8,21 @@ import sys
 import logging
 from asyncio import Queue
 
-import janus
 import uvloop
 from tqdm import tqdm
 
-
+import jsonrpcclient.config
 from sqlalchemy.engine.url import make_url
 import rapidjson as json
 import structlog
 import aiohttp
-import concurrent.futures
-from jsonrpcclient.aiohttp_client import aiohttpClient
-import jsonrpcclient.config
+from aiohttp.connector import TCPConnector
+from jsonrpcclient.http_client import HTTPClient
 
-jsonrpcclient.config.validate = False
+
 
 from sbds.storages.db import add_blocks
-from sbds.storages.db.tables.core import prepare_raw_block
+from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
 from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
 from sbds.storages.db.tables import init_tables
@@ -33,20 +31,17 @@ from sbds.storages.db.tables.block import Block
 from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
 
-import sbds.sbds_logging
 
 
 # pylint: skip-file
 logger = structlog.get_logger(__name__)
+
 
 TOTAL_TASKS = 6
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 loop = asyncio.get_event_loop()
 
-
-
-missing_block_nums = list()
 stored_blocks_q = Queue(loop=loop)
 
 
@@ -58,6 +53,8 @@ pbar_kwargs = dict(
     fill_char='█',
     show_pos=True,
     bar_template='%(bar)s  %(info)s')
+
+jsonrpcclient.config.validate = False
 
 
 def create_async_engine(database_url, **kwargs):
@@ -132,13 +129,12 @@ def task_load_db_meta(database_url):
     return m
 
 def task_get_last_irreversible_block(steemd_http_url):
-    from jsonrpcclient.http_client import HTTPClient
+
     rpc = HTTPClient(steemd_http_url)
     rpc._request_log.level = 50
     rpc._response_log.level = 50
     response = rpc.request('get_dynamic_global_properties')
     last_chain_block = response['last_irreversible_block_num']
-
     return last_chain_block
 
 async def get_missing_count(engine, last_chain_block,):
@@ -149,24 +145,27 @@ async def get_missing_count(engine, last_chain_block,):
 
 async def enqueue_missing_block_nums(engine, last_chain_block, missing_count, pbar=None):
     complete_block_nums = range(1, last_chain_block + 1)
-
-    if missing_count < last_chain_block:
-        logger.debug('enq',missing=missing_count, last_chain_block=last_chain_block)
-        async with engine.acquire() as conn:
-            rows = await conn.execute('SELECT block_num from sbds_core_blocks')
-            for i,complete_block_num_chunk in enumerate(chunkify(complete_block_nums, 10_000)):
-                complete_block_num_chunk = set(complete_block_num_chunk)
-                block_nums_in_db_chunk = await rows.fetchmany(10_000)
-                if block_nums_in_db_chunk:
-                    missing_in_chunk = complete_block_num_chunk.difference(b['block_num'] for b in block_nums_in_db_chunk)
+    if missing_count == last_chain_block:
+        return complete_block_nums
+    missing_block_nums = list()
+    logger.debug('enq',missing=missing_count, last_chain_block=last_chain_block)
+    async with engine.acquire() as conn:
+        rows = await conn.execute('SELECT block_num from sbds_core_blocks ORDER BY block_num ASC')
+        for complete_block_num_chunk in chunkify(complete_block_nums, 10_000):
+            block_nums_in_db_chunk = await rows.fetchmany(10_000)
+            if block_nums_in_db_chunk:
+                block_nums_in_db_chunk = [b[0] for b in block_nums_in_db_chunk]
+                missing_in_chunk = set(complete_block_num_chunk)
+                missing_in_chunk.difference_update(set(block_nums_in_db_chunk))
+                if missing_in_chunk:
                     missing_block_nums.extend(missing_in_chunk)
-                else:
-                    start = sorted(list(complete_block_num_chunk))[0]
-                    end = last_chain_block + 1
-                    missing_block_nums.extend(i for i in range(start, end))
-                    break
-    else:
-        missing_block_nums.extend(complete_block_nums)
+                pbar.update(10_000)
+            else:
+                start = max(missing_block_nums)
+                end = last_chain_block + 1
+                missing_block_nums.extend(range(start, end))
+                break
+
     return missing_block_nums
 
 async def fetch_block(url, client, block_num):
@@ -174,10 +173,6 @@ async def fetch_block(url, client, block_num):
     jsonrpc_response = await response.json()
     return jsonrpc_response['result']
 
-
-async def prepare_block_for_storage(raw_block):
-    return await loop.run_in_executor(None, Block._prepare_for_storage,
-                                          raw_block)
 
 async def store_block(engine, blocks_table, prepared_block, pbar=None):
     async with engine.acquire() as conn:
@@ -188,30 +183,31 @@ async def store_block(engine, blocks_table, prepared_block, pbar=None):
 
 async def process_block(block_num, url, client, engine, blocks_table, pbar=None):
     raw_block = await fetch_block(url, client, block_num)
-    prepared_block = await prepare_block_for_storage(raw_block)
+    prepared_block = await prepare_raw_block_for_storage(raw_block, loop=loop)
     await store_block(engine, blocks_table, prepared_block, pbar=pbar)
     return (block_num, raw_block, prepared_block)
 
 
 async def process_blocks(missing_block_nums, url, client, engine, db_meta, pbar=None):
     blocks_table = db_meta.tables['sbds_core_blocks']
-    for block_num_chunk in chunkify(missing_block_nums, 100):
+    for block_num_chunk in chunkify(missing_block_nums, 150):
         request_tasks = [process_block(block_num, url, client, engine, blocks_table, pbar=pbar) for block_num in block_num_chunk]
         done, pending = await asyncio.wait(request_tasks)
         for task in done:
-            result = task.result()
-            stored_blocks_q.put_nowait(result)
-            pbar.update(1)
+            try:
+                result = task.result()
+                stored_blocks_q.put_nowait(result)
+                pbar.update(1)
+            except Exception as e:
+                logger.error('task error', e=e, task=task)
 
 
 # --- Operations ---
 async def fetch_ops_in_block(block_num, url, client):
-    try:
-        response = await client.post(url, data=f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_inblock","params":[{block_num},true]}}'.encode())
-        jsonrpc_response = await response.json()
-        return jsonrpc_response['result']
-    except Exception as e:
-        logger.exception('error fetching block', block_num=block_num)
+    response = await client.post(url, data=f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_inblock","params":[{block_num},true]}}'.encode())
+    jsonrpc_response = await response.json()
+    return jsonrpc_response['result']
+
 
 async def prepare_operation_for_storage(raw_operation):
     return await loop.run_in_executor(None, Block._prepare_for_storage,
@@ -222,12 +218,6 @@ async def store_operation(engine, operations_table, prepared_operation, pbar=Non
         await conn.execute(operations_table.insert().values(**prepared_operation))
         if pbar:
             pbar.update(1)
-
-
-async def async_q_gen(q):
-    while True:
-        item = await q.get()
-        yield item
 
 
 def task_stream_blocks(database_url, steemd_http_url, task_num=6):
@@ -268,7 +258,9 @@ def populate(database_url, steemd_http_url, jsonrpc_batch_size):
 
 
 def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
+    connector = TCPConnector(loop=loop,limit=500)
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
+                                            connector=connector,
                                             json_serialize=json.dumps,
                                             headers={'Content-Type':'application/json'})
 
@@ -302,7 +294,7 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
             task_num=task_num)
         click.echo(task_message)
         last_chain_block = task_get_last_irreversible_block(steemd_http_url)
-        last_chain_block = 100_000
+        last_chain_block = 200_000
 
         # [4/6] build list of blocks missing from db
         missing_count = loop.run_until_complete(get_missing_count(engine, last_chain_block))
