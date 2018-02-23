@@ -622,5 +622,13 @@ def generate_class_example(op_name, db_url):
     op_example = get_op_example(op_name, db_url)
     click.echo(op_example, file=sys.stdout)
 
+@codegen.command(name='generate-get-ops-in-block-example')
+@click.argument('op_name', type=click.STRING)
+@click.argument('db_url', type=click.STRING)
+def generate_class_example(op_name, db_url):
+    op_example = get_op_example(op_name, db_url)
+    click.echo(op_example, file=sys.stdout)
+
+
 if __name__ == '__main__':
     codegen()

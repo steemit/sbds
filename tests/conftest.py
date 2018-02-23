@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-
+import json
+import os.path
+import glob
 
 import pytest
 import requests
@@ -30,6 +32,20 @@ import sbds.storages.db.tables.async_core
 import sbds.storages.db.tables.block
 import sbds.storages.db.tables.core
 import sbds.storages.db.tables.operations
+
+
+TEST_DIR = os.path.dirname(__file__)
+TEST_DATA_DIR = os.path.join(TEST_DIR,'data')
+GET_BLOCK_DATA_DIR = os.path.join(TEST_DATA_DIR,'get_block')
+GET_OPS_IN_BLOCK_DATA_DIR = os.path.join(TEST_DATA_DIR,'get_ops_in_block')
+
+def load_data(dir):
+    results_dict = {}
+    for filename in glob.iglob(f'{dir}/*.json'):
+        key = os.path.basename(filename).split('.')[0]
+        with open(filename) as f:
+            results_dict[key] = json.load(f)
+    return results_dict
 
 
 

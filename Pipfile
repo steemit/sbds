@@ -62,6 +62,7 @@ colorama = "*"
 tqdm = "*"
 python-dateutil = "*"
 requests = "*"
+ipython = "*"
 
 
 [requires]
