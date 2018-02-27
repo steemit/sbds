@@ -2,7 +2,7 @@
 import click
 
 import structlog
-from sbds.server.serve import run
+from .serve import run
 
 logger = structlog.get_logger(__name__)
 

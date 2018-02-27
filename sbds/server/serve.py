@@ -9,10 +9,9 @@ import structlog
 import uvloop
 
 from aiohttp import web
-from aiomysql import sa
+from aiopg import sa
 from jsonrpcserver import config
 from jsonrpcserver.async_methods import AsyncMethods
-
 
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -23,6 +22,7 @@ config.log_requests = False
 logger = structlog.get_logger(__name__)
 
 # pylint: disable=redefined-outer-name
+
 
 def default_json(obj):
     if isinstance(obj, datetime.datetime):
