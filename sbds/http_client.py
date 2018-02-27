@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import concurrent.futures
 import json
 import logging
@@ -90,9 +90,6 @@ class SimpleSteemAPIClient(object):
             **response_kw)
         '''
         self.request = partial(self.http.urlopen, 'POST', url)
-
-        _logger = sbds.sbds_logging.getLogger('urllib3')
-        sbds.sbds_logging.configure_existing_logger(_logger, level=log_level)
 
     @staticmethod
     def json_rpc_body(name, *args, as_json=True):
