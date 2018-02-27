@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
+from sqlalchemy import String
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import SmallInteger
 from sqlalchemy import func
@@ -27,73 +28,7 @@ class UndefinedTransactionType(Exception):
 
 # noinspection PyMethodParameters
 class OperationMixin(UniqueMixin):
-    # pylint: disable=no-self-argument
 
-    @classmethod
-    def _prepare_for_storage(cls, **kwargs):
-        data_dict, _fields = dict(), dict()
-        op_type = None
-        from sbds.storages.db.tables.operations import tx_class_for_type
-        try:
-            data_dict = kwargs['data_dict']
-            op_type = data_dict['type']
-            tx_cls = tx_class_for_type(op_type)
-            _fields = tx_cls._fields
-            prepared = {k: v(data_dict) for k, v in _fields.items()}
-            prepared['block_num'] = data_dict['block_num']
-            prepared['transaction_num'] = data_dict['transaction_num']
-            prepared['operation_num'] = data_dict['operation_num']
-            prepared['timestamp'] = data_dict['timestamp']
-            prepared['operation_type'] = op_type
-
-            if 'class_tuple' in kwargs:
-                return tx_cls, prepared
-            return prepared
-
-        except Exception as e:
-            extra = dict(
-                block_num=data_dict.get('block_num'),
-                transaction_num=data_dict.get('transaction_num'),
-                operation_num=data_dict.get('operation_num'),
-                timestamp=data_dict.get('timestamp'),
-                op_type=op_type,
-                _fields=_fields,
-                error=e,
-                **kwargs)
-            logger.error(e, **extra)
-            return None
-
-    @classmethod
-    def from_raw_block(cls, raw_block):
-        from sbds.storages.db.tables.operations import tx_class_for_type
-        operations = list(extract_operations_from_block(raw_block))
-        if not operations:
-            # root_logger.debug('no transactions extracted from block')
-            return []
-
-        bn = operations[0].get('block_num', '')
-        logger.debug('extracted %s operations from block %s',
-                     len(operations), bn)
-        prepared = [cls._prepare_for_storage(data_dict=d) for d in operations]
-        objs = []
-        for i, prepared_tx in enumerate(prepared):
-            op_type = operations[i]['type']
-            try:
-                tx_cls = tx_class_for_type(op_type)
-            except UndefinedTransactionType as e:
-                logger.error(e)
-                continue
-            else:
-                logger.debug('operation type %s mapped to class %s', op_type,
-                             tx_cls.__name__)
-                objs.append(tx_cls(**prepared_tx))
-                logger.debug('instantiated: %s',
-                             [o.__class__.__name__ for o in objs])
-        return objs
-
-
-
-    # pylint: disable=unused-argument
     @classmethod
     def unique_hash(cls, *args, **kwargs):
         return tuple([
@@ -109,8 +44,6 @@ class OperationMixin(UniqueMixin):
             cls.operation_num == kwargs['operation_num'], )
 
     # pylint: enable=unused-argument
-
-
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')
@@ -135,6 +68,8 @@ class OperationMixin(UniqueMixin):
         return str(self.dump())
 
 # noinspection PyMethodParameters
+
+
 class BaseOperation(OperationMixin):
     # pylint: disable=no-self-argument
 
@@ -149,17 +84,18 @@ class BaseOperation(OperationMixin):
     block_num = Column(Integer, nullable=False, index=True)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
+    trx_id = Column(String(40), index=True, nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
 
     _fields = dict()
 
 
-
 class BaseVirtualOperation(OperationMixin):
-
     id = Column(Integer, primary_key=True, autoincrement=True)
     block_num = Column(Integer, nullable=False, index=True)
+    transaction_num = Column(SmallInteger, default=0)
+    operation_num = Column(SmallInteger, default=0)
+    trx_id = Column(String(40), index=True, nullable=False)
     timestamp = Column(DateTime(timezone=False), nullable=False, index=True)
 
     _fields = dict()
-

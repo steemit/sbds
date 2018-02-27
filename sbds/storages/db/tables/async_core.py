@@ -2,14 +2,8 @@
 
 import asyncio
 import concurrent.futures
-from copy import deepcopy
-from functools import singledispatch
-from itertools import chain
-
 
 import dateutil.parser
-
-
 import structlog
 import uvloop
 
@@ -27,13 +21,14 @@ EXECUTOR = concurrent.futures.ThreadPoolExecutor()
 async def prepare_raw_block_for_storage(raw_block, loop=None):
     block_dict = await load_raw_block(raw_block, loop=loop)
     return dict(
-            raw=block_dict['raw'],
-            block_num=block_dict['block_num'],
-            previous=block_dict['previous'],
-            timestamp=block_dict['timestamp'],
-            witness=block_dict['witness'],
-            witness_signature=block_dict['witness_signature'],
-            transaction_merkle_root=block_dict['transaction_merkle_root'])
+        raw=block_dict['raw'],
+        block_num=block_dict['block_num'],
+        previous=block_dict['previous'],
+        timestamp=block_dict['timestamp'],
+        witness=block_dict['witness'],
+        witness_signature=block_dict['witness_signature'],
+        transaction_merkle_root=block_dict['transaction_merkle_root'])
+
 
 async def load_raw_block(raw_block, loop=None):
     """
@@ -52,7 +47,7 @@ async def load_raw_block(raw_block, loop=None):
     if isinstance(raw_block, dict):
         block_dict = dict()
         block_dict.update(raw_block)
-        block_dict['raw'] = await loop.run_in_executor(EXECUTOR, sbds.sbds_json.dumps,block_dict)
+        block_dict['raw'] = await loop.run_in_executor(EXECUTOR, sbds.sbds_json.dumps, block_dict)
     elif isinstance(raw_block, str):
         block_dict = await loop.run_in_executor(EXECUTOR, sbds.sbds_json.loads, raw_block)
         block_dict['raw'] = raw_block
@@ -67,7 +62,7 @@ async def load_raw_block(raw_block, loop=None):
         block_dict['block_num'] = block_num_from_previous(block_dict['previous'])
     timestamp = block_dict.get('timestamp')
     if isinstance(timestamp, str):
-        block_dict['timestamp']  = await loop.run_in_executor(EXECUTOR, dateutil.parser.parse, timestamp)
+        block_dict['timestamp'] = await loop.run_in_executor(EXECUTOR, dateutil.parser.parse, timestamp)
 
     return block_dict
 
@@ -103,18 +98,21 @@ async def load_raw_operation(raw_operation, loop=None):
         'operation_num': raw_operation['op_in_trx'],
         'timestamp': raw_operation['timestamp'],
         'trx_id': raw_operation['trx_id'],
-        'op_type': raw_operation['op'][0][0],
-        'virtual_op': raw_operation['virtual_op'],
-        'data': raw_operation['op'][0][1]
+        'operation_type': raw_operation['op'][0],
+        'data': raw_operation['op'][1]
     }
 
-async def prepare_opertaion_for_storage(op_dict, loop=None):
-    op_cls = op_class_for_type(op_dict['type'])
+
+async def prepare_raw_opertaion_for_storage(raw_operation, loop=None):
+    op_dict = await load_raw_operation(raw_operation, loop=loop)
+    op_cls = op_class_for_type(op_dict['operation_type'])
     _fields = op_cls._fields
     prepared_fields = await loop.run_in_executor(EXECUTOR, prepare_op_class_fields, op_dict['data'], _fields)
     op_dict.update(prepared_fields)
+    op_dict.update({k: v for k, v in op_dict['data'].items() if k not in prepared_fields})
     del op_dict['data']
     return op_dict
+
 
 def prepare_op_class_fields(op_dict_data, fields):
     return {k: v(op_dict_data) for k, v in fields.items()}

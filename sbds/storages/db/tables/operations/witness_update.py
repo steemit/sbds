@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class WitnessUpdateOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -41,32 +41,26 @@ class WitnessUpdateOperation(Base, BaseOperation):
       "block_signing_key": "STM8LoQjQqJHvotqBo7HjnqmUbFW9oJ2theyqonzUd9DdJ7YYHsvD"
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_witness_updates'
     __operation_type__ = 'witness_update_operation'
-    
-    owner = Column(JSONB) # name:owner
-    url = Column(Unicode(150)) # steem_type:string
-    block_signing_key = Column(String(60), nullable=False) # steem_type:public_key_type
-    props = Column(JSON) # steem_type:chain_properties
-    fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
-    fee_symbol = Column(String(5)) # steem_type:asset
+
+    owner = Column(JSONB)  # name:owner
+    url = Column(Unicode(150))  # steem_type:string
+    block_signing_key = Column(String(60), nullable=False)  # steem_type:public_key_type
+    props = Column(JSONB)  # steem_type:chain_properties
+    fee = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
+    fee_symbol = Column(String(5))  # steem_type:asset
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='witness_update_operation')
-    
+
     _fields = dict(
-        owner=lambda x: x.get('owner'),
-        url=lambda x: x.get('url'),
-        block_signing_key=lambda x: x.get('block_signing_key'),
-        props=lambda x: x.get('props'),
         fee=lambda x: amount_field(x.get('fee'), num_func=float),
         fee_symbol=lambda x: amount_symbol_field(x.get('fee')),
     )
-
-

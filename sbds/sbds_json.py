@@ -19,7 +19,6 @@ def ts_datetime(val):
     return val.isoformat()
 
 
-
 dump = partial(json.dump, default=to_serializable, ensure_ascii=True)
 dumps = partial(json.dumps, default=to_serializable, ensure_ascii=True)
 load = json.load

@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class PowOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -46,30 +46,24 @@ class PowOperation(Base, BaseOperation):
       }
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_pows'
     __operation_type__ = 'pow_operation'
-    
-    worker_account = Column(String(50), index=True) # steem_type:account_name_type
-    block_id = Column(Integer) # steem_type:block_id_type
-    nonce = Column(BigInteger) # steem_type:uint64_t
-    work = Column(JSON) # steem_type:pow
-    props = Column(JSON) # steem_type:chain_properties
+
+    worker_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    block_id = Column(String(40))  # steem_type:block_id_type
+    nonce = Column(Numeric)  # steem_type:uint64_t
+    work = Column(JSONB)  # steem_type:pow
+    props = Column(JSONB)  # steem_type:chain_properties
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='pow_operation')
-    
+
     _fields = dict(
-        worker_account=lambda x: x.get('worker_account'),
-        block_id=lambda x: x.get('block_id'),
-        nonce=lambda x: x.get('nonce'),
-        work=lambda x: x.get('work'),
-        props=lambda x: x.get('props'),
+
     )
-
-

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Operations
 from .account_create import AccountCreateOperation
 from .account_create_with_delegation import \
@@ -44,21 +45,21 @@ from .withdraw_vesting import WithdrawVestingOperation
 from .witness_update import WitnessUpdateOperation
 
 # Virtual Operations
-from .virtual.author_reward import AuthorRewardOperation
-from .virtual.curation_reward import CurationRewardOperation
-from .virtual.comment_reward import CommentRewardOperation
-from .virtual.liquidity_reward import LiquidityRewardOperation
-from .virtual.interest import InterestOperation
-from .virtual.fill_convert_request import FillConvertRequestOperation
-from .virtual.fill_vesting_withdraw import FillVestingWithdrawOperation
-from .virtual.shutdown_witness import ShutdownWitnessOperation
-from .virtual.fill_order import FillOrderOperation
-from .virtual.fill_transfer_from_savings import FillTransferFromSavingsOperation
-from .virtual.hardfork import HardforkOperation
-from .virtual.comment_payout_update import CommentPayoutUpdateOperation
-from .virtual.return_vesting_delegation import ReturnVestingDelegationOperation
-from .virtual.comment_benefactor_reward import CommentBenefactorRewardOperation
-from .virtual.producer_reward import ProducerRewardOperation
+from .virtual.author_reward import AuthorRewardVirtualOperation
+from .virtual.curation_reward import CurationRewardVirtualOperation
+from .virtual.comment_reward import CommentRewardVirtualOperation
+from .virtual.liquidity_reward import LiquidityRewardVirtualOperation
+from .virtual.interest import InterestVirtualOperation
+from .virtual.fill_convert_request import FillConvertRequestVirtualOperation
+from .virtual.fill_vesting_withdraw import FillVestingWithdrawVirtualOperation
+from .virtual.shutdown_witness import ShutdownWitnessVirtualOperation
+from .virtual.fill_order import FillOrderVirtualOperation
+from .virtual.fill_transfer_from_savings import FillTransferFromSavingsVirtualOperation
+from .virtual.hardfork import HardforkVirtualOperation
+from .virtual.comment_payout_update import CommentPayoutUpdateVirtualOperation
+from .virtual.return_vesting_delegation import ReturnVestingDelegationVirtualOperation
+from .virtual.comment_benefactor_reward import CommentBenefactorRewardVirtualOperation
+from .virtual.producer_reward import ProducerRewardVirtualOperation
 
 # pylint: disable=line-too-long, bad-continuation, too-many-lines, no-self-argument
 
@@ -114,27 +115,33 @@ op_class_map = {
 # virtual operations
 # https://github.com/steemit/steem/blob/master/libraries/protocol/include/steemit/protocol/steem_virtual_operations.hpp
 virtual_op_class_map = {
-    'author_reward': AuthorRewardOperation,
-    'curation_reward': CurationRewardOperation,
-    'comment_reward': CommentRewardOperation,
-    'liquidity_reward': LiquidityRewardOperation,
-    'interest': InterestOperation,
-    'fill_convert_request': FillConvertRequestOperation,
-    'fill_vesting_withdraw': FillVestingWithdrawOperation,
-    'shutdown_witness': ShutdownWitnessOperation,
-    'fill_order': FillOrderOperation,
-    'fill_transfer_from_savings': FillTransferFromSavingsOperation,
-    'hardfork': HardforkOperation,
-    'comment_payout_update': CommentPayoutUpdateOperation,
-    'return_vesting_delegation': ReturnVestingDelegationOperation,
-    'comment_benefactor_reward': CommentBenefactorRewardOperation,
-    'producer_reward': ProducerRewardOperation
+    'author_reward': AuthorRewardVirtualOperation,
+    'curation_reward': CurationRewardVirtualOperation,
+    'comment_reward': CommentRewardVirtualOperation,
+    'liquidity_reward': LiquidityRewardVirtualOperation,
+    'interest': InterestVirtualOperation,
+    'fill_convert_request': FillConvertRequestVirtualOperation,
+    'fill_vesting_withdraw': FillVestingWithdrawVirtualOperation,
+    'shutdown_witness': ShutdownWitnessVirtualOperation,
+    'fill_order': FillOrderVirtualOperation,
+    'fill_transfer_from_savings': FillTransferFromSavingsVirtualOperation,
+    'hardfork': HardforkVirtualOperation,
+    'comment_payout_update': CommentPayoutUpdateVirtualOperation,
+    'return_vesting_delegation': ReturnVestingDelegationVirtualOperation,
+    'comment_benefactor_reward': CommentBenefactorRewardVirtualOperation,
+    'producer_reward': ProducerRewardVirtualOperation
 }
 
 combined_ops_class_map = dict(**op_class_map, **virtual_op_class_map)
 
+
 class UndefinedTransactionType(Exception):
     """Exception raised when undefined transction is encountered"""
 
+
 def op_class_for_type(op_type):
     return combined_ops_class_map[op_type]
+
+
+def op_db_table_for_type(op_type):
+    return combined_ops_class_map[op_type].__tablename__.replace('_operation', '')

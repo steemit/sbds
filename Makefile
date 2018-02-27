@@ -9,6 +9,7 @@ PROJECT_DOCKER_TAG := steemit/$(PROJECT_NAME)
 
 PYTHON_VERSION := 3.6
 PYTHON := $(shell which python$(PYTHON_VERSION))
+PIPENV := $(shell which pipenv)
 PIPENV_VENV_IN_PROJECT := 1
 export PIPENV_VENV_IN_PROJECT
 
@@ -42,15 +43,15 @@ help:
 .PHONY: init
 init: clean ## install project requrements into .venv
 	pip3 install --upgrade pipenv
-	-pipenv --rm
-
+	-$(PIPENV) --rm
 	if [[ $(shell uname) == 'Darwin' ]]; then \
 	brew install openssl postgresql; \
-	env LDFLAGS="-L$(shell brew --prefix openssl)/lib" CFLAGS="-I$(shell brew --prefix openssl)/include" pipenv update --python $(PYTHON) --dev; \
+	env LDFLAGS="-L$(shell brew --prefix openssl)/lib" CFLAGS="-I$(shell brew --prefix openssl)/include" $(PIPENV) install --python $(PYTHON) --dev --skip-lock; \
 	else \
-		pipenv update --python 3.6 --dev; \
+		$(PIPENV) install --python 3.6 --dev --skip-lock; \
 	fi
-	pipenv run pre-commit install
+
+	$(PIPENV) run pre-commit install
 
 Pipfile.lock: Pipfile
 	$(shell docker run $(PROJECT_DOCKER_TAG) /bin/bash -c 'pipenv lock && cat Pipfile.lock' > $@)
@@ -75,48 +76,52 @@ run: ## run docker image
 
 .PHONY: run-local
 run-local: ## run the python app without docker
-	pipenv run python3 -m jussi.serve  --debug=1 --server_workers=1 --upstream_config_file ALT_CONFIG.json
+	$(PIPENV) run python3 -m jussi.serve  --debug=1 --server_workers=1 --upstream_config_file ALT_CONFIG.json
 
 .PHONY: test
 test: ## run all tests
-	pipenv run pytest
+	$(PIPENV) run pytest
 
 .PHONY: test-with-docker
 test-with-docker: Pipfile.lock build  ## run tests that depend on docker
-	pipenv run pytest --rundocker --jussiurl http://localhost:8080
+	$(PIPENV) run pytest --rundocker --jussiurl http://localhost:8080
 
 .PHONY: lint
 lint: ## lint python files
-	pipenv run pylint $(PROJECT_NAME)
+	$(PIPENV) run pylint $(PROJECT_NAME)
 
 .PHONY: fmt
 fmt: ## format python files
     # yapf is disabled until the update 3.6 fstring compat
-	pipenv run yapf --in-place --style pep8 --recursive $(PROJECT_NAME) tests
-	pipenv run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME) tests
+	$(PIPENV) run yapf --in-place --style pep8 --recursive $(PROJECT_NAME) tests
+	$(PIPENV) run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -1 --in-place  --recursive $(PROJECT_NAME) tests
 
 .PHONY: fix-imports
 fix-imports: remove-unused-imports sort-imports ## remove unused and then sort imports
 
 .PHONY: remove-unused-imports
 remove-unused-imports: ## remove unused imports from python files
-	pipenv run autoflake --in-place --remove-all-unused-imports --recursive $(PROJECT_NAME) tests
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports --recursive $(PROJECT_NAME) tests
 
 .PHONY: sort-imports
 sort-imports: ## sorts python imports using isort with settings from .editorconfig
-	pipenv run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME) tests
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $(PROJECT_NAME) tests
 
 .PHONY: pipenv-check
-pipenv-check:
-	pipenv check
+pipenv-check: ## run pipenv's package security checker
+	$(PIPENV) check
+
+.PHONY: pre-commit-init
+pre-commit-init: ## initialize pre-commit
+	$(PIPENV) run pre-commit install
 
 .PHONY: pre-commit
 pre-commit: ## run pre-commit against modified files
-	pipenv run pre-commit run
+	$(PIPENV) run pre-commit run
 
 .PHONY: pre-commit-all
 pre-commit-all: ## run pre-commit against all files
-	pipenv run pre-commit run --all-files
+	$(PIPENV) run pre-commit run --all-files
 
 .PHONY: unmac
 unmac:
@@ -137,9 +142,9 @@ sql:
 
 .PHONY: ipython
 ipython:
-	envdir envd pipenv run ipython -i sbds/storages/db/scripts/ipython_init.py
+	envdir envd $(PIPENV) run ipython -i sbds/storages/db/scripts/ipython_init.py
 
-README.rst: docs/src/README.rst 
+README.rst: docs/src/README.rst
 	cd $(DOCS_DIR) && $(MAKE) README
 
 $(BUILD_DIR):
@@ -149,19 +154,17 @@ $(BLOCKCHAIN_EXAMPLES_DIR): $(BUILD_DIR)
 	mkdir $@
 
 $(BLOCKCHAIN_EXAMPLES_DIR)/%.json: $(BLOCKCHAIN_EXAMPLES_DIR)
-	pipenv run ./contrib/codegen.py generate-class-example $(*F) $(DATABASE_URL) > $@
+	$(PIPENV) run ./contrib/codegen.py generate-class-example $(*F) $(DATABASE_URL) > $@
 
 $(VIRTUAL_OPERATIONS_PATH)/%.py: $(VIRTUAL_OPERATIONS_FILE)
-	pipenv run ./contrib/codegen.py generate-class $(*F) \
+	$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
 		$(VIRTUAL_OPERATIONS_FILE) \
 		--cache_dir $(OPERATIONS_CACHE_DIR) \
 		--db_url $(DATABASE_URL) > $@
-	#pipenv run isort --verbose  --atomic --settings-path  .editorconfig --virtual-env .venv $@
-	#pipenv run autoflake --in-place --remove-all-unused-imports $@
-	#pipenv run yapf --in-place --style pep8 $@
+
 
 $(OPERATIONS_PATH)/%.py: $(OPERATIONS_FILE)
-	-pipenv run ./contrib/codegen.py generate-class $(*F) \
+	-$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
 		$(OPERATIONS_FILE) \
 		--cache_dir $(OPERATIONS_CACHE_DIR) \
 		--db_url $(DATABASE_URL) > $@

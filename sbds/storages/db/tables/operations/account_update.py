@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class AccountUpdateOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -49,32 +49,25 @@ class AccountUpdateOperation(Base, BaseOperation):
       }
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_account_updates'
     __operation_type__ = 'account_update_operation'
-    
-    account = Column(String(50), index=True) # steem_type:account_name_type
-    owner = Column(JSONB) # name:owner
-    active = Column(JSONB) # name:active
-    posting = Column(JSONB) # name:posting
-    memo_key = Column(String(60), nullable=False) # steem_type:public_key_type
-    json_metadata = Column(JSONB) # name:json_metadata
+
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    owner = Column(JSONB)  # name:owner
+    active = Column(JSONB)  # name:active
+    posting = Column(JSONB)  # name:posting
+    memo_key = Column(String(60), nullable=False)  # steem_type:public_key_type
+    json_metadata = Column(JSONB)  # name:json_metadata
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='account_update_operation')
-    
+
     _fields = dict(
-        account=lambda x: x.get('account'),
-        owner=lambda x: x.get('owner'),
-        active=lambda x: x.get('active'),
-        posting=lambda x: x.get('posting'),
-        memo_key=lambda x: x.get('memo_key'),
-        json_metadata=lambda x: x.get('json_metadata'),
+
     )
-
-

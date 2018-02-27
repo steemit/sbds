@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class SetWithdrawVestingRouteOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -36,28 +36,23 @@ class SetWithdrawVestingRouteOperation(Base, BaseOperation):
       "from_account": "newyo6"
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_set_withdraw_vesting_routes'
     __operation_type__ = 'set_withdraw_vesting_route_operation'
-    
-    from_account = Column(String(50), index=True) # steem_type:account_name_type
-    to_account = Column(String(50), index=True) # steem_type:account_name_type
-    percent = Column(SmallInteger) # steem_type:uint16_t
-    auto_vest = Column(Boolean) # steem_type:bool
+
+    from_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    to_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    percent = Column(SmallInteger)  # steem_type:uint16_t
+    auto_vest = Column(Boolean)  # steem_type:bool
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='set_withdraw_vesting_route_operation')
-    
+
     _fields = dict(
-        from_account=lambda x: x.get('from_account'),
-        to_account=lambda x: x.get('to_account'),
-        percent=lambda x: x.get('percent'),
-        auto_vest=lambda x: x.get('auto_vest'),
+
     )
-
-

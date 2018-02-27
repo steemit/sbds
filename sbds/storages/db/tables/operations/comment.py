@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class CommentOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -39,34 +39,26 @@ class CommentOperation(Base, BaseOperation):
       "author": "steemit"
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_comments'
     __operation_type__ = 'comment_operation'
-    
-    parent_author = Column(String(50), index=True) # steem_type:account_name_type
-    parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink
-    author = Column(String(50), index=True) # steem_type:account_name_type
-    permlink = Column(Unicode(512), index=True) # name:permlink
-    title = Column(Unicode(512), index=True) # name:title,comment_operation
-    body = Column(UnicodeText) # name:body
-    json_metadata = Column(JSONB) # name:json_metadata
+
+    parent_author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    parent_permlink = Column(Unicode(512), index=True)  # name:parent_permlink
+    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    permlink = Column(Unicode(512), index=True)  # name:permlink
+    title = Column(Unicode(512), index=True)  # name:title,comment_operation
+    body = Column(UnicodeText)  # name:body
+    json_metadata = Column(JSONB)  # name:json_metadata
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='comment_operation')
-    
+
     _fields = dict(
-        parent_author=lambda x: x.get('parent_author'),
-        parent_permlink=lambda x: x.get('parent_permlink'),
-        author=lambda x: x.get('author'),
-        permlink=lambda x: x.get('permlink'),
-        title=lambda x: x.get('title'),
         body=lambda x: comment_body_field(x.get('body')),
-        json_metadata=lambda x: x.get('json_metadata'),
     )
-
-

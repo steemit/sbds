@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class LimitOrderCancelOperation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -34,24 +34,21 @@ class LimitOrderCancelOperation(Base, BaseOperation):
       "owner": "linouxis9"
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_limit_order_cancels'
     __operation_type__ = 'limit_order_cancel_operation'
-    
-    owner = Column(JSONB) # name:owner
-    orderid = Column(Integer) # steem_type:uint32_t
+
+    owner = Column(JSONB)  # name:owner
+    orderid = Column(Integer)  # steem_type:uint32_t
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='limit_order_cancel_operation')
-    
+
     _fields = dict(
-        owner=lambda x: x.get('owner'),
-        orderid=lambda x: x.get('orderid'),
+
     )
-
-

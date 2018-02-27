@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 from sqlalchemy import DateTime
 from sqlalchemy import String
@@ -10,10 +10,9 @@ from sqlalchemy import Boolean
 from sqlalchemy import SmallInteger
 from sqlalchemy import Integer
 from sqlalchemy import BigInteger
+from sqlalchemy import ForeignKey
 
-#from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import JSON
 
 from ..import Base
 from ...enums import operation_types_enum
@@ -23,10 +22,11 @@ from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
 
+
 class Pow2Operation(Base, BaseOperation):
     """
-    
-    
+
+
     Steem Blockchain Example
     ======================
     {
@@ -48,26 +48,22 @@ class Pow2Operation(Base, BaseOperation):
       ]
     }
 
-    
+
 
     """
-    
+
     __tablename__ = 'sbds_op_pow2s'
     __operation_type__ = 'pow2_operation'
-    
-    work = Column(JSON) # steem_type:steemit::protocol::pow2_work
-    new_owner_key = Column(String(60)) # steem_type:optional< public_key_type>
-    props = Column(JSON) # steem_type:chain_properties
+
+    work = Column(JSONB)  # steem_type:steemit::protocol::pow2_work
+    new_owner_key = Column(String(60))  # steem_type:optional< public_key_type>
+    props = Column(JSONB)  # steem_type:chain_properties
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
         default='pow2_operation')
-    
+
     _fields = dict(
-        work=lambda x: x.get('work'),
-        new_owner_key=lambda x: x.get('new_owner_key'),
-        props=lambda x: x.get('props'),
+
     )
-
-
