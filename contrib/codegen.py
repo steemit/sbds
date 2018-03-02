@@ -283,6 +283,7 @@ name_to_columns_map.update({
     'json_meta': ['json_meta = Column(JSONB) # name:json_meta'],
     'memo': ['memo = Column(UnicodeText) # name:memo'],
     'permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
+    'comment_permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
     'parent_permlink': ['parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink'],
     'title,comment_operation': ['title = Column(Unicode(512), index=True) # name:title,comment_operation'],
 
@@ -354,7 +355,8 @@ def _get_columns_by_type(name, _type):
 
     # account_name_type
     elif _type == 'account_name_type':
-        return [f'{name} = Column(String(50), ForeignKey("sbds_meta_accounts.name")) # steem_type:{_type}']
+        return [
+            f'{name} = Column(String(50), ForeignKey("sbds_meta_accounts.name")) # steem_type:{_type}']
 
     # public_key_type
     elif _type == 'public_key_type':

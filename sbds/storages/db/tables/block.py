@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 from functools import partial
 
 import sqlalchemy.dialects
@@ -6,8 +6,9 @@ import sqlalchemy.dialects
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
-from sqlalchemy import Unicode
+from sqlalchemy import String
 from sqlalchemy import UnicodeText
+from sqlalchemy import ForeignKey
 from sqlalchemy import func
 
 from toolz import dissoc
@@ -147,20 +148,17 @@ class Block(Base, UniqueMixin):
     """
     # pylint: enable=line-too-long
     __tablename__ = 'sbds_core_blocks'
-    __table_args__ = ({
-        'mysql_engine': 'InnoDB',
-        'mysql_charset': 'utf8mb4',
-        'mysql_collate': 'utf8mb4_general_ci'
-    }, )
 
     raw = Column(UnicodeText())
     block_num = Column(
-        Integer, primary_key=True, nullable=False, autoincrement=False)
-    previous = Column(Unicode(50))
+        Integer, primary_key=True, autoincrement=False)
+    block_id = Column(String(40), default='0000000000000000000000000000000000000000')
+    previous = Column(String(50), nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
-    witness = Column(Unicode(50))
-    witness_signature = Column(Unicode(150))
-    transaction_merkle_root = Column(Unicode(50))
+    witness = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:{account_name_type}'
+    witness_signature = Column(String(150))
+    transaction_merkle_root = Column(String(40))
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (self.block_num,

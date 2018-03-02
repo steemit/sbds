@@ -68,6 +68,8 @@ def create_async_engine(database_url, **kwargs):
             host=sa_db_url.host,
             port=sa_db_url.port,
             dbname=sa_db_url.database,
+            minsize=30,
+            maxsize=30,
             **kwargs))
     return async_engine
 
@@ -82,6 +84,7 @@ def create_async_pool(database_url, **kwargs):
             user=sa_db_url.username,
             password=sa_db_url.password,
             dbname=sa_db_url.database,
+
             **kwargs))
     return pool
 
@@ -156,7 +159,6 @@ async def enqueue_missing_block_nums(engine, last_chain_block, missing_count, pb
     if missing_count == last_chain_block:
         return complete_block_nums
     missing_block_nums = list()
-    logger.debug('enq', missing=missing_count, last_chain_block=last_chain_block)
     async with engine.acquire() as conn:
 
         for complete_block_num_chunk in chunkify(complete_block_nums, 10_000):
@@ -186,24 +188,92 @@ async def fetch_block(url, client, block_num):
     return jsonrpc_response['result']
 
 
-async def store_block(engine, blocks_table, prepared_block, pbar=None):
+async def fetch_blocks(url, client, block_nums):
+    request_data = ','.join(
+        f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_block","params":[{block_num}]}}' for block_num in block_nums)
+    request_json = f'[{request_data}]'.encode()
+    response = await client.post(url, data=request_json)
+    jsonrpc_response = await response.json()
+    return zip(block_nums, [r['result'] for r in jsonrpc_response])
+
+
+async def store_block(engine, db_tables, prepared_block, pbar=None):
+    blocks_table = db_tables['sbds_core_blocks']
+    accounts_table = db_tables['sbds_meta_accounts']
     async with engine.acquire() as conn:
-        await conn.execute(blocks_table.insert().values(**prepared_block))
-        if pbar:
-            pbar.update(1)
+        while True:
+            try:
+                await conn.execute(blocks_table.insert().values(**prepared_block))
+                if pbar:
+                    pbar.update(1)
+                break
+            except psycopg2.IntegrityError as e:
+                # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
+                err_str = e.diag.message_detail
+                if 'is not present in table "sbds_meta_accounts"' in err_str:
+                    missing_account_name = err_str.split('=')[1].split(')')[
+                        0].replace('(', '')  # hehe
+                    try:
+                        await conn.execute(accounts_table.insert().values(
+                            name=missing_account_name))
+                    except psycopg2.IntegrityError as e:
+                        if 'duplicate key value violates unique constraint' in e.pgerror:
+                            pass
+                        else:
+                            raise e
+                else:
+                    raise e
 
 
-async def process_block(block_num, url, client, engine, blocks_table, pbar=None):
+async def process_block(block_num, url, client, engine, db_tables, pbar=None):
     raw_block = await fetch_block(url, client, block_num)
     prepared_block = await prepare_raw_block_for_storage(raw_block, loop=loop)
-    await store_block(engine, blocks_table, prepared_block, pbar=pbar)
+    await store_block(engine, db_tables, prepared_block, pbar=pbar)
     return (block_num, raw_block, prepared_block)
 
 
 async def process_blocks(missing_block_nums, url, client, engine, db_meta, pbar=None):
-    blocks_table = db_meta.tables['sbds_core_blocks']
+    db_tables = db_meta.tables
     for block_num_chunk in chunkify(missing_block_nums, 150):
-        request_tasks = [process_block(block_num, url, client, engine, blocks_table, pbar=pbar) for block_num in block_num_chunk]
+        request_tasks = [
+            process_block(
+                block_num,
+                url,
+                client,
+                engine,
+                db_tables,
+                pbar=pbar) for block_num,
+            raw_block in block_num_chunk]
+        done, pending = await asyncio.wait(request_tasks)
+        for task in done:
+            try:
+                result = task.result()
+                stored_blocks_q.put_nowait(result)
+                pbar.update(1)
+            except Exception as e:
+                logger.error('task error', e=e, task=task)
+
+
+async def process_block2(block_num, raw_block, url, client, engine, db_tables, pbar=None):
+    prepared_block = await prepare_raw_block_for_storage(raw_block, loop=loop)
+    await store_block(engine, db_tables, prepared_block, pbar=pbar)
+    return (block_num, raw_block, prepared_block)
+
+
+async def process_blocks2(missing_block_nums, url, client, engine, db_meta, pbar=None):
+    db_tables = db_meta.tables
+    for block_num_chunk in chunkify(missing_block_nums, 500):
+        results = await fetch_blocks(url, client, block_num_chunk)
+        request_tasks = [
+            process_block2(
+                block_num,
+                raw_block,
+                url,
+                client,
+                engine,
+                db_tables,
+                pbar=pbar) for block_num,
+            raw_block in results]
         done, pending = await asyncio.wait(request_tasks)
         for task in done:
             try:
@@ -215,10 +285,19 @@ async def process_blocks(missing_block_nums, url, client, engine, db_meta, pbar=
 
 
 # --- Operations ---
-async def fetch_ops_in_block(block_num, url, client):
+async def fetch_ops_in_block(url, client, block_num):
     response = await client.post(url, data=f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_in_block","params":[{block_num},false]}}'.encode())
     jsonrpc_response = await response.json()
     return jsonrpc_response['result']
+
+
+async def fetch_ops_in_blocks(url, client, block_nums):
+    request_data = ','.join(
+        f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_in_block","params":[{block_num},false]}}' for block_num in block_nums)
+    request_json = f'[{request_data}]'.encode()
+    response = await client.post(url, data=request_json)
+    jsonrpc_response = await response.json()
+    return zip(block_nums, [r['result'] for r in jsonrpc_response])
 
 
 async def prepare_operation_for_storage(raw_operation):
@@ -240,22 +319,27 @@ async def store_operation(engine, db_tables, prepared_operation, pbar=None):
                     await conn.execute(table.insert().values(**prepared_operation))
                     break
                 except psycopg2.IntegrityError as e:
+                    # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
                     err_str = e.diag.message_detail
-                    missing_account_name = err_str.split('=')[1].split(')')[0].replace('(', '')  # hehe
-                    try:
-                        await conn.execute(accounts_table.insert().values(name=missing_account_name))
-                    except psycopg2.IntegrityError as e:
-                        if 'duplicate key value violates unique constraint' in e.pgerror:
-                            pass
-                        else:
-                            raise e
+                    if 'is not present in table "sbds_meta_accounts"' in err_str:
+                        missing_account_name = err_str.split(
+                            '=')[1].split(')')[0].replace('(', '')  # hehe
+                        try:
+                            await conn.execute(accounts_table.insert().values(name=missing_account_name))
+                        except psycopg2.IntegrityError as e:
+                            if 'duplicate key value violates unique constraint' in e.pgerror:
+                                pass
+                            else:
+                                raise e
+                    else:
+                        raise e
     except Exception as e:
         logger.error('store_operation', prepared_operation=prepared_operation, e=e)
         raise e
 
 
 async def process_operation(block_num, url, client, engine, db_tables, pbar=None):
-    raw_operations = await fetch_ops_in_block(block_num, url, client)
+    raw_operations = await fetch_ops_in_block(url, client, block_num)
     for raw_operation in raw_operations:
         try:
             prepared_operation = await prepare_raw_opertaion_for_storage(raw_operation, loop=loop)
@@ -278,7 +362,59 @@ async def process_operations(stored_blocks_q, url, client, engine, db_meta, pbar
             continue
         block_num_chunk.append(block_num)
         if len(block_num_chunk) >= 100:
-            tasks = [process_operation(block_num, url, client, engine, db_tables, pbar=pbar) for block_num in block_num_chunk]
+            tasks = [
+                process_operation(
+                    block_num,
+                    url,
+                    client,
+                    engine,
+                    db_tables,
+                    pbar=pbar) for block_num in block_num_chunk]
+            done, pending = await asyncio.wait(tasks)
+            for task in done:
+                try:
+                    result = task.result()
+                    if pbar:
+                        pbar.update(1)
+                except Exception as e:
+                    logger.error('task error', e=e, task=task, exc_info=e)
+            block_num_chunk = []
+
+
+async def process_operation2(block_num, raw_operations, url, client, engine, db_tables, pbar=None):
+    for raw_operation in raw_operations:
+        try:
+            prepared_operation = await prepare_raw_opertaion_for_storage(raw_operation, loop=loop)
+            await store_operation(engine, db_tables, prepared_operation, pbar=pbar)
+        except Exception as e:
+            logger.error('process_operation',
+                         raw_operation=raw_operation,
+                         e=e)
+            raise e
+
+
+async def process_operations2(stored_blocks_q, url, client, engine, db_meta, pbar=None):
+    db_tables = db_meta.tables
+    block_num_chunk = []
+    while True:
+        try:
+            block_num, raw_block, prepared_block = stored_blocks_q.get_nowait()
+        except asyncio.QueueEmpty:
+            await asyncio.sleep(1)
+            continue
+        block_num_chunk.append(block_num)
+        if len(block_num_chunk) >= 300:
+            results = await fetch_ops_in_blocks(url, client, block_num_chunk)
+            tasks = [
+                process_operation2(
+                    block_num,
+                    raw_operations,
+                    url,
+                    client,
+                    engine,
+                    db_tables,
+                    pbar=pbar) for block_num,
+                raw_operations in results]
             done, pending = await asyncio.wait(tasks)
             for task in done:
                 try:
@@ -328,7 +464,7 @@ def populate(database_url, steemd_http_url, jsonrpc_batch_size):
 
 
 def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
-    connector = TCPConnector(loop=loop, limit=500)
+    connector = TCPConnector(loop=loop, limit=200)
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
                                             connector=connector,
                                             json_serialize=json.dumps,
@@ -344,7 +480,7 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
             emoji_code_point=u'\U0001F4DE',
             task_num=task_num)
         click.echo(task_message)
-        #task_confirm_db_connectivity(database_url, task_num=1)
+        task_confirm_db_connectivity(database_url)
 
         # [2/6] init db if required
         task_num += 1
@@ -353,7 +489,7 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
             emoji_code_point=u'\U0001F50C',
             task_num=task_num)
         click.echo(task_message)
-        #task_init_db_if_required(database_url=database_url, task_num=2)
+        task_init_db_if_required(database_url=database_url)
 
         # [3/6] find last irreversible block
         task_num += 1
@@ -372,7 +508,9 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
             task_num=4)
         click.echo(task_message)
         with click.progressbar(length=missing_count, **pbar_kwargs) as pbar:
-            missing_block_nums = loop.run_until_complete(enqueue_missing_block_nums(engine, last_chain_block, missing_count, pbar=pbar))
+            missing_block_nums = loop.run_until_complete(
+                enqueue_missing_block_nums(
+                    engine, last_chain_block, missing_count, pbar=pbar))
 
         task_message = fmt_task_message(
             'Adding missing blocks to db',
@@ -384,19 +522,19 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
 
         pbar = tqdm(total=missing_count, unit='blocks', bar_format='''{bar}{r_bar}''')
         #pbar2 = tqdm(total=missing_count,unit='blocks',bar_format='''{bar}{r_bar}''')
-        asyncio.ensure_future(process_blocks(missing_block_nums,
-                                             steemd_http_url,
-                                             AIOHTTP_SESSION,
-                                             engine,
-                                             db_meta,
-                                             pbar=pbar))
+        asyncio.ensure_future(process_blocks2(missing_block_nums,
+                                              steemd_http_url,
+                                              AIOHTTP_SESSION,
+                                              engine,
+                                              db_meta,
+                                              pbar=pbar))
         #'''
-        asyncio.ensure_future(process_operations(stored_blocks_q,
-                                                 steemd_http_url,
-                                                 AIOHTTP_SESSION,
-                                                 engine,
-                                                 db_meta,
-                                                 pbar=None))
+        asyncio.ensure_future(process_operations2(stored_blocks_q,
+                                                  steemd_http_url,
+                                                  AIOHTTP_SESSION,
+                                                  engine,
+                                                  db_meta,
+                                                  pbar=None))
         #'''
         loop.run_forever()
 
