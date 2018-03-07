@@ -42,8 +42,10 @@ class DelegateVestingSharesOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_delegate_vesting_share'
     __operation_type__ = 'delegate_vesting_shares_operation'
 
-    delegator = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    delegatee = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    delegator = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                       )  # steem_type:account_name_type
+    delegatee = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                       )  # steem_type:account_name_type
     vesting_shares = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     vesting_shares_symbol = Column(String(5))  # steem_type:asset
     operation_type = Column(

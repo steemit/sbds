@@ -46,11 +46,13 @@ class CommentOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_comments'
     __operation_type__ = 'comment_operation'
 
-    parent_author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    parent_permlink = Column(Unicode(512), index=True)  # name:parent_permlink
-    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    permlink = Column(Unicode(512), index=True)  # name:permlink
-    title = Column(Unicode(512), index=True)  # name:title,comment_operation
+    parent_author = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                           )  # steem_type:account_name_type
+    parent_permlink = Column(Unicode(256), index=True)  # name:parent_permlink
+    # steem_type:account_name_type
+    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
+    permlink = Column(Unicode(256), index=True)  # name:permlink
+    title = Column(Unicode(256), index=True)  # name:title,comment_operation
     body = Column(UnicodeText)  # name:body
     json_metadata = Column(JSONB)  # name:json_metadata
     operation_type = Column(

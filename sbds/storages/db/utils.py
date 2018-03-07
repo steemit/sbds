@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import asyncio
+
 from collections import namedtuple
 from contextlib import contextmanager
 
+import aiopg.sa
+import structlog
 import uvloop
 
 from sqlalchemy import create_engine
@@ -15,7 +18,6 @@ from sqlalchemy.pool import NullPool
 import sbds.sbds_json
 
 
-import structlog
 logger = structlog.get_logger(__name__)
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -95,6 +97,7 @@ class UniqueMixin(object):
     def as_unique(cls, session, *arg, **kw):
         return _unique(session, cls, cls.unique_hash, cls.unique_filter, cls,
                        arg, kw)
+
 
 def is_duplicate_entry_error(error):
     if isinstance(error, FlushError):
@@ -253,14 +256,25 @@ def isolated_engine_config(database_url, **kwargs):
         del engine_config
 
 
-def create_async_engine(database_url):
-    sa_db_url = make_url(database_url)
-    loop = asyncio.get_event_loop()
+def create_aiopg_engine(database_url, loop=None, minsize=10, maxsize=30, **kwargs):
+    loop = loop or asyncio.get_event_loop()
     async_engine = loop.run_until_complete(
-        create_engine(
-            user=sa_db_url.username,
-            password=sa_db_url.password,
-            host=sa_db_url.host,
-            port=sa_db_url.port,
-            database=sa_db_url.database))
+        async_create_aiopg_engine(
+            database_url,
+            minsize=minsize,
+            maxsize=maxsize,
+            **kwargs))
     return async_engine
+
+
+async def async_create_aiopg_engine(database_url, minsize=10, maxsize=30, **kwargs):
+    sa_db_url = make_url(database_url)
+    return await aiopg.sa.create_engine(
+        user=sa_db_url.username,
+        password=sa_db_url.password,
+        host=sa_db_url.host,
+        port=sa_db_url.port,
+        dbname=sa_db_url.database,
+        minsize=minsize,
+        maxsize=maxsize,
+        **kwargs)

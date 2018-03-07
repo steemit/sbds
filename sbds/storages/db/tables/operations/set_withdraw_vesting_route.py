@@ -43,8 +43,10 @@ class SetWithdrawVestingRouteOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_set_withdraw_vesting_routes'
     __operation_type__ = 'set_withdraw_vesting_route_operation'
 
-    from_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    to_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    from_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                          )  # steem_type:account_name_type
+    to_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                        )  # steem_type:account_name_type
     percent = Column(SmallInteger)  # steem_type:uint16_t
     auto_vest = Column(Boolean)  # steem_type:bool
     operation_type = Column(

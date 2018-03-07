@@ -41,7 +41,8 @@ class WithdrawVestingOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_withdraw_vestings'
     __operation_type__ = 'withdraw_vesting_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     vesting_shares = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     vesting_shares_symbol = Column(String(5))  # steem_type:asset
     operation_type = Column(

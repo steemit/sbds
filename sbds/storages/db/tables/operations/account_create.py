@@ -76,8 +76,10 @@ class AccountCreateOperation(Base, BaseOperation):
 
     fee = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     fee_symbol = Column(String(5))  # steem_type:asset
-    creator = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    new_account_name = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    creator = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
+    new_account_name = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
     owner = Column(JSONB)  # name:owner
     active = Column(JSONB)  # name:active
     posting = Column(JSONB)  # name:posting

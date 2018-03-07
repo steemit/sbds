@@ -38,8 +38,10 @@ class ResetAccountOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_reset_accounts'
     __operation_type__ = 'reset_account_operation'
 
-    reset_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    account_to_reset = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    reset_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                           )  # steem_type:account_name_type
+    account_to_reset = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
     new_owner_authority = Column(JSONB)  # steem_type:authority
     operation_type = Column(
         operation_types_enum,

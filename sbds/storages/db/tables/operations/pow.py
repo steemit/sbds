@@ -53,7 +53,8 @@ class PowOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_pows'
     __operation_type__ = 'pow_operation'
 
-    worker_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    worker_account = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
     block_id = Column(String(40))  # steem_type:block_id_type
     nonce = Column(Numeric)  # steem_type:uint64_t
     work = Column(JSONB)  # steem_type:pow

@@ -1,5 +1,6 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import logging
+import os
 import sys
 
 import structlog
@@ -17,7 +18,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        #structlog.processors.JSONRenderer(serializer=dumps)
+        # structlog.processors.JSONRenderer(serializer=dumps)
         structlog.dev.ConsoleRenderer()
     ],
     context_class=dict,
@@ -30,8 +31,9 @@ structlog.configure(
 logging.basicConfig(
     format="%(message)s",
     stream=sys.stdout,
-    level=logging.DEBUG,
+    level=os.environ.get('LOG_LEVEL', 'INFO'),
 )
+
 
 def session_to_dict(session):
     return dict(

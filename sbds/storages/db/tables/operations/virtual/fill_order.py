@@ -38,11 +38,13 @@ class FillOrderVirtualOperation(Base, BaseVirtualOperation):
     __tablename__ = 'sbds_op_virtual_fill_orders'
     __operation_type__ = 'fill_order_operation'
 
-    current_owner = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    current_owner = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                           )  # steem_type:account_name_type
     current_orderid = Column(Integer)  # steem_type:uint32_t
     current_pays = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     current_pays_symbol = Column(String(5))  # steem_type:asset
-    open_owner = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    open_owner = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                        )  # steem_type:account_name_type
     open_orderid = Column(Integer)  # steem_type:uint32_t
     open_pays = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     open_pays_symbol = Column(String(5))  # steem_type:asset

@@ -43,7 +43,8 @@ class ClaimRewardBalanceOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_claim_reward_balances'
     __operation_type__ = 'claim_reward_balance_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     reward_steem = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     reward_steem_symbol = Column(String(5))  # steem_type:asset
     reward_sbd = Column(Numeric(20, 6), nullable=False)  # steem_type:asset

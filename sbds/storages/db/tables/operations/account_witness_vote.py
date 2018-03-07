@@ -42,8 +42,10 @@ class AccountWitnessVoteOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_account_witness_votes'
     __operation_type__ = 'account_witness_vote_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    witness = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
+    witness = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     approve = Column(Boolean)  # steem_type:bool
     operation_type = Column(
         operation_types_enum,

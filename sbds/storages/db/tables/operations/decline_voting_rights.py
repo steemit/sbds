@@ -41,7 +41,8 @@ class DeclineVotingRightsOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_decline_voting_right'
     __operation_type__ = 'decline_voting_rights_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     decline = Column(Boolean)  # steem_type:bool
     operation_type = Column(
         operation_types_enum,

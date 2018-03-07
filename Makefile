@@ -154,27 +154,23 @@ $(BLOCKCHAIN_EXAMPLES_DIR): $(BUILD_DIR)
 	mkdir $@
 
 $(BLOCKCHAIN_EXAMPLES_DIR)/%.json: $(BLOCKCHAIN_EXAMPLES_DIR)
-	$(PIPENV) run ./contrib/codegen.py generate-class-example $(*F) $(DATABASE_URL) > $@
+	$(PIPENV) run ./contrib/codegen.py generate-class-example $(*F) --db-url $(DATABASE_URL) > $@
 
 $(VIRTUAL_OPERATIONS_PATH)/%.py: $(VIRTUAL_OPERATIONS_FILE)
 	$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
 		$(VIRTUAL_OPERATIONS_FILE) \
-		--cache_dir $(OPERATIONS_CACHE_DIR) \
-		--db_url $(DATABASE_URL) > $@
+		--cache_dir $(OPERATIONS_CACHE_DIR) > $@
 
 
 $(OPERATIONS_PATH)/%.py: $(OPERATIONS_FILE)
 	-$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
 		$(OPERATIONS_FILE) \
-		--cache_dir $(OPERATIONS_CACHE_DIR) \
-		--db_url $(DATABASE_URL) > $@
+		--cache_dir $(OPERATIONS_CACHE_DIR) > $@
 
 
-.PHONY: virtual-ops-classes
-virtual-ops-classes: $(VIRTUAL_OPERATIONS_PYTHON_FILES)
+virtual-ops: $(VIRTUAL_OPERATIONS_PYTHON_FILES)
 
-.PHONY: ops-classes
-ops-classes: $(OPERATIONS_PYTHON_FILES)
+ops: $(OPERATIONS_PYTHON_FILES)
 
 .PHONY: delete-virtual-ops
 delete-virtual-ops:
@@ -184,11 +180,11 @@ delete-virtual-ops:
 delete-ops:
 	-rm $(OPERATIONS_PYTHON_FILES)
 
-.PHONY: debug
-debug:
-	@clear
-	@echo v_ops_prefix:$(VIRTUAL_OPERATIONS_PREFIX)
-	@echo v_ops_path:$(VIRTUAL_OPERATIONS_PATH)
-	#-echo v_ops_file:$(VIRTUAL_OPERATIONS_FILE)
-	#echo $(VIRTUAL_OPERATIONS_NAMES)
-	#echo $(VIRTUAL_OPERATIONS_PYTHON_FILES)
+.PHONY: remove-ops
+remove-ops: delete-ops delete-virtual-ops ops-classes
+
+.PHONY: build-ops
+build-ops: ops virtual-ops
+
+.PHONY: rebuild-ops
+rebuild-ops: remove-ops build-ops

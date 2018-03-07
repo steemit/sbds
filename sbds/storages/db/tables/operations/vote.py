@@ -43,9 +43,11 @@ class VoteOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_votes'
     __operation_type__ = 'vote_operation'
 
-    voter = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    permlink = Column(Unicode(512), index=True)  # name:permlink
+    # steem_type:account_name_type
+    voter = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
+    # steem_type:account_name_type
+    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
+    permlink = Column(Unicode(256), index=True)  # name:permlink
     weight = Column(SmallInteger)  # steem_type:int16_t
     operation_type = Column(
         operation_types_enum,

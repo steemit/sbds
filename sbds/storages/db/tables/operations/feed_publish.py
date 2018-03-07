@@ -44,7 +44,8 @@ class FeedPublishOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_feed_publishes'
     __operation_type__ = 'feed_publish_operation'
 
-    publisher = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    publisher = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                       )  # steem_type:account_name_type
     exchange_rate = Column(JSONB)  # steem_type:price
     operation_type = Column(
         operation_types_enum,

@@ -51,7 +51,8 @@ class EscrowTransferOperation(Base, BaseOperation):
 
     _from = Column('from', String(50), ForeignKey('sbds_meta_accounts.name'))  # name:from
     to = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    agent = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    # steem_type:account_name_type
+    agent = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
     escrow_id = Column(Integer)  # steem_type:uint32_t
     sbd_amount = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     sbd_amount_symbol = Column(String(5))  # steem_type:asset

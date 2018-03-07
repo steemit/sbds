@@ -38,7 +38,8 @@ class ReportOverProductionOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_report_over_productions'
     __operation_type__ = 'report_over_production_operation'
 
-    reporter = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    reporter = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                      )  # steem_type:account_name_type
     first_block = Column(String(500))  # steem_type:signed_block_header
     second_block = Column(String(500))  # steem_type:signed_block_header
     operation_type = Column(

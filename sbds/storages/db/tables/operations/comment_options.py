@@ -46,8 +46,9 @@ class CommentOptionsOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_comment_option'
     __operation_type__ = 'comment_options_operation'
 
-    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    permlink = Column(Unicode(512), index=True)  # name:permlink
+    # steem_type:account_name_type
+    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
+    permlink = Column(Unicode(256), index=True)  # name:permlink
     max_accepted_payout = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     max_accepted_payout_symbol = Column(String(5))  # steem_type:asset
     percent_steem_dollars = Column(SmallInteger)  # steem_type:uint16_t

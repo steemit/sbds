@@ -282,10 +282,10 @@ name_to_columns_map.update({
     'body': ['body = Column(UnicodeText) # name:body'],
     'json_meta': ['json_meta = Column(JSONB) # name:json_meta'],
     'memo': ['memo = Column(UnicodeText) # name:memo'],
-    'permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
-    'comment_permlink': ['permlink = Column(Unicode(512), index=True) # name:permlink'],
-    'parent_permlink': ['parent_permlink = Column(Unicode(512), index=True) # name:parent_permlink'],
-    'title,comment_operation': ['title = Column(Unicode(512), index=True) # name:title,comment_operation'],
+    'permlink': ['permlink = Column(Unicode(256), index=True) # name:permlink'],
+    'comment_permlink': ['permlink = Column(Unicode(256), index=True) # name:permlink'],
+    'parent_permlink': ['parent_permlink = Column(Unicode(256), index=True) # name:parent_permlink'],
+    'title,comment_operation': ['title = Column(Unicode(256), index=True) # name:title,comment_operation'],
 
 })
 
@@ -334,11 +334,17 @@ def get_fields(name, _type):
 
 
 def get_columns(name, _type, op_name):
+    # first: lookup by name,operation_name
     cols = name_to_columns_map.get(f'{name},{op_name}')
+
+    # second: lookup by name
     if not cols:
         cols = name_to_columns_map.get(name)
+
+    # third: lookup by type
     if not cols:
         cols = _get_columns_by_type(name, _type)
+
     return cols
 
 
@@ -527,12 +533,14 @@ def op_source(cls):
     return ''
 
 
-def get_op_example(op_name, db_url, table_name=None, cache_dir=None):
+def get_op_example(op_name, db_url=None, table_name=None, cache_dir=None):
     if cache_dir:
         try:
             return _get_op_example_from_cache(op_name, cache_dir)
         except Exception as e:
             pass
+    elif db_url:
+        pass
     return ''
 
 
@@ -585,10 +593,7 @@ def write_class(path, text):
 
 
 def _generate_class(op_name, cls, db_url=None, cache_dir=None):
-    if db_url:
-        op_example = get_op_example(op_name, db_url, cache_dir=cache_dir)
-    else:
-        op_example = ''
+    op_example = get_op_example(op_name, db_url=db_url, cache_dir=cache_dir)
 
     return class_template.format(
         op_name=op_name,
@@ -605,7 +610,7 @@ def _generate_class(op_name, cls, db_url=None, cache_dir=None):
 
 @click.group()
 def codegen():
-    """Query the Steem blockchain"""
+    """Generate SQLAlchemy ORM Classes For Steemit Blockchain Operations"""
 
 
 @codegen.command(name='generate-classes')
@@ -629,15 +634,10 @@ def generate_classes(header_file, cache_dir, db_url):
 @click.option('--db_url', type=click.STRING)
 def generate_class(op_name, header_file, cache_dir, db_url):
     header = json.load(header_file)
-    base_path = os.path.dirname(header_file.name)
-
     if not op_name.endswith('_operation'):
         op_name = op_name + '_operation'
     cls = header['classes'][op_name]
     text = _generate_class(op_name, cls, db_url=db_url, cache_dir=cache_dir)
-    #filename = op_file(cls)
-    #path = os.path.join(base_path, filename)
-    #write_class(path, text)
     click.echo(text, file=sys.stdout)
 
 
@@ -651,9 +651,9 @@ def generate_class_example(op_name, db_url):
 
 @codegen.command(name='generate-get-ops-in-block-example')
 @click.argument('op_name', type=click.STRING)
-@click.argument('db_url', type=click.STRING)
-def generate_class_example(op_name, db_url):
-    op_example = get_op_example(op_name, db_url)
+@click.option('--db_url', type=click.STRING)
+def generate_class_example(op_name, db_url=None):
+    op_example = get_op_example(op_name, db_url=db_url)
     click.echo(op_example, file=sys.stdout)
 
 

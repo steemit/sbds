@@ -38,11 +38,13 @@ class CurationRewardVirtualOperation(Base, BaseVirtualOperation):
     __tablename__ = 'sbds_op_virtual_curation_rewards'
     __operation_type__ = 'curation_reward_operation'
 
-    curator = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    curator = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     reward = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     reward_symbol = Column(String(5))  # steem_type:asset
-    comment_author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    comment_permlink = Column(Unicode(150))  # steem_type:string
+    comment_author = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
+    permlink = Column(Unicode(256), index=True)  # name:permlink
     operation_type = Column(
         operation_types_enum,
         nullable=False,

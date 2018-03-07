@@ -38,8 +38,10 @@ class FillVestingWithdrawVirtualOperation(Base, BaseVirtualOperation):
     __tablename__ = 'sbds_op_virtual_fill_vesting_withdraws'
     __operation_type__ = 'fill_vesting_withdraw_operation'
 
-    from_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    to_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    from_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                          )  # steem_type:account_name_type
+    to_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                        )  # steem_type:account_name_type
     withdrawn = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     withdrawn_symbol = Column(String(5))  # steem_type:asset
     deposited = Column(Numeric(20, 6), nullable=False)  # steem_type:asset

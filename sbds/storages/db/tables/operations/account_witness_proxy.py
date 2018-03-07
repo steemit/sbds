@@ -41,8 +41,10 @@ class AccountWitnessProxyOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_account_witness_proxies'
     __operation_type__ = 'account_witness_proxy_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    proxy = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
+    # steem_type:account_name_type
+    proxy = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
     operation_type = Column(
         operation_types_enum,
         nullable=False,

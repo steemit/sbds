@@ -42,8 +42,10 @@ class ChangeRecoveryAccountOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_change_recovery_accounts'
     __operation_type__ = 'change_recovery_account_operation'
 
-    account_to_recover = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    new_recovery_account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account_to_recover = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
+    new_recovery_account = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
     extensions = Column(JSONB)  # steem_type:extensions_type
     operation_type = Column(
         operation_types_enum,

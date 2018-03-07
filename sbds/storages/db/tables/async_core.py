@@ -103,7 +103,7 @@ async def load_raw_operation(raw_operation, loop=None):
     }
 
 
-async def prepare_raw_opertaion_for_storage(raw_operation, loop=None):
+async def prepare_raw_operation_for_storage(raw_operation, loop=None):
     op_dict = await load_raw_operation(raw_operation, loop=loop)
     op_cls = op_class_for_type(op_dict['operation_type'])
     _fields = op_cls._fields

@@ -1,42 +1,41 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import itertools as it
 import os
-import functools
+
 import aiopg.sa
 import click
-import sys
-import logging
+
 from asyncio import Queue
 
 import uvloop
 from tqdm import tqdm
 import psycopg2
 
-import jsonrpcclient.config
+
 from sqlalchemy.engine.url import make_url
 import rapidjson as json
 import structlog
 import aiohttp
+
+from sqlalchemy.dialects.postgresql import insert
 from aiohttp.connector import TCPConnector
-from jsonrpcclient.http_client import HTTPClient
 
 
-from sbds.storages.db import add_blocks
 from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
 from sbds.storages.db.tables.operations import op_db_table_for_type
-from sbds.storages.db.tables.async_core import prepare_raw_opertaion_for_storage
+from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
 from sbds.storages.db.tables import Base
-from sbds.storages.db.tables import Session
+
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import test_connection
-from sbds.storages.db.tables.block import Block
 from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
 
+import sbds.sbds_logging
 
 # pylint: skip-file
 logger = structlog.get_logger(__name__)
-
 
 TOTAL_TASKS = 6
 
@@ -55,12 +54,10 @@ pbar_kwargs = dict(
     show_pos=True,
     bar_template='%(bar)s  %(info)s')
 
-jsonrpcclient.config.validate = False
 
-
-def create_async_engine(database_url, **kwargs):
+def create_async_engine(database_url, loop=None, minsize=10, maxsize=30, **kwargs):
     sa_db_url = make_url(database_url)
-    loop = asyncio.get_event_loop()
+    loop = loop or asyncio.get_event_loop()
     async_engine = loop.run_until_complete(
         aiopg.sa.create_engine(
             user=sa_db_url.username,
@@ -68,25 +65,10 @@ def create_async_engine(database_url, **kwargs):
             host=sa_db_url.host,
             port=sa_db_url.port,
             dbname=sa_db_url.database,
-            minsize=30,
-            maxsize=30,
+            minsize=minsize,
+            maxsize=maxsize,
             **kwargs))
     return async_engine
-
-
-def create_async_pool(database_url, **kwargs):
-    sa_db_url = make_url(database_url)
-    loop = asyncio.get_event_loop()
-    pool = loop.run_until_complete(
-        aiopg.create_pool(
-            loop=loop,
-            host=sa_db_url.host,
-            user=sa_db_url.username,
-            password=sa_db_url.password,
-            dbname=sa_db_url.database,
-
-            **kwargs))
-    return pool
 
 
 def fmt_success_message(msg, *args):
@@ -138,13 +120,18 @@ def task_load_db_meta(database_url):
     return m
 
 
-def task_get_last_irreversible_block(steemd_http_url):
-    rpc = HTTPClient(steemd_http_url)
-    rpc._request_log.level = 50
-    rpc._response_log.level = 50
-    response = rpc.request('get_dynamic_global_properties')
-    last_chain_block = response['last_irreversible_block_num']
-    return last_chain_block
+def is_duplicate_key_error(e):
+    return 'duplicate key value violates unique constraint' in e.pgerror
+
+
+def is_name_missing_from_accounts_error(e):
+    # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
+    err_str = e.diag.message_detail
+    return 'is not present in table "sbds_meta_accounts"' in err_str
+
+
+def missing_account_name_from_error(e):
+    return e.diag.message_detail.split('=')[1].split(')')[0].replace('(', '')  # hehe
 
 
 async def get_missing_count(engine, last_chain_block,):
@@ -154,30 +141,36 @@ async def get_missing_count(engine, last_chain_block,):
     return missing_count
 
 
-async def enqueue_missing_block_nums(engine, last_chain_block, missing_count, pbar=None):
+async def get_latest_db_block_num(engine):
+    async with engine.acquire() as conn:
+        last_block_num = await conn.scalar('SELECT MAX(block_num) from sbds_core_blocks')
+    return last_block_num
+
+
+async def get_last_irreversible_block_num(url, client):
+    response = await client.post(url, data=f'{{"id":1,"jsonrpc":"2.0","method":"get_dynamic_global_properties"}}'.encode())
+    jsonrpc_response = await response.json()
+    return jsonrpc_response['result']['last_irreversible_block_num']
+
+
+async def collect_missing_block_nums(engine, last_chain_block, missing_count, pbar=None):
+    BLOCKNUM_CHUNK_SEARCH_SIZE = 100_000
     complete_block_nums = range(1, last_chain_block + 1)
+
     if missing_count == last_chain_block:
         return complete_block_nums
-    missing_block_nums = list()
-    async with engine.acquire() as conn:
+    missing_block_nums = set(complete_block_nums)
+    query = 'SELECT block_num from sbds_core_blocks'
 
-        for complete_block_num_chunk in chunkify(complete_block_nums, 10_000):
-            complete_block_num_chunk = list(complete_block_num_chunk)
-            low = min(complete_block_num_chunk)
-            high = max(complete_block_num_chunk)
-            rows = await conn.execute(
-                f'SELECT block_num from sbds_core_blocks WHERE block_num>={low} AND block_num<{high} ORDER BY block_num ASC ')
-            block_nums_in_db_chunk = await rows.fetchall()
-            if block_nums_in_db_chunk:
-                block_nums_in_db_chunk = [b[0] for b in block_nums_in_db_chunk]
-                missing_in_chunk = set(complete_block_num_chunk)
-                missing_in_chunk.difference_update(set(block_nums_in_db_chunk))
-                if missing_in_chunk:
-                    missing_block_nums.extend(missing_in_chunk)
-                pbar.update(10_000)
-            else:
-                missing_block_nums.extend(complete_block_num_chunk)
-                pbar.update(10_000)
+    async with engine.acquire() as conn:
+        cursor = await conn.execute(query)
+        while True:
+            rows = await cursor.fetchmany(BLOCKNUM_CHUNK_SEARCH_SIZE)
+            if not rows:
+                break
+            missing_block_nums.difference_update(set(b[0] for b in rows))
+            if pbar:
+                pbar.update(BLOCKNUM_CHUNK_SEARCH_SIZE)
 
     return missing_block_nums
 
@@ -209,24 +202,23 @@ async def store_block(engine, db_tables, prepared_block, pbar=None):
                 break
             except psycopg2.IntegrityError as e:
                 # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
-                err_str = e.diag.message_detail
-                if 'is not present in table "sbds_meta_accounts"' in err_str:
-                    missing_account_name = err_str.split('=')[1].split(')')[
-                        0].replace('(', '')  # hehe
-                    try:
-                        await conn.execute(accounts_table.insert().values(
-                            name=missing_account_name))
-                    except psycopg2.IntegrityError as e:
-                        if 'duplicate key value violates unique constraint' in e.pgerror:
-                            pass
-                        else:
-                            raise e
+                if is_name_missing_from_accounts_error(e):
+                    missing_account_name = missing_account_name_from_error(e)
+                    # try:
+                    stmt = insert(accounts_table).values(
+                        name=missing_account_name).on_conflict_do_nothing(
+                        index_elements=['name'])
+                    await conn.execute(stmt)
+                    # except psycopg2.IntegrityError as e:
+                    # if is_duplicate_key_error(e):
+                    #    pass
+                    # else:
+                    #    raise e
                 else:
                     raise e
 
 
-async def process_block(block_num, url, client, engine, db_tables, pbar=None):
-    raw_block = await fetch_block(url, client, block_num)
+async def process_block(block_num, raw_block, engine, db_tables, pbar=None):
     prepared_block = await prepare_raw_block_for_storage(raw_block, loop=loop)
     await store_block(engine, db_tables, prepared_block, pbar=pbar)
     return (block_num, raw_block, prepared_block)
@@ -234,54 +226,35 @@ async def process_block(block_num, url, client, engine, db_tables, pbar=None):
 
 async def process_blocks(missing_block_nums, url, client, engine, db_meta, pbar=None):
     db_tables = db_meta.tables
-    for block_num_chunk in chunkify(missing_block_nums, 150):
-        request_tasks = [
+    retry_list = []
+    for block_num_chunk in chunkify(missing_block_nums, 500):
+        while True:
+            try:
+                results = await fetch_blocks(url, client, block_num_chunk)
+                break
+            except Exception as e:
+                logger.error('fetch_blocks error', e=e)
+
+        tasks = [
             process_block(
                 block_num,
-                url,
-                client,
-                engine,
-                db_tables,
-                pbar=pbar) for block_num,
-            raw_block in block_num_chunk]
-        done, pending = await asyncio.wait(request_tasks)
-        for task in done:
-            try:
-                result = task.result()
-                stored_blocks_q.put_nowait(result)
-                pbar.update(1)
-            except Exception as e:
-                logger.error('task error', e=e, task=task)
-
-
-async def process_block2(block_num, raw_block, url, client, engine, db_tables, pbar=None):
-    prepared_block = await prepare_raw_block_for_storage(raw_block, loop=loop)
-    await store_block(engine, db_tables, prepared_block, pbar=pbar)
-    return (block_num, raw_block, prepared_block)
-
-
-async def process_blocks2(missing_block_nums, url, client, engine, db_meta, pbar=None):
-    db_tables = db_meta.tables
-    for block_num_chunk in chunkify(missing_block_nums, 500):
-        results = await fetch_blocks(url, client, block_num_chunk)
-        request_tasks = [
-            process_block2(
-                block_num,
                 raw_block,
-                url,
-                client,
                 engine,
                 db_tables,
                 pbar=pbar) for block_num,
             raw_block in results]
-        done, pending = await asyncio.wait(request_tasks)
-        for task in done:
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for task_block_num, result in zip(block_num_chunk, results):
             try:
-                result = task.result()
-                stored_blocks_q.put_nowait(result)
+                block_num, raw_block, prepared_block = result
+                stored_blocks_q.put_nowait(block_num)
                 pbar.update(1)
             except Exception as e:
-                logger.error('task error', e=e, task=task)
+                logger.error('task error', e=e, task=result)
+                retry_list.append(task_block_num)
+                # FIXME add retry behavior
 
 
 # --- Operations ---
@@ -295,14 +268,22 @@ async def fetch_ops_in_blocks(url, client, block_nums):
     request_data = ','.join(
         f'{{"id":{block_num},"jsonrpc":"2.0","method":"get_ops_in_block","params":[{block_num},false]}}' for block_num in block_nums)
     request_json = f'[{request_data}]'.encode()
-    response = await client.post(url, data=request_json)
-    jsonrpc_response = await response.json()
-    return zip(block_nums, [r['result'] for r in jsonrpc_response])
+    response = 'n/a'
+    try:
+        response = await client.post(url, data=request_json)
+        response.raise_for_status()
+
+        jsonrpc_response = await response.json()
+        return zip(block_nums, [r['result'] for r in jsonrpc_response])
+    except Exception as e:
+        logger.exception('error fetching ops in block',
+                         exc_info=True,
+                         e=e, response=response)
 
 
 async def prepare_operation_for_storage(raw_operation):
     try:
-        return await prepare_raw_opertaion_for_storage(raw_operation)
+        return await prepare_raw_operation_for_storage(raw_operation)
     except Exception as e:
         logger.error('prepare_operation_for_storage', raw_operation=raw_operation, e=e)
         raise e
@@ -316,21 +297,17 @@ async def store_operation(engine, db_tables, prepared_operation, pbar=None):
         async with engine.acquire() as conn:
             while True:
                 try:
-                    await conn.execute(table.insert().values(**prepared_operation))
+                    stmt = insert(table).values(**prepared_operation)\
+                        .on_conflict_do_nothing()
+                    await conn.execute(stmt)
                     break
                 except psycopg2.IntegrityError as e:
-                    # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
-                    err_str = e.diag.message_detail
-                    if 'is not present in table "sbds_meta_accounts"' in err_str:
-                        missing_account_name = err_str.split(
-                            '=')[1].split(')')[0].replace('(', '')  # hehe
-                        try:
-                            await conn.execute(accounts_table.insert().values(name=missing_account_name))
-                        except psycopg2.IntegrityError as e:
-                            if 'duplicate key value violates unique constraint' in e.pgerror:
-                                pass
-                            else:
-                                raise e
+                    if is_name_missing_from_accounts_error(e):
+                        missing_account_name = missing_account_name_from_error(e)
+                        stmt = insert(accounts_table).values(
+                            name=missing_account_name).on_conflict_do_nothing(
+                            index_elements=['name'])
+                        await conn.execute(stmt)
                     else:
                         raise e
     except Exception as e:
@@ -338,11 +315,10 @@ async def store_operation(engine, db_tables, prepared_operation, pbar=None):
         raise e
 
 
-async def process_operation(block_num, url, client, engine, db_tables, pbar=None):
-    raw_operations = await fetch_ops_in_block(url, client, block_num)
+async def process_operation(block_num, raw_operations, engine, db_tables, pbar=None):
     for raw_operation in raw_operations:
         try:
-            prepared_operation = await prepare_raw_opertaion_for_storage(raw_operation, loop=loop)
+            prepared_operation = await prepare_raw_operation_for_storage(raw_operation, loop=loop)
             await store_operation(engine, db_tables, prepared_operation, pbar=pbar)
         except Exception as e:
             logger.error('process_operation',
@@ -351,99 +327,49 @@ async def process_operation(block_num, url, client, engine, db_tables, pbar=None
             raise e
 
 
-async def process_operations(stored_blocks_q, url, client, engine, db_meta, pbar=None):
+async def process_operations(missing_ops_block_nums, url, client, engine, db_meta, pbar=None):
+    OPERATION_CHUNK_SIZE = 500
     db_tables = db_meta.tables
-    block_num_chunk = []
-    while True:
-        try:
-            block_num, raw_block, prepared_block = stored_blocks_q.get_nowait()
-        except asyncio.QueueEmpty:
-            await asyncio.sleep(1)
-            continue
-        block_num_chunk.append(block_num)
-        if len(block_num_chunk) >= 100:
-            tasks = [
-                process_operation(
-                    block_num,
-                    url,
-                    client,
-                    engine,
-                    db_tables,
-                    pbar=pbar) for block_num in block_num_chunk]
-            done, pending = await asyncio.wait(tasks)
-            for task in done:
-                try:
-                    result = task.result()
-                    if pbar:
-                        pbar.update(1)
-                except Exception as e:
-                    logger.error('task error', e=e, task=task, exc_info=e)
-            block_num_chunk = []
 
-
-async def process_operation2(block_num, raw_operations, url, client, engine, db_tables, pbar=None):
-    for raw_operation in raw_operations:
-        try:
-            prepared_operation = await prepare_raw_opertaion_for_storage(raw_operation, loop=loop)
-            await store_operation(engine, db_tables, prepared_operation, pbar=pbar)
-        except Exception as e:
-            logger.error('process_operation',
-                         raw_operation=raw_operation,
-                         e=e)
-            raise e
-
-
-async def process_operations2(stored_blocks_q, url, client, engine, db_meta, pbar=None):
-    db_tables = db_meta.tables
-    block_num_chunk = []
-    while True:
-        try:
-            block_num, raw_block, prepared_block = stored_blocks_q.get_nowait()
-        except asyncio.QueueEmpty:
-            await asyncio.sleep(1)
-            continue
-        block_num_chunk.append(block_num)
-        if len(block_num_chunk) >= 300:
-            results = await fetch_ops_in_blocks(url, client, block_num_chunk)
-            tasks = [
-                process_operation2(
-                    block_num,
-                    raw_operations,
-                    url,
-                    client,
-                    engine,
-                    db_tables,
-                    pbar=pbar) for block_num,
-                raw_operations in results]
-            done, pending = await asyncio.wait(tasks)
-            for task in done:
-                try:
-                    result = task.result()
-                    if pbar:
-                        pbar.update(1)
-                except Exception as e:
-                    logger.error('task error', e=e, task=task, exc_info=e)
-            block_num_chunk = []
-
-
-def task_stream_blocks(database_url, steemd_http_url, task_num=6):
-    task_message = fmt_task_message(
-        'Streaming blocks', emoji_code_point=u'\U0001F4DD', task_num=task_num)
-    click.echo(task_message)
-    with isolated_engine(database_url, pool_recycle=3600) as engine:
-        session = Session(bind=engine)
-        highest_db_block = Block.highest_block(session)
-        rpc = SimpleSteemAPIClient(steemd_http_url)
-        blocks = rpc.stream(highest_db_block)
-        blocks_to_add = []
-        for block in blocks:
+    for block_num_chunk in chunkify(missing_ops_block_nums, OPERATION_CHUNK_SIZE):
+        while True:
             try:
-                blocks_to_add.append(block)
-                add_blocks(blocks_to_add, session, insert=True)
+                results = await fetch_ops_in_blocks(url, client, block_num_chunk)
+                break
             except Exception as e:
-                logger.exception('failed to add block')
-            else:
-                blocks_to_add = []
+                logger.error('fetch_ops_in_blocks error', e=e)
+
+        tasks = [
+            process_operation(
+                block_num,
+                raw_operations,
+                engine,
+                db_tables,
+                pbar=pbar) for block_num,
+            raw_operations in results]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for task_block_num, result in zip(block_num_chunk, results):
+            try:
+                if not isinstance(result, BaseException):
+                    if pbar:
+                        pbar.update(1)
+                else:
+                    logger.error('task error', e=result, exc_info=True)
+                    stored_blocks_q.put_nowait(task_block_num)
+            except Exception as e:
+                logger.error('task error', e=e, task=result, exc_info=True)
+                stored_blocks_q.put_nowait(task_block_num)
+        block_num_chunk = []
+
+
+async def task_stream_blocks(engine, steemd_http_url, client):
+    while True:
+        tasks = [
+            get_last_irreversible_block_num(steemd_http_url, client),
+            get_latest_db_block_num(engine)
+        ]
+        done, pending = await asyncio.wait(tasks)
 
 
 @click.command()
@@ -498,10 +424,11 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
             emoji_code_point='\U0001F50E',
             task_num=task_num)
         click.echo(task_message)
-        last_chain_block = task_get_last_irreversible_block(steemd_http_url)
+        last_chain_block_num = loop.run_until_complete(
+            get_last_irreversible_block_num(steemd_http_url, AIOHTTP_SESSION))
 
         # [4/6] build list of blocks missing from db
-        missing_count = loop.run_until_complete(get_missing_count(engine, last_chain_block))
+        missing_count = loop.run_until_complete(get_missing_count(engine, last_chain_block_num))
         task_message = fmt_task_message(
             'Building list of blocks missing from db',
             emoji_code_point=u'\U0001F52D',
@@ -509,36 +436,49 @@ def _populate(database_url, steemd_http_url, jsonrpc_batch_size):
         click.echo(task_message)
         with click.progressbar(length=missing_count, **pbar_kwargs) as pbar:
             missing_block_nums = loop.run_until_complete(
-                enqueue_missing_block_nums(
-                    engine, last_chain_block, missing_count, pbar=pbar))
+                collect_missing_block_nums(
+                    engine, last_chain_block_num, missing_count, pbar=pbar))
 
         task_message = fmt_task_message(
-            'Adding missing blocks to db',
+            'Adding missing blocks and operations to db',
             emoji_code_point=u'\U0001F52D',
             task_num=5)
         click.echo(task_message)
 
         db_meta = task_load_db_meta(database_url)
+        existing_block_count = last_chain_block_num - missing_count
 
-        pbar = tqdm(total=missing_count, unit='blocks', bar_format='''{bar}{r_bar}''')
-        #pbar2 = tqdm(total=missing_count,unit='blocks',bar_format='''{bar}{r_bar}''')
-        asyncio.ensure_future(process_blocks2(missing_block_nums,
-                                              steemd_http_url,
-                                              AIOHTTP_SESSION,
-                                              engine,
-                                              db_meta,
-                                              pbar=pbar))
-        #'''
-        asyncio.ensure_future(process_operations2(stored_blocks_q,
-                                                  steemd_http_url,
-                                                  AIOHTTP_SESSION,
-                                                  engine,
-                                                  db_meta,
-                                                  pbar=None))
-        #'''
+        blocks_progress_bar = tqdm(total=missing_count,
+                                   initial=existing_block_count,
+                                   unit='blocks',
+                                   bar_format='''{bar}{r_bar}''')
+
+        ops_progress_bar = tqdm(total=missing_count * 50,
+                                unit='operations',
+                                bar_format='''{bar}{r_bar}''')
+        missing_ops_block_nums = list(missing_block_nums)
+
+        asyncio.ensure_future(process_blocks(missing_block_nums,
+                                             steemd_http_url,
+                                             AIOHTTP_SESSION,
+                                             engine,
+                                             db_meta,
+                                             pbar=blocks_progress_bar))
+
+        asyncio.ensure_future(process_operations(missing_ops_block_nums,
+                                                 steemd_http_url,
+                                                 AIOHTTP_SESSION,
+                                                 engine,
+                                                 db_meta,
+                                                 pbar=ops_progress_bar))
+
         loop.run_forever()
 
         # [5/6] stream new blocks
+        task_message = fmt_task_message(
+            'Streaming blocks', emoji_code_point=u'\U0001F4DD',
+            task_num=task_num)
+        click.echo(task_message)
 
     except KeyboardInterrupt:
         pass

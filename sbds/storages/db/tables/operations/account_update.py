@@ -56,7 +56,8 @@ class AccountUpdateOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_account_updates'
     __operation_type__ = 'account_update_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                     )  # steem_type:account_name_type
     owner = Column(JSONB)  # name:owner
     active = Column(JSONB)  # name:active
     posting = Column(JSONB)  # name:posting

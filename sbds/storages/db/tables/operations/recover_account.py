@@ -61,7 +61,8 @@ class RecoverAccountOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_recover_accounts'
     __operation_type__ = 'recover_account_operation'
 
-    account_to_recover = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    account_to_recover = Column(String(50), ForeignKey(
+        "sbds_meta_accounts.name"))  # steem_type:account_name_type
     new_owner_authority = Column(JSONB)  # steem_type:authority
     recent_owner_authority = Column(JSONB)  # steem_type:authority
     extensions = Column(JSONB)  # steem_type:extensions_type

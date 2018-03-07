@@ -38,8 +38,10 @@ class ChallengeAuthorityOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_challenge_authorities'
     __operation_type__ = 'challenge_authority_operation'
 
-    challenger = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
-    challenged = Column(String(50), ForeignKey("sbds_meta_accounts.name"))  # steem_type:account_name_type
+    challenger = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                        )  # steem_type:account_name_type
+    challenged = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+                        )  # steem_type:account_name_type
     require_owner = Column(Boolean)  # steem_type:bool
     operation_type = Column(
         operation_types_enum,
