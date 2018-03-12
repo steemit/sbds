@@ -2,6 +2,11 @@
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.postgresql import ENUM
+
+
+
+
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
@@ -29,6 +34,7 @@ def reset_tables(database_url, _metadata):
         seperate_metadata = MetaData()
         seperate_metadata.reflect(bind=engine)
         seperate_metadata.drop_all(bind=engine)
+        ENUM(name='sbds_operation_types').drop(engine)
 
     # use ORM clases to define tables to create
     init_tables(database_url, _metadata)

@@ -30,9 +30,7 @@ RUN \
         libpcre3 \
         libpcre3-dev
 
-RUN \
-    pip3 install --upgrade pip && \
-    pip3 install uwsgi
+RUN pip3 install --upgrade pip
 
 ADD . /app
 

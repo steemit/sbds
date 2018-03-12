@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class VoteOperation(Base, BaseOperation):
     """
@@ -43,18 +46,18 @@ class VoteOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_votes'
     __operation_type__ = 'vote_operation'
 
-    # steem_type:account_name_type
-    voter = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
-    # steem_type:account_name_type
-    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
-    permlink = Column(Unicode(256), index=True)  # name:permlink
-    weight = Column(SmallInteger)  # steem_type:int16_t
+    voter = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    author = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    permlink = Column(Unicode(256), index=True) # name:permlink
+    weight = Column(SmallInteger) # steem_type:int16_t
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='vote_operation')
+        default='vote')
 
     _fields = dict(
 
     )
+
+

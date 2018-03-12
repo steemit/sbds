@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class ConvertOperation(Base, BaseOperation):
     """
@@ -42,17 +45,19 @@ class ConvertOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_converts'
     __operation_type__ = 'convert_operation'
 
-    owner = Column(JSONB)  # name:owner
-    requestid = Column(Integer)  # steem_type:uint32_t
-    amount = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
-    amount_symbol = Column(String(5))  # steem_type:asset
+    owner = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    requestid = Column(Numeric) # steem_type:uint32_t
+    amount = Column(Numeric(20,6), nullable=False) # steem_type:asset
+    amount_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='convert_operation')
+        default='convert')
 
     _fields = dict(
-        amount=lambda x: amount_field(x.get('amount'), num_func=float),
-        amount_symbol=lambda x: amount_symbol_field(x.get('amount')),
+        amount=lambda x: amount_field(x.get('amount'), num_func=float), # steem_type:asset
+        amount_symbol=lambda x: amount_symbol_field(x.get('amount')), # steem_type:asset
     )
+
+

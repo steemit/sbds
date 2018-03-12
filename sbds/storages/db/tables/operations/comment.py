@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class CommentOperation(Base, BaseOperation):
     """
@@ -46,21 +49,22 @@ class CommentOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_comments'
     __operation_type__ = 'comment_operation'
 
-    parent_author = Column(String(50), ForeignKey("sbds_meta_accounts.name")
-                           )  # steem_type:account_name_type
-    parent_permlink = Column(Unicode(256), index=True)  # name:parent_permlink
-    # steem_type:account_name_type
-    author = Column(String(50), ForeignKey("sbds_meta_accounts.name"))
-    permlink = Column(Unicode(256), index=True)  # name:permlink
-    title = Column(Unicode(256), index=True)  # name:title,comment_operation
-    body = Column(UnicodeText)  # name:body
-    json_metadata = Column(JSONB)  # name:json_metadata
+    parent_author = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    parent_permlink = Column(Unicode(256), index=True) # name:parent_permlink
+    author = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    permlink = Column(Unicode(256), index=True) # name:permlink
+    title = Column(Unicode(256), index=True) # name:title,comment_operation
+    body = Column(UnicodeText) # name:body
+    json_metadata = Column(JSONB) # name:json_metadata
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='comment_operation')
+        default='comment')
 
     _fields = dict(
-        body=lambda x: comment_body_field(x.get('body')),
+        body=lambda x: comment_body_field(x.get('body')), # name:body
+        json_metadata=lambda x: json_string_field(x.get('json_metadata')), # name:json_metadata
     )
+
+

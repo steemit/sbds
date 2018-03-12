@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class Pow2Operation(Base, BaseOperation):
     """
@@ -55,15 +58,18 @@ class Pow2Operation(Base, BaseOperation):
     __tablename__ = 'sbds_op_pow2s'
     __operation_type__ = 'pow2_operation'
 
-    work = Column(JSONB)  # steem_type:steemit::protocol::pow2_work
-    new_owner_key = Column(String(60))  # steem_type:optional< public_key_type>
-    props = Column(JSONB)  # steem_type:chain_properties
+    work = Column(JSONB) # steem_type:steemit::protocol::pow2_work
+    new_owner_key = Column(String(60)) # steem_type:optional< public_key_type>
+    props = Column(JSONB) # steem_type:chain_properties
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='pow2_operation')
+        default='pow2')
 
     _fields = dict(
-
+        work=lambda x:json_string_field(x.get('work')), # steem_type:steemit::protocol::pow2_work
+        props=lambda x:json_string_field(x.get('props')), # steem_type:chain_properties
     )
+
+

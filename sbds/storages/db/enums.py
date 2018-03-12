@@ -3,6 +3,7 @@ from sqlalchemy.types import Enum
 
 operation_types_enum = Enum(
     'account_create',
+    'account_create_with_delegation',
     'account_update',
     'account_witness_proxy',
     'account_witness_vote',
@@ -10,6 +11,7 @@ operation_types_enum = Enum(
     'cancel_transfer_from_savings',
     'challenge_authority',
     'change_recovery_account',
+    'claim_reward_balance',
     'comment',
     'comment_benefactor_reward',
     'comment_options',
@@ -21,6 +23,7 @@ operation_types_enum = Enum(
     'custom_binary',
     'custom_json',
     'decline_voting_rights',
+    'delegate_vesting_shares',
     'delete_comment',
     'escrow_approve',
     'escrow_dispute',
@@ -56,8 +59,5 @@ operation_types_enum = Enum(
     'vote',
     'withdraw_vesting',
     'witness_update',
-    name='sbds_transaction_types')
+    name='sbds_operation_types')
 
-comment_types_enum = Enum('post', 'comment', name='sbds_comment_types')
-
-extraction_source_enum = Enum('body', 'meta', name='sbds_extraction_sources')

@@ -6,6 +6,7 @@ import sqlalchemy.dialects
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
+from sqlalchemy import SmallInteger
 from sqlalchemy import String
 from sqlalchemy import UnicodeText
 from sqlalchemy import ForeignKey
@@ -155,10 +156,11 @@ class Block(Base, UniqueMixin):
     block_id = Column(String(40), default='0000000000000000000000000000000000000000')
     previous = Column(String(50), nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
-    witness = Column(String(50), ForeignKey("sbds_meta_accounts.name")
+    witness = Column(String(16), ForeignKey("sbds_meta_accounts.name")
                      )  # steem_type:{account_name_type}'
     witness_signature = Column(String(150))
     transaction_merkle_root = Column(String(40))
+
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (self.block_num,
@@ -258,74 +260,3 @@ class Block(Base, UniqueMixin):
             return 0
 
         return highest
-
-    @classmethod
-    def count(cls, session, start=None, end=None):
-        query = session.query(func.count(cls.timestamp)).with_hint(
-            cls, 'USE INDEX(ix_sbds_core_blocks_timestamp)')
-        if start is not None:
-            query = query.filter(cls.block_num >= start)
-        if end:
-            query = query.filter(cls.block_num <= end)
-        return query.scalar()
-
-    @classmethod
-    def count_missing(cls, session, last_chain_block):
-        block_count = cls.count(session)
-        return last_chain_block - block_count
-
-    @classmethod
-    def find_missing_range(cls, session, start, end):
-        start = start or 1
-        correct_range = range(start, end + 1)
-        correct_block_count = (end + 1) - start
-        actual_block_count = cls.count(session, start, end)
-        if correct_block_count == actual_block_count:
-            return []
-        query = session.query(cls.block_num)
-        query = query.filter(cls.block_num >= start, cls.block_num <= end)
-        results = query.all()
-        block_nums = (r.block_num for r in results)
-        correct = set(correct_range)
-        missing = correct.difference(block_nums)
-        return missing
-
-    @classmethod
-    def get_missing_block_num_iterator(cls,
-                                       session,
-                                       last_chain_block,
-                                       chunksize=100000):
-        highest_block = cls.highest_block(session)
-        # handle empty db case efficiently
-        if highest_block == 0:
-            num_chunks = (last_chain_block // chunksize) + 1
-            chunks = []
-            for i in range(1, num_chunks + 1):
-                start = (i - 1) * chunksize
-                if start == 0:
-                    start = 1
-                end = i * chunksize
-                if end >= last_chain_block:
-                    end = last_chain_block
-                chunks.append(partial(range, start, end))
-            return chunks
-
-        num_chunks = (last_chain_block // chunksize) + 1
-        chunks = []
-        for i in range(1, num_chunks + 1):
-            start = (i - 1) * chunksize
-            end = i * chunksize
-            if end >= last_chain_block:
-                end = last_chain_block
-            chunks.append(
-                partial(cls.find_missing_range, session, start, end))
-        return chunks
-
-    @classmethod
-    def find_missing(cls, session, last_chain_block, chunksize=1000000):
-        missing_block_num_gen = cls.get_missing_block_num_iterator(
-            session, last_chain_block, chunksize=chunksize)
-        all_missing = []
-        for missing_query in missing_block_num_gen:
-            all_missing.extend(missing_query())
-        return all_missing

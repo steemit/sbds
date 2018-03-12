@@ -32,9 +32,16 @@ def comment_body_field(value):
 
 
 def json_string_field(value):
-    if value:
+    if value in ('','{}',dict(),'[]',list(),None):
+        return None
+    elif isinstance(value, str):
+        return value
+    elif isinstance(value, bytes):
+        return value.decode()
+    else:
         try:
             return sbds_json.dumps(value)
         except Exception as e:
-            logger.exception(e)
-            return None
+            logger.error('json_string_field error',type=type(value),value=value,error=e)
+            raise ValueError(
+                f'Unsupported JSON type: {type(value)} value:{value}')

@@ -223,7 +223,7 @@ def isolated_nullpool_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info(e)
+        logger.info('error',e=e)
     finally:
         del engine_config
         engine.dispose()
@@ -237,7 +237,7 @@ def isolated_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info(e)
+        logger.info('error',e=e)
     finally:
         del engine_config
         engine.dispose()

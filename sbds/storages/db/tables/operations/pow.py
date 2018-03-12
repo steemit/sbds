@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class PowOperation(Base, BaseOperation):
     """
@@ -53,18 +56,20 @@ class PowOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_pows'
     __operation_type__ = 'pow_operation'
 
-    worker_account = Column(String(50), ForeignKey(
-        "sbds_meta_accounts.name"))  # steem_type:account_name_type
-    block_id = Column(String(40))  # steem_type:block_id_type
-    nonce = Column(Numeric)  # steem_type:uint64_t
-    work = Column(JSONB)  # steem_type:pow
-    props = Column(JSONB)  # steem_type:chain_properties
+    worker_account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    block_id = Column(String(40)) # steem_type:block_id_type
+    nonce = Column(Numeric) # steem_type:uint64_t
+    work = Column(JSONB) # steem_type:pow
+    props = Column(JSONB) # steem_type:chain_properties
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='pow_operation')
+        default='pow')
 
     _fields = dict(
-
+        work=lambda x:json_string_field(x.get('work')), # steem_type:pow
+        props=lambda x:json_string_field(x.get('props')), # steem_type:chain_properties
     )
+
+

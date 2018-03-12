@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class CustomOperation(Base, BaseOperation):
     """
@@ -44,15 +47,17 @@ class CustomOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_customs'
     __operation_type__ = 'custom_operation'
 
-    required_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
-    id = Column(SmallInteger)  # steem_type:uint16_t
-    data = Column(String(100))  # steem_type:vector< char>
+    required_auths = Column(JSONB) # steem_type:flat_set< account_name_type>
+    id = Column(Integer) # steem_type:uint16_t
+    data = Column(String(100)) # steem_type:vector< char>
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='custom_operation')
+        default='custom')
 
     _fields = dict(
-
+        required_auths=lambda x:json_string_field(x.get('required_auths')), # steem_type:flat_set< account_name_type>
     )
+
+

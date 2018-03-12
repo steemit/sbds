@@ -7,6 +7,7 @@ from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import SmallInteger
+from sqlalchemy import ForeignKey
 from sqlalchemy import func
 from sqlalchemy.ext.declarative import declared_attr
 from toolz.dicttoolz import dissoc
@@ -81,21 +82,28 @@ class BaseOperation(OperationMixin):
 
     # pylint: enable=no-self-argument
 
-    block_num = Column(Integer, nullable=False, index=True)
+    @declared_attr
+    def block_num(cls):
+        return Column('block_num',Integer, ForeignKey("sbds_core_blocks.block_num"), nullable=False)
+
+
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
-    trx_id = Column(String(40), index=True, nullable=False)
-    timestamp = Column(DateTime(timezone=False), index=True)
+    trx_id = Column(String(40),nullable=False)
+    timestamp = Column(DateTime(timezone=False))
 
     _fields = dict()
 
 
 class BaseVirtualOperation(OperationMixin):
+    @declared_attr
+    def block_num(cls):
+        return Column('block_num', Integer,
+                      ForeignKey("sbds_core_blocks.block_num"), nullable=False)
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    block_num = Column(Integer, nullable=False, index=True)
     transaction_num = Column(SmallInteger, default=0)
     operation_num = Column(SmallInteger, default=0)
-    trx_id = Column(String(40), index=True, nullable=False)
-    timestamp = Column(DateTime(timezone=False), nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=False), nullable=False)
 
     _fields = dict()

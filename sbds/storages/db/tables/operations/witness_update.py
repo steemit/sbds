@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class WitnessUpdateOperation(Base, BaseOperation):
     """
@@ -48,19 +51,22 @@ class WitnessUpdateOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_witness_updates'
     __operation_type__ = 'witness_update_operation'
 
-    owner = Column(JSONB)  # name:owner
-    url = Column(Unicode(150))  # steem_type:string
-    block_signing_key = Column(String(60), nullable=False)  # steem_type:public_key_type
-    props = Column(JSONB)  # steem_type:chain_properties
-    fee = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
-    fee_symbol = Column(String(5))  # steem_type:asset
+    owner = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    url = Column(UnicodeText) # steem_type:string -> default
+    block_signing_key = Column(String(60), nullable=False) # steem_type:public_key_type
+    props = Column(JSONB) # steem_type:chain_properties
+    fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
+    fee_symbol = Column(String(5)) # steem_type:asset
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='witness_update_operation')
+        default='witness_update')
 
     _fields = dict(
-        fee=lambda x: amount_field(x.get('fee'), num_func=float),
-        fee_symbol=lambda x: amount_symbol_field(x.get('fee')),
+        props=lambda x:json_string_field(x.get('props')), # steem_type:chain_properties
+        fee=lambda x: amount_field(x.get('fee'), num_func=float), # steem_type:asset
+        fee_symbol=lambda x: amount_symbol_field(x.get('fee')), # steem_type:asset
     )
+
+

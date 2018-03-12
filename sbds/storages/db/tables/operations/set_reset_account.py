@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class SetResetAccountOperation(Base, BaseOperation):
     """
@@ -38,18 +41,17 @@ class SetResetAccountOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_set_reset_accounts'
     __operation_type__ = 'set_reset_account_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
-                     )  # steem_type:account_name_type
-    current_reset_account = Column(String(50), ForeignKey(
-        "sbds_meta_accounts.name"))  # steem_type:account_name_type
-    reset_account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
-                           )  # steem_type:account_name_type
+    account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    current_reset_account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    reset_account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='set_reset_account_operation')
+        default='set_reset_account')
 
     _fields = dict(
 
     )
+
+

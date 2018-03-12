@@ -138,7 +138,15 @@ prepare-and-test: prepare test-with-docker ## run all tests, formatting and pre-
 
 .PHONY: sql
 sql:
-	 MYSQL_HOME=$(ROOT_DIR) mysql
+	psql
+
+.PHONY: reset-db
+reset-db:
+	$(PIPENV) run python -m sbds.cli db reset
+
+.PHONY: init-db
+init-db:
+	$(PIPENV) run python -m sbds.cli db init
 
 .PHONY: ipython
 ipython:
@@ -181,7 +189,7 @@ delete-ops:
 	-rm $(OPERATIONS_PYTHON_FILES)
 
 .PHONY: remove-ops
-remove-ops: delete-ops delete-virtual-ops ops-classes
+remove-ops: delete-ops delete-virtual-ops ops
 
 .PHONY: build-ops
 build-ops: ops virtual-ops

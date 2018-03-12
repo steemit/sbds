@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class DeclineVotingRightsOperation(Base, BaseOperation):
     """
@@ -41,15 +44,16 @@ class DeclineVotingRightsOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_decline_voting_right'
     __operation_type__ = 'decline_voting_rights_operation'
 
-    account = Column(String(50), ForeignKey("sbds_meta_accounts.name")
-                     )  # steem_type:account_name_type
-    decline = Column(Boolean)  # steem_type:bool
+    account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    decline = Column(Boolean) # steem_type:bool
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='decline_voting_rights_operation')
+        default='decline_voting_rights')
 
     _fields = dict(
 
     )
+
+

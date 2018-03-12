@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import dateutil.parser
+import rapidjson
+
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -16,12 +19,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from ..import Base
 from ...enums import operation_types_enum
+from ...field_handlers import json_string_field
 from ...field_handlers import amount_field
 from ...field_handlers import amount_symbol_field
 from ...field_handlers import comment_body_field
 from .base import BaseOperation
 from .base import BaseVirtualOperation
-
 
 class ChangeRecoveryAccountOperation(Base, BaseOperation):
     """
@@ -42,17 +45,17 @@ class ChangeRecoveryAccountOperation(Base, BaseOperation):
     __tablename__ = 'sbds_op_change_recovery_accounts'
     __operation_type__ = 'change_recovery_account_operation'
 
-    account_to_recover = Column(String(50), ForeignKey(
-        "sbds_meta_accounts.name"))  # steem_type:account_name_type
-    new_recovery_account = Column(String(50), ForeignKey(
-        "sbds_meta_accounts.name"))  # steem_type:account_name_type
-    extensions = Column(JSONB)  # steem_type:extensions_type
+    account_to_recover = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    new_recovery_account = Column(String(16), ForeignKey("sbds_meta_accounts.name")) # steem_type:account_name_type
+    extensions = Column(JSONB) # steem_type:extensions_type
     operation_type = Column(
         operation_types_enum,
         nullable=False,
         index=True,
-        default='change_recovery_account_operation')
+        default='change_recovery_account')
 
     _fields = dict(
-
+        extensions=lambda x:json_string_field(x.get('extensions')), # steem_type:extensions_type
     )
+
+

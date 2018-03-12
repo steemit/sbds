@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 exec setuidgid nobody uwsgi \
  --master \
  --http :"${HTTP_SERVER_PORT}" \
