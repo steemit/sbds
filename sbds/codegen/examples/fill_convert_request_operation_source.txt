@@ -1,0 +1,12 @@
+
+    struct fill_convert_request_operation : public virtual_operation
+   {
+      fill_convert_request_operation(){}
+      fill_convert_request_operation( const string& o, const uint32_t id, const asset& in, const asset& out )
+         :owner(o), requestid(id), amount_in(in), amount_out(out) {}
+
+      account_name_type owner;
+      uint32_t          requestid = 0;
+      asset             amount_in;
+      asset             amount_out;
+   };

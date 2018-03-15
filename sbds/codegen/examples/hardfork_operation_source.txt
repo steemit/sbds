@@ -1,0 +1,8 @@
+
+    struct hardfork_operation : public virtual_operation
+   {
+      hardfork_operation() {}
+      hardfork_operation( uint32_t hf_id ) : hardfork_id( hf_id ) {}
+
+      uint32_t         hardfork_id = 0;
+   };

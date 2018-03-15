@@ -1,0 +1,8 @@
+
+       struct shutdown_witness_operation : public virtual_operation
+   {
+      shutdown_witness_operation(){}
+      shutdown_witness_operation( const string& o ):owner(o) {}
+
+      account_name_type owner;
+   };

@@ -4,6 +4,7 @@ import click
 from sbds.chain.cli import chain
 from sbds.server.cli import server
 from sbds.storages.db.cli import db
+from sbds.codegen.cli import codegen
 
 
 @click.group(
@@ -23,6 +24,7 @@ def sbds():
 sbds.add_command(chain)
 sbds.add_command(db)
 sbds.add_command(server)
+sbds.add_command(codegen)
 
 if __name__ == '__main__':
     sbds()

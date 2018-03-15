@@ -61,7 +61,6 @@ pbar_kwargs = dict(
     bar_template='%(bar)s  %(info)s')
 
 
-
 def get_op_insert_stmt(prepared_op, db_tables):
     stmt = STATEMENT_CACHE.get('type')
     if stmt:
@@ -142,6 +141,35 @@ def fmt_task_message(task_msg,
         task_msg=task_msg)
 
 
+
+def get_account_names(url):
+    import requests
+    RequestsSession = requests.Session()
+    lower_bound_name  = 'a'
+    limit = 1000
+    accts = list()
+    try:
+        while True:
+            resp = RequestsSession.post(url,json={'id':1,'jsonrpc':'2.0','method':'lookup_accounts','params':[lower_bound_name, limit]})
+            accounts_in_resp = resp.json()['result']
+            accts.extend(accounts_in_resp)
+            if lower_bound_name == accounts_in_resp[-1]:
+                break
+            lower_bound_name = accounts_in_resp[-1]
+    except Exception as e:
+            print(e)
+    return sorted(list(set(accts)))
+
+async def preload_account_names(pool, account_names):
+    non_blank_account_names = (a for a in account_names if a not in ('',None))
+    unique_account_names = set(non_blank_account_names)
+    account_name_records = [(a,) for a in unique_account_names]
+    async with pool.acquire() as conn:
+        try:
+           await conn.copy_records_to_table('sbds_meta_accounts', records=account_name_records)
+        except Exception as e:
+            logger.exception('error preloading account names', e=e)
+
 def task_confirm_db_connectivity(database_url):
     url, table_count = test_connection(database_url)
 
@@ -160,7 +188,7 @@ def task_init_db_if_required(database_url):
 
 
 def task_load_db_meta(database_url):
-    with isolated_engine(db_url) as engine:
+    with isolated_engine(database_url) as engine:
         from sqlalchemy import MetaData
         m = MetaData()
         m.reflect(bind=engine)
@@ -177,11 +205,12 @@ def missing_account_name_from_error(e):
     return e.detail.split('=')[1].split(')')[0].replace('(', '')  # hehe
 
 
-async def get_missing_count(engine, last_chain_block,):
+async def get_existing_and_missing_count(engine, start_block, end_block):
     async with engine.acquire() as conn:
-        existing_count = await conn.fetchval('SELECT COUNT(*) from sbds_core_blocks')
-    missing_count = last_chain_block - existing_count
-    return missing_count
+        existing_count = await conn.fetchval('SELECT COUNT(*) from sbds_core_blocks WHERE block_num >=$1 AND block_num <= $2', start_block, end_block)
+    range_count = len(range(start_block, end_block+1))
+    missing_count = range_count - existing_count
+    return existing_count, missing_count, range_count
 
 
 async def get_latest_db_block_num(engine):
@@ -242,7 +271,7 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
             logger.exception('error fetching ops in block',
                              e=e, response=response)
 
-async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
+async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     """Atomic add block,operations, and virtual operations in block
 
 
@@ -260,17 +289,22 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     # collect all account names referenced in block and ops
     account_names_in_ops = extract_account_names(prepared_ops)
     account_names_in_ops.add(prepared_block['witness'])
-
+    account_name_records = [(a,) for a in account_names_in_ops ]
 
     for prepared_op in prepared_ops:
         raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
 
-
     async with pool.acquire() as conn:
-        prepared_stmts = [await conn.prepare(stmt) for stmt,vals in raw_stmts]
+        prepared_stmts = [await conn.prepare(stmt) for stmt,_ in raw_stmts]
         add_acct_stmt = await conn.prepare(raw_add_account_stmt)
+
         stmts = zip(prepared_stmts, (vals for _,vals in raw_stmts))
         async with conn.transaction():
+            # add accounts first
+            await conn.executemany(raw_add_account_stmt, account_name_records)
+
+        async with conn.transaction():
+            # add block and ops
             for i,stmt in enumerate(stmts):
                 query, args = stmt
                 while True:
@@ -283,7 +317,8 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
                     except (asyncpg.exceptions.ForeignKeyViolationError) as e:
                         await stmt_tr.rollback()
                         if is_name_missing_from_accounts_error(e):
-                            missing_account_name = missing_account_name_from_error(e)
+                            missing_account_name = missing_account_name_from_error(
+                                e)
                             stmt2_tr = conn.transaction()
                             await stmt2_tr.start()
                             await add_acct_stmt.fetchval(missing_account_name)
@@ -292,9 +327,10 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
                             if i == 0:
                                 prepared = prepared_block
                             else:
-                                prepared = prepared_ops[i-1]
+                                prepared = prepared_ops[i - 1]
                             logger.exception('error storing block and ops',
                                              e=e,
+                                             accts=account_names_in_ops,
                                              prepared=prepared,
                                              stmt=stmt)
                             raise e
@@ -304,9 +340,61 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
                             prepared = prepared_block
                         else:
                             prepared = prepared_ops[i - 1]
-                        logger.exception('error storing block and ops', e=e,
-                                         prepared=prepared,stmt=stmt,type=prepared.get('operation_type'))
+                        logger.exception('error storing block and ops',
+                                         e=e,
+                                         accts=account_names_in_ops,
+                                         prepared=prepared,
+                                         stmt=stmt,
+                                         type=prepared.get('operation_type'))
                         raise e
+
+async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
+    """Atomic add block,operations, and virtual operations in block
+
+
+
+    :param pool:
+    :param db_tables:
+    :param prepared_block:
+    :param prepared_ops:
+    :return:
+    """
+
+    raw_add_account_stmt = STATEMENT_CACHE['account']
+    raw_stmts = [(STATEMENT_CACHE['block'], prepared_block.values())]
+
+    # collect all account names referenced in block and ops
+    #account_names_in_ops = extract_account_names(prepared_ops)
+    #account_names_in_ops.add(prepared_block['witness'])
+    #account_name_records = [(a,) for a in account_names_in_ops ]
+
+    for prepared_op in prepared_ops:
+        raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
+
+    async with pool.acquire() as conn:
+        prepared_stmts = [await conn.prepare(stmt) for stmt,_ in raw_stmts]
+        stmts = zip(prepared_stmts, (vals for _,vals in raw_stmts))
+
+        async with conn.transaction():
+            #await conn.executemany(raw_add_account_stmt, account_name_records)
+            # add block and ops
+            for i,stmt in enumerate(stmts):
+                query, args = stmt
+                try:
+                    await query.fetchval(*args)
+                except Exception as e:
+                    if i == 0:
+                        prepared = prepared_block
+                    else:
+                        prepared = prepared_ops[i - 1]
+                    logger.exception('error storing block and ops',
+                                     e=e,
+                                     #accts=account_names_in_ops,
+                                     prepared=prepared,
+                                     stmt=stmt,
+                                     type=prepared.get('operation_type'))
+                    raise e
+
 
 
 async def process_block(block_num, raw_block, raw_ops, pool, db_tables, blocks_pbar=None, ops_pbar=None):
@@ -352,7 +440,6 @@ async def process_blocks(missing_block_nums, url, client, pool, db_meta, blocks_
         results = await results_future
 
 
-
 # --- Operations ---
 
 async def prepare_operation_for_storage(raw_operation):
@@ -375,22 +462,30 @@ async def task_stream_blocks(engine, steemd_http_url, client):
     help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
 )
 @click.option(
+    '--legacy_database_url',
+    type=str,
+    envvar='LEGACY_DATABASE_URL',
+    help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
+)
+@click.option(
     '--steemd_http_url',
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
 @click.option('--start_block',type=int, default=1)
-def populate(database_url, steemd_http_url, start_block):
-    _populate(database_url, steemd_http_url, start_block)
+@click.option('--end_block',type=int, default=-1)
+@click.option('--accounts_file', type=click.Path(dir_okay=False,exists=True))
+def populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block, accounts_file):
+    _populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block, accounts_file)
 
 
-def _populate(database_url, steemd_http_url, start_block):
+def _populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block,accounts_file):
     CONNECTOR = TCPConnector(loop=loop, limit=100)
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
                                             connector=CONNECTOR,
                                             json_serialize=json.dumps,
                                             headers={'Content-Type': 'application/json'})
-    DB_META = task_load_db_meta(database_url)
+    DB_META = task_load_db_meta(legacy_database_url)
 
     try:
 
@@ -416,36 +511,56 @@ def _populate(database_url, steemd_http_url, start_block):
 
         # [3/7] find last irreversible block
         task_num += 1
-        task_message = fmt_task_message(
+        if end_block == -1:
+            task_message = fmt_task_message(
             'Finding highest blockchain block',
             emoji_code_point='\U0001F50E',
             task_num=task_num)
-        click.echo(task_message)
-        last_chain_block_num = loop.run_until_complete(
-            get_last_irreversible_block_num(steemd_http_url, AIOHTTP_SESSION))
-        success_msg = fmt_success_message(
-            'last irreversible block number is %s',last_chain_block_num )
-        click.echo(success_msg)
+            click.echo(task_message)
+            last_chain_block_num = loop.run_until_complete(
+                get_last_irreversible_block_num(steemd_http_url, AIOHTTP_SESSION))
+            end_block = last_chain_block_num
+            success_msg = fmt_success_message(
+                'last irreversible block number is %s',last_chain_block_num )
+            click.echo(success_msg)
+        else:
+            task_message = fmt_task_message(
+                f'Using --end_block {end_block} as highest blockchain block to load',
+                emoji_code_point='\U0001F50E',
+                task_num=task_num)
+            click.echo(task_message)
 
         # [4/7] build list of blocks missing from db
-        missing_count = loop.run_until_complete(get_missing_count(pool, last_chain_block_num))
-        existing_block_count = last_chain_block_num - missing_count
+        existing_count, missing_count, range_count = loop.run_until_complete(get_existing_and_missing_count(pool, start_block, end_block))
         task_message = fmt_task_message(
-            'Building list of the %s blocks missing from db' % missing_count,
+            f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}' ,
             emoji_code_point=u'\U0001F52D',
             task_num=4)
         click.echo(task_message)
 
 
-        with click.progressbar(length=last_chain_block_num, **pbar_kwargs) as pbar:
-            pbar.update(existing_block_count)
+        with click.progressbar(length=end_block, **pbar_kwargs) as pbar:
+            pbar.update(existing_count)
             missing_block_nums = loop.run_until_complete(
                 collect_missing_block_nums(
                     pool,
-                    last_chain_block_num,
+                    end_block,
                     missing_count,
                     start_block=start_block,
                     pbar=pbar))
+
+        # [5.1/7] preload accounts file
+        if accounts_file:
+            task_message = fmt_task_message(
+                'Preloading account names',
+                emoji_code_point=u'\U0001F52D',
+                task_num=5)
+            click.echo(task_message)
+            with open(accounts_file) as f:
+                account_names = json.load(f)
+            loop.run_until_complete(
+                preload_account_names(pool, account_names))
+            del account_names
 
 
         # [5/7] add missing blocks and operations
@@ -455,13 +570,23 @@ def _populate(database_url, steemd_http_url, start_block):
             task_num=5)
         click.echo(task_message)
 
-        blocks_progress_bar = tqdm(total=last_chain_block_num,
-                                   initial=existing_block_count,
+
+
+
+        blocks_progress_bar = tqdm(initial=existing_count,
+                                   total=range_count,
+                                   bar_format='{bar}| [{rate_fmt}{postfix}]',
+                                   ncols=48,
+                                   dynamic_ncols=False,
                                    unit=' blocks',
                                    )
-        ops_progress_bar = tqdm(initial=existing_block_count*50,
-                                total=last_chain_block_num*50,
+        ops_progress_bar = tqdm(initial=existing_count * 50,
+                                total=range_count * 50,
+                                bar_format='{bar}| [{rate_fmt}{postfix}]',
+                                ncols=48,
+                                dynamic_ncols=False,
                                 unit='    ops')
+
         loop.run_until_complete(process_blocks(missing_block_nums,
                                              steemd_http_url,
                                              AIOHTTP_SESSION,
@@ -476,14 +601,35 @@ def _populate(database_url, steemd_http_url, start_block):
             emoji_code_point=u'\U0001F52D',
             task_num=6)
         click.echo(task_message)
-        existing_block_count = last_chain_block_num - missing_count
-        blocks_progress_bar = tqdm(total=last_chain_block_num,
-                                   initial=existing_block_count,
+
+        existing_count, missing_count, range_count = loop.run_until_complete(
+            get_existing_and_missing_count(pool, start_block, end_block))
+        task_message = fmt_task_message(
+            f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}',
+            emoji_code_point=u'\U0001F52D',
+            task_num=4)
+        click.echo(task_message)
+
+        with click.progressbar(length=end_block, **pbar_kwargs) as pbar:
+            pbar.update(existing_count)
+            missing_block_nums = loop.run_until_complete(
+                collect_missing_block_nums(
+                    pool,
+                    end_block,
+                    missing_count,
+                    start_block=start_block,
+                    pbar=pbar))
+
+
+        blocks_progress_bar = tqdm(initial=existing_count,
+                                   total=range_count,
+                                   dynamic_ncols=False,
                                    unit=' blocks',
                                    )
-        ops_progress_bar = tqdm(initial=existing_block_count*50,
-                                total=last_chain_block_num*50,
-                                unit=' operations')
+        ops_progress_bar = tqdm(initial=existing_count * 50,
+                                total=range_count * 50,
+                                dynamic_ncols=False,
+                                unit='    ops')
         loop.run_until_complete(process_blocks(missing_block_nums,
                                                steemd_http_url,
                                                AIOHTTP_SESSION,
@@ -510,6 +656,4 @@ def _populate(database_url, steemd_http_url, start_block):
 # included only for debugging with pdb, all the above code should be called
 # using the click framework
 if __name__ == '__main__':
-    db_url = os.environ.get('DATABASE_URL', 'postgresql+psycopg2://user:password@localhost/sbds')
-    rpc_url = os.environ.get('STEEMD_HTTP_URL', 'https://api.steemit.com')
-    _populate(db_url, rpc_url, 12_000_000)
+    populate()

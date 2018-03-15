@@ -26,7 +26,7 @@ def op_old_table_name(op_name):
     table_name = OLD_TABLE_NAME_MAP.get(op_name)
     if not table_name:
         short_op_name = op_name.replace('_operation','')
-        table_name =  f'sbds_tx_{p.plural(short_op_name)}'
+        table_name =  f'sbds_tx_{INFLECTOR.plural(short_op_name)}'
     else:
         print(table_name)
 

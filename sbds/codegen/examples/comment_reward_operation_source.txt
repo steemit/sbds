@@ -1,0 +1,11 @@
+
+    struct comment_reward_operation : public virtual_operation
+   {
+      comment_reward_operation(){}
+      comment_reward_operation( const account_name_type& a, const string& pl, const asset& INFLECTOR )
+         :author(a), permlink(pl), payout(INFLECTOR){}
+
+      account_name_type author;
+      string            permlink;
+      asset             payout;
+   };

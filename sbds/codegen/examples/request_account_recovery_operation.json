@@ -1,0 +1,15 @@
+{
+  "new_owner_authority": {
+    "key_auths": [
+      [
+        "STM6LYxj96zdypHYqgDdD6Nyh2NxerN3P1Mp3ddNm7gci63nfrSuZ",
+        1
+      ]
+    ],
+    "account_auths": [],
+    "weight_threshold": 1
+  },
+  "account_to_recover": "gandalf",
+  "recovery_account": "steem",
+  "extensions": []
+}

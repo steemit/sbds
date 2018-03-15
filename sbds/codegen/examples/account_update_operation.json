@@ -1,0 +1,19 @@
+{
+  "json_metadata": "",
+  "account": "theoretical",
+  "memo_key": "STM6FATHLohxTN8RWWkU9ZZwVywXo6MEDjHHui1jEBYkG2tTdvMYo",
+  "posting": {
+    "key_auths": [
+      [
+        "STM6FATHLohxTN8RWWkU9ZZwVywXo6MEDjHHui1jEBYkG2tTdvMYo",
+        1
+      ],
+      [
+        "STM76EQNV2RTA6yF9TnBvGSV71mW7eW36MM7XQp24JxdoArTfKA76",
+        1
+      ]
+    ],
+    "account_auths": [],
+    "weight_threshold": 1
+  }
+}

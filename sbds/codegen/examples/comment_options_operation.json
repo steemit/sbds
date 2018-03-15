@@ -1,0 +1,9 @@
+{
+  "allow_curation_rewards": true,
+  "allow_votes": true,
+  "permlink": "testing6",
+  "percent_steem_dollars": 5000,
+  "max_accepted_payout": "1000.000 SBD",
+  "author": "testing001",
+  "extensions": []
+}

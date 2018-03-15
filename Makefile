@@ -18,20 +18,36 @@ ENVFILE := .env
 PROJECT_DOCKER_RUN_ARGS := -p8080:8080 --env-file .env
 
 BUILD_DIR := $(ROOT_DIR)/build
-OPERATIONS_CACHE_DIR=$(BUILD_DIR)
-BLOCKCHAIN_EXAMPLES_DIR := $(OPERATIONS_CACHE_DIR)/examples
 
-OPERATIONS_PREFIX := sbds/storages/db/tables/operations
-OPERATIONS_PATH := $(ROOT_DIR)/$(OPERATIONS_PREFIX)
-OPERATIONS_FILE := $(OPERATIONS_PATH)/operations_header.json
-OPERATIONS_NAMES := $(filter %_operation, $(shell jq -r '.classes[].name' $(OPERATIONS_FILE)))
-OPERATIONS_PYTHON_FILES := $(addprefix $(OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(OPERATIONS_NAMES))))
+CODEGEN_PATH := sbds/codegen
+EXAMPLES_PATH :=$(CODEGEN_PATH)/examples
+HEADERS_PATH := $(CODEGEN_PATH)/headers
+TEMPLATES_PATH := $(CODEGEN_PATH)/templates
 
-VIRTUAL_OPERATION_PREFIX := $(OPERATIONS_PREFIX)/virtual
-VIRTUAL_OPERATIONS_PATH := $(ROOT_DIR)/$(VIRTUAL_OPERATION_PREFIX)
-VIRTUAL_OPERATIONS_FILE := $(VIRTUAL_OPERATIONS_PATH)/virtual_operations_header.json
-VIRTUAL_OPERATIONS_NAMES := $(filter %operation, $(shell jq -r '.classes[].name' $(VIRTUAL_OPERATIONS_FILE)))
-VIRTUAL_OPERATIONS_PYTHON_FILES := $(addprefix $(VIRTUAL_OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(VIRTUAL_OPERATIONS_NAMES))))
+SBDS_BASE_CMD := $(PIPENV) run python -m sbds.cli
+
+STORAGES_DB_PATH := sbds/storages/db
+VIEWS_PATH := $(STORAGES_DB_PATH)/views
+TABLES_PATH := $(STORAGES_DB_PATH)/tables
+META_PATH := $(TABLES_PATH)/meta
+OPERATIONS_PATH := $(TABLES_PATH)/operations
+VIRTUAL_OPERATIONS_PATH := $(TABLES_PATH)/operations/virtual
+
+OPERATIONS_HEADER_FILE := $(HEADERS_PATH)/operations_header.json
+VIRTUAL_OPERATIONS_HEADER_FILE := $(HEADERS_PATH)/virtual_operations_header.json
+
+OPERATION_NAMES := $(filter %operation, $(shell jq -r '.classes[].name' $(OPERATIONS_HEADER_FILE)))
+VIRTUAL_OPERATION_NAMES := $(filter %operation, $(shell jq -r '.classes[].name' $(VIRTUAL_OPERATIONS_HEADER_FILE)))
+
+OPERATION_PYTHON_FILES := $(addprefix $(OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(OPERATION_NAMES))))
+VIRTUAL_OPERATION_PYTHON_FILES := $(addprefix $(VIRTUAL_OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(VIRTUAL_OPERATION_NAMES))))
+
+META_NAMES := accounts
+META_PYTHON_FILES := $(addprefix $(VIEWS_PATH)/, $(addsuffix .py, $(META_NAMES)))
+
+VIEWS_NAMES := accounts accounts_history
+VIEWS_PYTHON_FILES := $(addprefix $(VIEWS_PATH)/, $(addsuffix .py, $(VIEWS_NAMES)))
+
 
 
 default: help
@@ -155,44 +171,54 @@ ipython:
 README.rst: docs/src/README.rst
 	cd $(DOCS_DIR) && $(MAKE) README
 
-$(BUILD_DIR):
-	mkdir $@
+# --- CODEGEN -- #
+$(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-class $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
 
-$(BLOCKCHAIN_EXAMPLES_DIR): $(BUILD_DIR)
-	mkdir $@
+$(OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-class $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
 
-$(BLOCKCHAIN_EXAMPLES_DIR)/%.json: $(BLOCKCHAIN_EXAMPLES_DIR)
-	$(PIPENV) run ./contrib/codegen.py generate-class-example $(*F) --db-url $(DATABASE_URL) > $@
+$(VIEW_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-view $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
 
-$(VIRTUAL_OPERATIONS_PATH)/%.py: $(VIRTUAL_OPERATIONS_FILE)
-	$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
-		$(VIRTUAL_OPERATIONS_FILE) \
-		--cache_dir $(OPERATIONS_CACHE_DIR) > $@
+$(META_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-meta $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
 
-
-$(OPERATIONS_PATH)/%.py: $(OPERATIONS_FILE)
-	-$(PIPENV) run ./contrib/codegen.py generate-class $(*F) \
-		$(OPERATIONS_FILE) \
-		--cache_dir $(OPERATIONS_CACHE_DIR) > $@
-
-
-virtual-ops: $(VIRTUAL_OPERATIONS_PYTHON_FILES)
-
-ops: $(OPERATIONS_PYTHON_FILES)
+virtual-ops: $(VIRTUAL_OPERATION_PYTHON_FILES)
+ops: $(OPERATION_PYTHON_FILES)
 
 .PHONY: delete-virtual-ops
 delete-virtual-ops:
-	-rm $(VIRTUAL_OPERATIONS_PYTHON_FILES)
+	-rm $(VIRTUAL_OPERATION_PYTHON_FILES)
 
 .PHONY: delete-ops
 delete-ops:
-	-rm $(OPERATIONS_PYTHON_FILES)
+	-rm $(OPERATION_PYTHON_FILES)
 
 .PHONY: remove-ops
-remove-ops: delete-ops delete-virtual-ops ops
+remove-ops: delete-ops delete-virtual-ops
 
 .PHONY: build-ops
 build-ops: ops virtual-ops
 
 .PHONY: rebuild-ops
 rebuild-ops: remove-ops build-ops
+
+$(VIEWS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-view $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
+

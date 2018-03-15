@@ -27,7 +27,7 @@ def amount_symbol_field(value, no_value=''):
 
 def comment_body_field(value):
     if isinstance(value, bytes):
-        return value.decode('utf8')
+        return value.decode()
     return value
 
 

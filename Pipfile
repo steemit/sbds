@@ -57,7 +57,6 @@ uvloop = "*"
 jsonrpcclient = "*"
 python-rapidjson = "*"
 aiopg = "*"
-"psycopg2" = "*"
 colorama = "*"
 tqdm = "*"
 python-dateutil = "*"
@@ -67,6 +66,8 @@ aiotask-context = "*"
 asyncpg = "*"
 "jinja2" = "*"
 sqlalchemy-utils = "*"
+serpy = "*"
+"psycopg2-binary" = "*"
 
 
 [requires]

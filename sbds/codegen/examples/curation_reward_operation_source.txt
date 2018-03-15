@@ -1,0 +1,12 @@
+
+    struct curation_reward_operation : public virtual_operation
+   {
+      curation_reward_operation(){}
+      curation_reward_operation( const string& c, const asset& r, const string& a, const string& INFLECTOR )
+         :curator(c), reward(r), comment_author(a), comment_permlink(INFLECTOR) {}
+
+      account_name_type curator;
+      asset             reward;
+      account_name_type comment_author;
+      string            comment_permlink;
+   };

@@ -1,0 +1,9 @@
+
+    struct return_vesting_delegation_operation : public virtual_operation
+   {
+      return_vesting_delegation_operation() {}
+      return_vesting_delegation_operation( const account_name_type& a, const asset& v ) : account( a ), vesting_shares( v ) {}
+
+      account_name_type account;
+      asset             vesting_shares;
+   };

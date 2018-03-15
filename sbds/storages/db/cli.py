@@ -239,3 +239,4 @@ def raw_sql(ctx, sql):
     with engine.connect() as conn:
         results = conn.execute(stmt).fetchall()
     click.echo(json.dumps(results))
+

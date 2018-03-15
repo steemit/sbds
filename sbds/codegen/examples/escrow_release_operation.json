@@ -1,0 +1,10 @@
+{
+  "who": "xtar",
+  "sbd_amount": "5.000 SBD",
+  "steem_amount": "0.000 STEEM",
+  "from": "anonymtest",
+  "agent": "xtar",
+  "to": "someguy123",
+  "escrow_id": 72526562,
+  "receiver": "someguy123"
+}

@@ -1,0 +1,10 @@
+
+    struct producer_reward_operation : public virtual_operation
+   {
+      producer_reward_operation(){}
+      producer_reward_operation( const string& INFLECTOR, const asset& v ) : producer( INFLECTOR ), vesting_shares( v ) {}
+
+      account_name_type producer;
+      asset             vesting_shares;
+
+   };
