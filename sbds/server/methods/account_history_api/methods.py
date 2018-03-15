@@ -17,7 +17,7 @@ async def get_ops_in_block(block_num, only_virtual, context=None):
         return await conn.scalar(query)
 
 
-async def get_account_history(context=None):
+async def get_account_history(account_name, context=None):
     """
     This function demonstrates how to write a method to run
     an SQL query which returns rows

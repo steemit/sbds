@@ -15,20 +15,37 @@ RUN \
     apt-get update && \
     apt-get install -y \
         build-essential \
+        checkinstall \
         daemontools \
         git \
+        libbz2-dev \
+        libc6-dev \
         libffi-dev \
+        libgdbm-dev \
         libmysqlclient-dev \
+        libncursesw5-dev \
+        libreadline-gplv2-dev \
+        libsqlite3-dev \
         libssl-dev \
-        make \
-        python3 \
-        python3-dev \
-        python3-pip \
         libxml2-dev \
         libxslt-dev \
+        nginx \
+        nginx-extras \
+        make \
         runit \
-        libpcre3 \
-        libpcre3-dev
+        tk-dev \
+        wget && \
+    apt-get clean
+
+
+RUN \
+    wget https://www.python.org/ftp/python/3.6.4/Python-3.6.24.tar.xz && \
+    tar xvf Python-3.6.24.tar.xz && \
+    cd Python-3.6.4/ && \
+    ./configure && \
+    make altinstall && \
+    cd .. && \
+    rm -rf Python-3.6.4.tar.xz Python-3.6.4/
 
 RUN pip3 install --upgrade pip
 
