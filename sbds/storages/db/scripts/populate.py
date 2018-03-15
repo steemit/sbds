@@ -489,7 +489,7 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
 
     try:
 
-        pool = create_asyncpg_pool('postgresql://user:password@localhost/sbds')
+        pool = create_asyncpg_pool(database_url)
         task_num = 0
         # [1/7] confirm db connectivity
         task_num += 1

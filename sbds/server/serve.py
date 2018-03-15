@@ -15,6 +15,8 @@ from jsonrpcserver import config
 from jsonrpcserver.async_methods import AsyncMethods
 from sqlalchemy.engine.url import make_url
 
+from .methods.account_history_api.methods import get_ops_in_block
+from .methods.account_history_api.methods import get_account_history
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -132,6 +134,7 @@ def run(host=None,
 
     # register jsonrpc methods with dispatcher
     jsonrpc_methods.add(api_healthcheck, 'sbds.health')
+    # TODO add additional methods here
 
     # add jsonrpc method dispatcher to aiohttp app context
     app['jsonrpc_methods_dispatcher'] = jsonrpc_methods

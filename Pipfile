@@ -68,6 +68,7 @@ asyncpg = "*"
 sqlalchemy-utils = "*"
 serpy = "*"
 "psycopg2-binary" = "*"
+inflect = "*"
 
 
 [requires]
