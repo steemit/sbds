@@ -47,6 +47,8 @@ RUN \
     cd .. && \
     rm -rf Python-3.6.4.tar.xz Python-3.6.4/
 
+RUN apt-get install -y pip3
+
 RUN pip3 install --upgrade pip
 
 ADD . /app
