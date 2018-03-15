@@ -39,8 +39,8 @@ RUN \
 
 
 RUN \
-    wget https://www.python.org/ftp/python/3.6.4/Python-3.6.24.tar.xz && \
-    tar xvf Python-3.6.24.tar.xz && \
+    wget https://www.python.org/ftp/python/3.6.4/Python-3.6.4.tar.xz && \
+    tar xvf Python-3.6.4.tar.xz && \
     cd Python-3.6.4/ && \
     ./configure && \
     make altinstall && \
