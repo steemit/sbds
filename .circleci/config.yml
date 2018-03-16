@@ -1,0 +1,10 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: echo "Ignore CircleCI detected dependencies"
+      - run: docker build -t steemit/sbds .
