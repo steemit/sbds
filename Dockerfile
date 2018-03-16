@@ -10,6 +10,9 @@ ENV WSGI_APP ${APP_ROOT}/sbds/server/serve.py
 ENV HTTP_SERVER_PORT 8080
 ENV HTTP_SERVER_STATS_PORT 9191
 ENV SBDS_ENVIRONMENT DEV
+ENV PIPENV_DEFAULT_PYTHON_VERSION 3.6.4
+
+ENV NGINX_SERVER_PORT 8080
 
 RUN \
     apt-get update && \
@@ -32,6 +35,7 @@ RUN \
         nginx \
         nginx-extras \
         make \
+        lua-zlib \
         runit \
         tk-dev \
         wget && \
@@ -47,11 +51,29 @@ RUN \
     cd .. && \
     rm -rf Python-3.6.4.tar.xz Python-3.6.4/
 
-RUN apt-get install -y pip3
+# nginx
+RUN \
+  mkdir -p /var/lib/nginx/body && \
+  mkdir -p /var/lib/nginx/scgi && \
+  mkdir -p /var/lib/nginx/uwsgi && \
+  mkdir -p /var/lib/nginx/fastcgi && \
+  mkdir -p /var/lib/nginx/proxy && \
+  chown -R www-data:www-data /var/lib/nginx && \
+  mkdir -p /var/log/nginx && \
+  touch /var/log/nginx/access.log && \
+  touch /var/log/nginx/access.json && \
+  touch /var/log/nginx/error.log && \
+  chown www-data:www-data /var/log/nginx/* && \
+  touch /var/run/nginx.pid && \
+  chown www-data:www-data /var/run/nginx.pid && \
+  mkdir -p /var/www/.cache && \
+  chown www-data:www-data /var/www/.cache
 
-RUN pip3 install --upgrade pip
+RUN \
+    python3.6 -m pip install --upgrade pip && \
+    python3.6 -m pip install pipenv
 
-ADD . /app
+COPY . /app
 
 RUN \
     mv /app/service/* /etc/service && \
@@ -59,8 +81,9 @@ RUN \
 
 WORKDIR /app
 
+RUN pipenv install --python 3.6 --dev
+
 RUN \
-    pip3 install  . && \
     apt-get remove -y \
         build-essential \
         libffi-dev \
