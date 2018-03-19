@@ -282,10 +282,13 @@ def op_table_name(op_name):
     return f'sbds_op_{INFLECTOR.plural(short_op_name)}'
 
 
-def iter_operation_classes(header):
-    for name, cls in header['classes'].items():
-        if 'operation' in name:
-            yield name,cls
+def iter_operation_classes(headers):
+    if not isinstance(headers, (list,tuple)):
+        headers = [headers]
+    for header in headers:
+         for name, cls in header['classes'].items():
+            if 'operation' in name:
+                yield name,cls
 
 
 def iter_properties_keys(cls, keys=None):
@@ -469,6 +472,37 @@ def generate_accounts_view(headers_path, templates_path):
     template = env.get_template('views/accounts_view.tmpl')
     click.echo(template.render(grouped_refs=grouped_refs_fields))
 
+
+@codegen.command(name='generate-operations-view')
+@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
+                default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+              default=TEMPLATES_PATH)
+def generate_operations_view(headers_path, templates_path):
+    header_files = load_json_files_from_path(headers_path)
+    operation_classes = iter_operation_classes(header_files)
+
+    all_tables = [op_table_name(op_name) for op_name,cls in operation_classes]
+    virtual_tables = [t for t in all_tables if 'virtual' in t]
+    real_tables = [t for t in all_tables if 'virtual' not in t]
+
+    env = Environment(loader=FileSystemLoader(templates_path))
+    template = env.get_template('views/operations_view.tmpl')
+    click.echo(template.render(all_tables=all_tables,virtual_tables=virtual_tables,real_tables=real_tables))
+
+
+@codegen.command(name='generate-count-operations-view')
+@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
+                default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+              default=TEMPLATES_PATH)
+def generate_count_operations_view(headers_path, templates_path):
+    header_files = load_json_files_from_path(headers_path)
+    operation_classes = iter_operation_classes(header_files)
+    all_tables = [op_table_name(op_name) for op_name,cls in operation_classes]
+    env = Environment(loader=FileSystemLoader(templates_path))
+    template = env.get_template('views/op_counts_view.tmpl')
+    click.echo(template.render(all_tables=all_tables))
 
 
 @codegen.command(name='generate-operation')

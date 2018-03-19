@@ -41,7 +41,7 @@ RUN \
 WORKDIR /app
 
 RUN \
-    pip3 install  . && \
+    pip3 install . && \
     apt-get remove -y \
         build-essential \
         libffi-dev \

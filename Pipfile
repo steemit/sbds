@@ -26,6 +26,7 @@ vulture = "*"
 mypy = "*"
 python-rapidjson = "*"
 inflect = "*"
+awscli = "*"
 
 
 [packages]
@@ -69,6 +70,8 @@ sqlalchemy-utils = "*"
 serpy = "*"
 "psycopg2-binary" = "*"
 inflect = "*"
+"boto3" = "*"
+"psycopg2" = "*"
 
 
 [requires]

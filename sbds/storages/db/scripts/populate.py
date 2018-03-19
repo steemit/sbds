@@ -9,6 +9,7 @@ import click
 
 from asyncio import Queue
 
+import aiofiles
 import uvloop
 from tqdm import tqdm
 import psycopg2
@@ -270,6 +271,42 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
         except Exception as e:
             logger.exception('error fetching ops in block',
                              e=e, response=response)
+
+async def local_fetch_blocks_and_ops_in_blocks(local_path, block_nums):
+    try:
+        results = []
+        for block_num in block_nums:
+            with aiofiles.open(f'{local_path}/{block_num}/block.json') as f:
+                raw_block = await f.read()
+            with aiofiles.open(f'{local_path}/{block_num}/ops.json') as f:
+               raw_ops = await f.read()
+            block = json.loads(raw_block)
+            ops = json.loads(raw_ops)
+            results.append((block_num,block,ops))
+        assert len(results) == len(block_nums)
+        return results
+    except Exception as e:
+            logger.exception('error ly localfetching block and/or ops in block',
+                             e=e, local_path=local_path)
+
+async def s3_fetch_blocks_and_ops_in_blocks(s3_url, s3_client, block_nums):
+
+    response = 'n/a'
+    while True:
+        try:
+            response = await client.post(url, data=request_json)
+            jsonrpc_response = await response.json()
+            response_pairs = funcy.partition(2,jsonrpc_response)
+            results = []
+            for get_block, get_ops in response_pairs:
+                assert get_block['id'] == get_ops['id']
+                results.append((get_block['id'],get_block['result'],get_ops['result']))
+            assert len(results) == len(block_nums)
+            return results
+        except Exception as e:
+            logger.exception('error fetching ops in block',
+                             e=e, response=response)
+
 
 async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     """Atomic add block,operations, and virtual operations in block

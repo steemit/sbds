@@ -2,6 +2,6 @@
 
 POPULATE_CMD="$(which populate)"
 
-exec setuidgid nobody python3.5 "${POPULATE_CMD}" \
-  --database_url "${DATABASE_URL:-sqlite:///}" \
-  --steemd_http_url "${STEEMD_HTTP_URL:-https://steemd.steemitdev.com}"
+exec setuidgid nobody python3.6 "${POPULATE_CMD}" \
+  --database_url "${DATABASE_URL}" \
+  --steemd_http_url "${STEEMD_HTTP_URL}"

@@ -1,10 +1,8 @@
 #!/bin/bash
 
-exec setuidgid nobody uwsgi \
- --master \
- --http :"${HTTP_SERVER_PORT}" \
- --wsgi-file "${WSGI_APP}" \
- --processes "${HTTP_SERVER_PROCESSES:-8}" \
- --threads "${HTTP_SERVER_THREADS:-1}" \
- --stats 0.0.0.0:"${HTTP_SERVER_STATS_PORT}" \
- --stats-http
+SBDS_CMD = "$(which sbds)"
+
+exec setuidgid nobody python3.6 "${SBDS_CMD}" server serve \
+  --database_url "${DATABASE_URL}" \
+  --host "${HTTP_HOST:-0.0.0.0}" \
+  --port "${HTTP_PORT:-9000}"

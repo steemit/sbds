@@ -4,10 +4,11 @@ import json
 
 import boto3
 import click
+import structlog
 
 import sbds.sbds_logging
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @click.group(name='s3')

@@ -1,10 +1,39 @@
 # -*- coding: utf-8 -*-
 from .views import view
 
+'''
+def should_create(ddl, target, connection, **kw):
+    row = connection.execute(
+        "select conname from pg_constraint where conname='%s'" %
+        ddl.element.name).scalar()
+    return not bool(row)
 
-def create_accounts_view():
-    from sbds.storages.db.tables import metadata
-    accounts_view = view('sbds_views_accounts',metadata, '''
+def should_drop(ddl, target, connection, **kw):
+    return not should_create(ddl, target, connection, **kw)
+
+event.listen(
+    users,
+    "after_create",
+    DDL(
+        "ALTER TABLE users ADD CONSTRAINT "
+        "cst_user_name_length CHECK (length(user_name) >= 8)"
+    ).execute_if(callable_=should_create)
+)
+event.listen(
+    users,
+    "before_drop",
+    DDL(
+        "ALTER TABLE users DROP CONSTRAINT cst_user_name_length"
+    ).execute_if(callable_=should_drop)
+)
+
+SQLusers.create(engine)
+
+SQLusers.drop(engine)
+'''
+
+
+ACCOUNTS_SELECT_SQL = '''
     SELECT
         block_num,
         transaction_num,
@@ -941,8 +970,12 @@ def create_accounts_view():
         null as field4_value
         FROM sbds_op_virtual_producer_rewards
     
-    ORDER BY block_num ASC, transaction_num ASC, operation_num ASC;
-    ''')
+    ;
+'''
+
+def create_accounts_view():
+    from sbds.storages.db.tables import metadata
+    accounts_view = view('sbds_views_accounts',metadata, ACCOUNTS_SELECT_SQL)
 
 create_accounts_view()
 
