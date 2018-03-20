@@ -1,17 +1,26 @@
 # -*- coding: utf-8 -*-
-from contextlib import contextmanager
-from collections import namedtuple
+import asyncio
 
-import sqlalchemy.orm.exc
-import sqlalchemy.exc
+from collections import namedtuple
+from contextlib import contextmanager
+
+import aiopg.sa
+import structlog
+import uvloop
+
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import FlushError
 from sqlalchemy.pool import NullPool
 
-from sbds.sbds_logging import getLogger
 import sbds.sbds_json
 
-logger = getLogger(__name__)
+
+logger = structlog.get_logger(__name__)
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 # pylint: disable=too-many-arguments, broad-except, protected-access
@@ -25,54 +34,54 @@ def _unique(session, cls, hashfunc, queryfunc, constructor, args, kwargs):
     if key in cache:
         logger.debug('_unique key %s found in session cache', key)
         return cache[key]
-    else:
-        logger.debug('_unique key %s not found in session cache', key)
-        with session.no_autoflush:
-            q = session.query(cls)
-            q = queryfunc(q, *args, **kwargs)
-            logger.debug('_unique query %s', q)
-            obj = q.one_or_none()
-            if not obj:
-                logger.debug('_unique query found no existing %s instance',
-                             cls_name)
-                obj = constructor(*args, **kwargs)
 
-                # prevent race condition by using savepoint (begin_nested)
-                session.begin(subtransactions=True)
-                logger.debug('_unique beginning subtransaction')
-                try:
-                    logger.debug(
-                        '_unique while in subtransaction: attempting to create %s',
-                        obj)
-                    session.add(obj)
-                    session.commit()
-                    logger.debug('_unique while in subtransaction: created %s',
-                                 obj)
-                except sqlalchemy.exc.IntegrityError as e:
-                    logger.debug(
-                        '_unique IntegrityError while creating %s instance',
-                        cls_name)
-                    session.rollback()
-                    logger.debug(
-                        '_unique while handling IntegrityError: rollback transaction'
-                    )
-                    q = session.query(cls)
-                    q = queryfunc(q, *args, **kwargs)
-                    obj = q.one()
-                    logger.debug(
-                        '_unique while handling IntegrityError: query found  %s',
-                        obj)
-                except Exception as e:
-                    logger.error('_unique error creating %s instance: %s',
-                                 cls_name, e)
-                    raise e
-                else:
-                    logger.debug('_unique %s instance created', cls_name)
+    logger.debug('_unique key %s not found in session cache', key)
+    with session.no_autoflush:
+        q = session.query(cls)
+        q = queryfunc(q, *args, **kwargs)
+        logger.debug('_unique query %s', q)
+        obj = q.one_or_none()
+        if not obj:
+            logger.debug('_unique query found no existing %s instance',
+                         cls_name)
+            obj = constructor(*args, **kwargs)
+
+            # prevent race condition by using savepoint (begin_nested)
+            session.begin(subtransactions=True)
+            logger.debug('_unique beginning subtransaction')
+            try:
+                logger.debug(
+                    '_unique while in subtransaction: attempting to create %s',
+                    obj)
+                session.add(obj)
+                session.commit()
+                logger.debug('_unique while in subtransaction: created %s',
+                             obj)
+            except IntegrityError as e:
+                logger.debug(
+                    '_unique IntegrityError while creating %s instance',
+                    cls_name)
+                session.rollback()
+                logger.debug(
+                    '_unique while handling IntegrityError: rollback transaction'
+                )
+                q = session.query(cls)
+                q = queryfunc(q, *args, **kwargs)
+                obj = q.one()
+                logger.debug(
+                    '_unique while handling IntegrityError: query found  %s',
+                    obj)
+            except Exception as e:
+                logger.error('_unique error creating %s instance: %s',
+                             cls_name, e)
+                raise e
             else:
-                logger.debug('_unique query found existing %s instance',
-                             cls_name)
-        cache[key] = obj
-        return obj
+                logger.debug('_unique %s instance created', cls_name)
+        else:
+            logger.debug('_unique query found existing %s instance',
+                         cls_name)
+    cache[key] = obj
+    return obj
 
 
 class UniqueMixin(object):
@@ -91,9 +100,9 @@ class UniqueMixin(object):
 
 
 def is_duplicate_entry_error(error):
-    if isinstance(error, sqlalchemy.orm.exc.FlushError):
+    if isinstance(error, FlushError):
         return 'conflicts with persistent instance' in str(error)
-    elif isinstance(error, sqlalchemy.exc.IntegrityError):
+    elif isinstance(error, IntegrityError):
         code, msg = error.orig.args
         msg = msg.lower()
         return all([code == 1062, "duplicate entry" in msg])
@@ -122,7 +131,7 @@ def session_scope(session=None,
         yield session
         session.commit()
         session.commit()
-    except (sqlalchemy.exc.IntegrityError, sqlalchemy.orm.exc.FlushError) as e:
+    except (IntegrityError, FlushError) as e:
         session.rollback()
         session.info['err'] = e
         if is_duplicate_entry_error(e):
@@ -131,7 +140,7 @@ def session_scope(session=None,
             logger.exception('non-duplicate IntegrityError, unable to commit')
         if _raise_known:
             raise e
-    except sqlalchemy.exc.DBAPIError as e:
+    except DBAPIError as e:
         session.rollback()
         session.info['err'] = e
         logger.exception('Caught DBAPI error')
@@ -158,8 +167,7 @@ def session_scope(session=None,
 def row_to_json(row):
     if getattr(row, 'to_json'):
         return row.to_json()
-    else:
-        return sbds.sbds_json.dumps(dict(row.items()))
+    return sbds.sbds_json.dumps(dict(row.items()))
 
 
 EngineConfig = namedtuple('EngineConfig',
@@ -188,9 +196,9 @@ def configure_engine(database_url, **kwargs):
         engine_kwargs = base_engine_kwargs
         engine_kwargs.update(server_side_cursors=True, encoding='utf8')
     else:
-        logger.debug('configuring %s backend', backend)
+        logger.debug('configuring backend', backend=backend)
         engine_kwargs = base_engine_kwargs
-    logger.debug('engine_kwargs: %s', engine_kwargs)
+    logger.debug('engine_kwargs', **engine_kwargs)
 
     engine = create_engine(url, **engine_kwargs)
 
@@ -215,7 +223,7 @@ def isolated_nullpool_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info(e)
+        logger.info('error',e=e)
     finally:
         del engine_config
         engine.dispose()
@@ -229,7 +237,7 @@ def isolated_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info(e)
+        logger.info('error',e=e)
     finally:
         del engine_config
         engine.dispose()
@@ -248,34 +256,25 @@ def isolated_engine_config(database_url, **kwargs):
         del engine_config
 
 
-def get_db_processes(database_url, **kwargs):
-    with isolated_nullpool_engine(database_url, **kwargs) as engine:
-        if engine.url.get_backend_name() != 'mysql':
-            raise TypeError('unsupported function for %s database' %
-                            engine.url.get_backend_name())
-        return engine.execute('SHOW PROCESSLIST').all()
+def create_aiopg_engine(database_url, loop=None, minsize=10, maxsize=30, **kwargs):
+    loop = loop or asyncio.get_event_loop()
+    async_engine = loop.run_until_complete(
+        async_create_aiopg_engine(
+            database_url,
+            minsize=minsize,
+            maxsize=maxsize,
+            **kwargs))
+    return async_engine
 
 
-def kill_db_processes(database_url, db_name=None, db_user_name=None):
-    url = make_url(database_url)
-    if url.get_backend_name() == 'sqlite':
-        return [], []
-    processes = get_db_processes(database_url)
-
-    all_procs = []
-    killed_procs = []
-    with isolated_nullpool_engine(database_url) as engine:
-        for process in processes:
-            logger.debug(
-                'process: Id:%s User:%s db:%s Command:%s State:%s Info:%s',
-                process.Id, process.User, process.db, process.Command,
-                process.State, process.Info)
-            all_procs.append(process)
-            if process.db == db_name and process.User == db_user_name:
-                if process.Info != 'SHOW PROCESSLIST':
-                    logger.debug('killing process %s on db %s owned by %s',
-                                 process.Id, process.db, process.User)
-
-                    engine.execute('KILL %s' % process.Id)
-                    killed_procs.append(process)
-        return all_procs, killed_procs
+async def async_create_aiopg_engine(database_url, minsize=10, maxsize=30, **kwargs):
+    sa_db_url = make_url(database_url)
+    return await aiopg.sa.create_engine(
+        user=sa_db_url.username,
+        password=sa_db_url.password,
+        host=sa_db_url.host,
+        port=sa_db_url.port,
+        dbname=sa_db_url.database,
+        minsize=minsize,
+        maxsize=maxsize,
+        **kwargs)

@@ -1,0 +1,38 @@
+# -*- coding: utf-8 -*-
+import itertools as it
+
+from sqlalchemy import Column
+from sqlalchemy import String
+from sqlalchemy.orm import relationship
+
+from sbds.storages.db.tables import Base
+from sbds.storages.db.utils import UniqueMixin
+
+
+class Account(Base):
+    """Steem Account Meta Class
+
+    """
+
+    __tablename__ = 'sbds_meta_accounts'
+    name = Column(String(16), primary_key=True)
+    {% for ref in refs -%}
+    {{ ref.short_name }}_{{ ref.field_name }} = relationship('{{ ref.class_name }}',backref='account_{{ ref.field_name }}',foreign_keys='{{ ref.class_name }}.{{ ref.class_field_name }}')
+    {%  endfor %}
+
+
+
+
+
+OPERATION_TO_ACCOUNT_FIELD_MAP = {{ grouped_refs|pprint }}
+
+
+ACCOUNT_NAME_EXTRACTORS = {
+    {% for short_name,fields in grouped_refs.items() -%}
+        '{{ short_name }}': lambda op: ({% for f in fields %}op.get('{{ f }}'),{% endfor %}),
+    {% endfor -%}
+}
+
+def extract_account_names(prepared_ops):
+    accounts_tuples = (ACCOUNT_NAME_EXTRACTORS[op['operation_type']](op) for op in prepared_ops if op['operation_type'] in ACCOUNT_NAME_EXTRACTORS)
+    return set(acct for acct in it.chain(*accounts_tuples) if acct)

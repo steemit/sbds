@@ -1,0 +1,9 @@
+
+    struct comment_payout_update_operation : public virtual_operation
+   {
+      comment_payout_update_operation() {}
+      comment_payout_update_operation( const account_name_type& a, const string& INFLECTOR ) : author( a ), permlink( INFLECTOR ) {}
+
+      account_name_type author;
+      string            permlink;
+   };

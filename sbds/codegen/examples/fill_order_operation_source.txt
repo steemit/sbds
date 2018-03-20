@@ -1,0 +1,14 @@
+
+    struct fill_order_operation : public virtual_operation
+   {
+      fill_order_operation(){}
+      fill_order_operation( const string& c_o, uint32_t c_id, const asset& c_p, const string& o_o, uint32_t o_id, const asset& o_p )
+      :current_owner(c_o), current_orderid(c_id), current_pays(c_p), open_owner(o_o), open_orderid(o_id), open_pays(o_p) {}
+
+      account_name_type current_owner;
+      uint32_t          current_orderid = 0;
+      asset             current_pays;
+      account_name_type open_owner;
+      uint32_t          open_orderid = 0;
+      asset             open_pays;
+   };

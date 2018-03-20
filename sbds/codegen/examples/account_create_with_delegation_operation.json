@@ -1,0 +1,39 @@
+{
+  "delegation": "0.000000 VESTS",
+  "owner": {
+    "key_auths": [
+      [
+        "STM51YSoy7MdrAWgeTsQo4xYVR7L4BKucjqDPefsB7ZojBZgU7CCN",
+        1
+      ]
+    ],
+    "weight_threshold": 1,
+    "account_auths": []
+  },
+  "active": {
+    "key_auths": [
+      [
+        "STM5jgwX1VPT4oZpescjwTmf6k8T8oYmg3RrhjaDnSapis9sFojAL",
+        1
+      ]
+    ],
+    "weight_threshold": 1,
+    "account_auths": []
+  },
+  "creator": "steem",
+  "posting": {
+    "key_auths": [
+      [
+        "STM5BcLMqLSBXa3DX7ThbbDYFEwcHbvUYWoF8PgTaSVAdNUikBQK1",
+        1
+      ]
+    ],
+    "weight_threshold": 1,
+    "account_auths": []
+  },
+  "json_metadata": "",
+  "extensions": [],
+  "new_account_name": "hendratayogas",
+  "fee": "35.000 STEEM",
+  "memo_key": "STM5Fj3bNfLCvhFC6U67kfNCg6d8CfpxW2AJRJ9KhELEaoBMK9Ltf"
+}

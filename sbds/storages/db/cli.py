@@ -4,23 +4,18 @@ import json
 
 import click
 
-import sbds.sbds_logging
+import structlog
+from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db.tables import Base
 from sbds.storages.db.tables import Session
-from sbds.storages.db import add_blocks
-from sbds.storages.db import bulk_add
-from sbds.storages.db import bulk_add_transactions
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import reset_tables
 from sbds.storages.db.tables import test_connection
+from sbds.storages.db.tables.block import Block
 from sbds.storages.db.utils import isolated_engine_config
-from sbds.storages.db.utils import get_db_processes
-from sbds.storages.db.utils import kill_db_processes
-from sbds.storages.db.utils import row_to_json
-from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @click.group(short_help='Interact with an SQL storage backend')
@@ -70,7 +65,7 @@ def test(ctx):
         click.echo('Success! Connected using %s, found %s tables' %
                    (url.__repr__(), table_count))
     else:
-        click.echo('Failed to connect: %s', url)
+        click.echo('Failed to connect: %s' % url)
         ctx.exit(code=127)
 
 
@@ -93,34 +88,7 @@ def insert_blocks(ctx, blocks):
     add_blocks(
         blocks, session, insert=True, merge_insert=False, insert_many=False)
 
-@db.command(name='bulk-add-transactions')
-@click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
-@click.option('--chunksize', type=click.INT, default=1000)
-@click.option('--include_types', type=click.STRING, multiple=True, default=[])
-@click.option('--exclude_types', type=click.STRING, multiple=True, default=[])
-@click.pass_context
-def _bulk_add_transactions(ctx, blocks, chunksize, include_types, exclude_types):
-    """Insert many transactions in the database, filtering on transaction type"""
-    engine = ctx.obj['engine']
-    database_url = ctx.obj['database_url']
-    metadata = ctx.obj['metadata']
 
-    # init tables first
-    init_tables(database_url, metadata)
-
-    # configure session
-    Session.configure(bind=engine)
-    session = Session()
-    click.echo("SQL: 'SET SESSION innodb_lock_wait_timeout=150'", err=True)
-    session.execute('SET SESSION innodb_lock_wait_timeout=150')
-
-    try:
-        for chunk in chunkify(blocks, chunksize):
-            bulk_add_transactions(chunk, session, include_types=include_types, exclude_types=exclude_types)
-    except Exception as e:
-        raise e
-    finally:
-        session.close_all()
 
 @db.command(name='bulk-add')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
@@ -171,31 +139,6 @@ def reset_db_tables(ctx):
     reset_tables(database_url, metadata)
 
 
-@db.command(name='list-processes')
-@click.pass_context
-def list_processes(ctx):
-    """Create any missing tables on the database"""
-    database_url = ctx.obj['database_url']
-
-    processes = get_db_processes(database_url)
-    for proc in processes:
-        click.echo(row_to_json(proc))
-
-
-@db.command(name='kill-processes')
-@click.pass_context
-def kill_processes(ctx):
-    """Create any missing tables on the database"""
-    database_url = ctx.obj['database_url']
-
-    # pylint: disable=unused-variable
-    processes, killed = kill_db_processes(database_url)
-    # pylint: enable=unused-variable
-    click.echo('killed %s processes' % len(killed))
-    for proc in killed:
-        click.echo(row_to_json(proc))
-
-
 @db.command(name='last-block')
 @click.pass_context
 def last_block(ctx):
@@ -211,7 +154,6 @@ def last_block(ctx):
     Session.configure(bind=engine)
     session = Session()
 
-    from sbds.storages.db.tables import Block
     click.echo(Block.highest_block(session))
 
 
@@ -225,7 +167,7 @@ def last_block(ctx):
 @click.pass_context
 def find_missing_blocks(ctx, url):
     """Return JSON array of block_nums from missing blocks"""
-    from sbds.storages.db.tables import Block
+
     engine = ctx.obj['engine']
     database_url = ctx.obj['database_url']
     metadata = ctx.obj['metadata']
@@ -259,5 +201,6 @@ def raw_sql(ctx, sql):
     stmt = text(sql)
     with engine.connect() as conn:
         results = conn.execute(stmt).fetchall()
-
     click.echo(json.dumps(results))
+
+

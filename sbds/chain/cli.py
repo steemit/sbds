@@ -4,11 +4,11 @@ import json
 
 import click
 
-import sbds.sbds_logging
+import structlog
 from sbds.http_client import SimpleSteemAPIClient
 from sbds.utils import chunkify
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @click.group()

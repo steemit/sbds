@@ -1,0 +1,12 @@
+{
+  "agent": "fabien",
+  "sbd_amount": "1.000 SBD",
+  "json_meta": "{}",
+  "steem_amount": "0.000 STEEM",
+  "escrow_expiration": "2017-02-28T11:22:39",
+  "fee": "0.100 SBD",
+  "to": "james",
+  "ratification_deadline": "2017-02-26T11:22:39",
+  "escrow_id": 23456789,
+  "from": "siol"
+}

@@ -1,0 +1,16 @@
+{
+  "worker_account": "admin",
+  "nonce": 82,
+  "block_id": "000004433bd4602cf5f74dbb564183837df9cef8",
+  "props": {
+    "sbd_interest_rate": 1000,
+    "account_creation_fee": "100.000 STEEM",
+    "maximum_block_size": 131072
+  },
+  "work": {
+    "signature": "1f3f83209097efcd01b7d6f27ce726164323d503d6fcf4d55bfb7cb3032796f6766738b36062b5850d69447fdf9c091cbc70825df5eeacc4710a0b11ffdbf0912a",
+    "input": "59b009f89477919f95914151cef06f28bf344dd6fb7670aca1c1f4323c80446b",
+    "worker": "STM65wH1LZ7BfSHcK69SShnqCAH5xdoSZpGkUjmzHJ5GCuxEK9V5G",
+    "work": "0b62f4837801cd857f01d6a541faeb13d6bb95f1c36c6b4b14a47df632aa6c92"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "fee": "0.000 STEEM",
+  "url": "fmooo/steemd-docker",
+  "props": {
+    "sbd_interest_rate": 1000,
+    "account_creation_fee": "100.000 STEEM",
+    "maximum_block_size": 131072
+  },
+  "owner": "steempty",
+  "block_signing_key": "STM8LoQjQqJHvotqBo7HjnqmUbFW9oJ2theyqonzUd9DdJ7YYHsvD"
+}

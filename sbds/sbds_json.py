@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
-import json
+from datetime import datetime
+from functools import singledispatch
 from functools import partial
 
-
-class ToStringJSONEncoder(json.JSONEncoder):
-    """This encoder handles date, time, datetime, timedelta, and anything else
-    with a __str__ method"""
-
-    # pylint: disable=method-hidden
-    def default(self, obj):
-        # pylint: disable=bare-except
-        try:
-            return str(obj)
-        except:
-            return super(ToStringJSONEncoder, self).default(obj)
-
-    # pylint: enable=method-hidden
+import rapidjson as json
 
 
-dump = partial(json.dump, cls=ToStringJSONEncoder)
-dumps = partial(json.dumps, cls=ToStringJSONEncoder)
+@singledispatch
+def to_serializable(val):
+    """Used by default."""
+    return str(val)
+
+
+# noinspection PyUnresolvedReferences
+@to_serializable.register(datetime)
+def ts_datetime(val):
+    """Used if *val* is an instance of datetime."""
+    return val.isoformat()
+
+
+dump = partial(json.dump, default=to_serializable, ensure_ascii=True)
+dumps = partial(json.dumps, default=to_serializable, ensure_ascii=True)
 load = json.load
 loads = json.loads

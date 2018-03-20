@@ -1,0 +1,9 @@
+
+    struct liquidity_reward_operation : public virtual_operation
+   {
+      liquidity_reward_operation( string o = string(), asset INFLECTOR = asset() )
+      :owner(o), payout(INFLECTOR) {}
+
+      account_name_type owner;
+      asset             payout;
+   };

@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+   db:
+    image: postgres:10.1-alpine
+    #image: postgres:9.6.7-alpine
+    restart: always
+    volumes:
+       - db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: user
+      POSTGRES_DB: sbds
+    ports:
+       - "5432:5432"
+   sbds:
+     depends_on:
+       - db
+     build: .
+     ports:
+       - "8080:80"
+     restart: always
+     environment:
+       DATABASE_URL: postgresql+psycopg2://user:password@db/sbds
+       STEEMD_HTTP_URL: https://api.steemit.com
+       SBDS_LOG_LEVEL: DEBUG
+volumes:
+    db_data:

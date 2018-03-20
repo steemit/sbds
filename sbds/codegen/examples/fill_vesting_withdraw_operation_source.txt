@@ -1,0 +1,12 @@
+
+       struct fill_vesting_withdraw_operation : public virtual_operation
+   {
+      fill_vesting_withdraw_operation(){}
+      fill_vesting_withdraw_operation( const string& f, const string& t, const asset& w, const asset& d )
+         :from_account(f), to_account(t), withdrawn(w), deposited(d) {}
+
+      account_name_type from_account;
+      account_name_type to_account;
+      asset             withdrawn;
+      asset             deposited;
+   };

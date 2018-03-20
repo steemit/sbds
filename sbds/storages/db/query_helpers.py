@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-from itertools import tee
 from itertools import chain
 from itertools import starmap
+from itertools import tee
 
 import maya
 '''
 24h 7d 30d with two trailing periods
 '''
-STANDARD_WINDOWS_ARGS = ((24, 'hours', 3), (7, 'days', 3), (30, 'days', 3), )
+STANDARD_WINDOWS_ARGS = (
+    (24, 'hours', 3),
+    (7, 'days', 3),
+    (30, 'days', 3), )
 STANDARD_WINDOW_LABELS = ('past_24_hours', 'past_24_to_48_hours',
                           'past_48_to_72_hours', 'past_7_days',
                           'past_7_to_14_days', 'past_14_to_21_days',
@@ -53,29 +56,29 @@ def standard_trailing_windows():
     return chain.from_iterable(
         starmap(trailing_windows, STANDARD_WINDOWS_ARGS))
 
-
+# pylint: disable=too-many-locals
 def blockchain_stats_query(session):
     import operator as op
-    from .tables import TxAccountCreate
-    from .tables import TxAccountCreateWithDelegation
-    from .tables import TxComment
-    from .tables import TxVote
-    from .tables import TxTransfer
+    from .tables.operations import AccountCreateOperation
+    from .tables.operations import AccountCreateWithDelegationOperation
+    from .tables.operations import CommentOperation
+    from .tables.operations import VoteOperation
+    from .tables.operations import TransferOperation
 
-    account_creates = TxAccountCreate.standard_windowed_count(session)
-    account_creates_with_delegation = TxAccountCreateWithDelegation.standard_windowed_count(
+    account_creates = AccountCreateOperation.standard_windowed_count(session)
+    account_creates_with_delegation = AccountCreateWithDelegationOperation.standard_windowed_count(
         session)
     combined_account_creates = map(op.add, account_creates,
                                    account_creates_with_delegation)
 
-    votes = TxVote.standard_windowed_count(session)
-    payments = TxTransfer.standard_windowed_count(session)
-    post_count_query = TxComment.post_count_query(session)
-    windowed_post_queries = TxComment.standard_trailing_windowed_queries(
+    votes = VoteOperation.standard_windowed_count(session)
+    payments = TransferOperation.standard_windowed_count(session)
+    post_count_query = CommentOperation.post_count_query(session)
+    windowed_post_queries = CommentOperation.standard_trailing_windowed_queries(
         post_count_query)
 
-    comment_count_query = TxComment.comment_count_query(session)
-    windowed_comment_queries = TxComment.standard_trailing_windowed_queries(
+    comment_count_query = CommentOperation.comment_count_query(session)
+    windowed_comment_queries = CommentOperation.standard_trailing_windowed_queries(
         comment_count_query)
 
     post_counts = tuple(query.scalar() for query in windowed_post_queries)

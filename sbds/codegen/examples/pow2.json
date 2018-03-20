@@ -1,0 +1,18 @@
+{
+  "props": {
+    "sbd_interest_rate": 1000,
+    "account_creation_fee": "0.001 STEEM",
+    "maximum_block_size": 131072
+  },
+  "work": [
+    0,
+    {
+      "pow_summary": 3817904373,
+      "input": {
+        "worker_account": "aizen06",
+        "nonce": "1052853013628665497",
+        "prev_block": "003ea604345523c344fbadab605073ea712dd76f"
+      }
+    }
+  ]
+}

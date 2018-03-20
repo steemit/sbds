@@ -1,0 +1,8 @@
+{
+  "required_auths": [],
+  "id": "follow",
+  "json": "{\"follower\":\"steemit\",\"following\":\"steem\",\"what\":[\"posts\"]}",
+  "required_posting_auths": [
+    "steemit"
+  ]
+}

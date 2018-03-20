@@ -1,68 +1,52 @@
 # -*- coding: utf-8 -*-
-import pytest
-import tempfile
-import requests
+import json
+import os.path
+import glob
 
+import pytest
+import requests
 from requests.exceptions import ConnectionError
 
+from sbds.http_client import SimpleSteemAPIClient
+from sbds.storages.db.tables import Session
+from sbds.storages.db.utils import configure_engine
 
 import sbds
-import sbds.http_client
-
-import sbds.sbds_logging
-import sbds.sbds_json
-import sbds.utils
-
 import sbds.chain
-
-import sbds.checkpoints
-
+import sbds.chain.cli
 import sbds.server
-import sbds.server.utils
-import sbds.server.input_parsers
-
+import sbds.server.cli
+import sbds.server.methods
+import sbds.server.serve
 import sbds.storages
 import sbds.storages.db
 import sbds.storages.db.cli
+import sbds.storages.db.data_types
 import sbds.storages.db.enums
 import sbds.storages.db.field_handlers
 import sbds.storages.db.query_helpers
 import sbds.storages.db.utils
-import sbds.storages.db.tables
+import sbds.storages.db.scripts
+import sbds.storages.db.scripts.populate
+import sbds.storages.db.tables.async_core
+import sbds.storages.db.tables.block
 import sbds.storages.db.tables.core
-import sbds.storages.db.tables.tx
-
-import sbds.storages.s3
-import sbds.storages.s3.cli
-
-from sbds.http_client import SimpleSteemAPIClient
-
-from sbds.storages.db.tables import Base
-from sbds.storages.db.tables import Session
-from sbds.storages.db.tables import init_tables
-from sbds.storages.db.utils import configure_engine
+import sbds.storages.db.tables.operations
 
 
-# pylint: skip-file
-@pytest.fixture()
-def sqlitedb_session(sqlite_db_url=None):
-    sqlite_db_url = sqlite_db_url or 'sqlite://'
-    engine_config = configure_engine(sqlite_db_url)
-    session = Session(bind=engine_config.engine)
-    return session
+TEST_DIR = os.path.dirname(__file__)
+TEST_DATA_DIR = os.path.join(TEST_DIR, 'data')
+GET_BLOCK_DATA_DIR = os.path.join(TEST_DATA_DIR, 'get_block')
+GET_OPS_IN_BLOCK_DATA_DIR = os.path.join(TEST_DATA_DIR, 'get_ops_in_block')
 
 
-@pytest.fixture()
-def sqlitedb_engine_config(sqlite_db_url=None):
-    sqlite_db_url = sqlite_db_url or 'sqlite://'
-    sqlite_engine_config = configure_engine(sqlite_db_url)
-
-
-@pytest.fixture()
-def sqlitedb_tmpfile_db_url():
-    fh, tmp_db_path = tempfile.mkstemp()
-    sqlite_db_url = 'sqlite:///%s' % tmp_db_path
-    return sqlite_db_url
+def load_data(dir):
+    results_dict = {}
+    for filename in glob.iglob(f'{dir}/*.json'):
+        key = os.path.splitext(os.path.basename(filename))[0]
+        with open(filename) as f:
+            results_dict[key] = json.load(f)
+    return results_dict
 
 
 @pytest.fixture()
@@ -108,12 +92,11 @@ def is_responsive(url):
     except ConnectionError:
         return False
 
+
 @pytest.fixture(scope='session')
 def sbds_http_server(docker_ip, docker_services):
     """Ensure that "some service" is up and responsive."""
     url = 'http://localhost:9191'
     docker_services.wait_until_responsive(
-       timeout=60.0, pause=0.1,
-       check=lambda: is_responsive(url)
-    )
+        timeout=60.0, pause=0.1, check=lambda: is_responsive(url))
     return url

@@ -1,9 +1,9 @@
-# coding=utf-8
-import json
-import os
-import logging
-import socket
+# -*- coding: utf-8 -*-
 import concurrent.futures
+import json
+import logging
+import os
+import socket
 import time
 from functools import partial
 from functools import partialmethod
@@ -13,9 +13,9 @@ import certifi
 import urllib3
 from urllib3.connection import HTTPConnection
 
-import sbds.sbds_logging
+import structlog
 
-logger = sbds.sbds_logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RPCError(Exception):
@@ -53,7 +53,7 @@ class SimpleSteemAPIClient(object):
     """
 
     def __init__(self, url=None, log_level=logging.INFO, **kwargs):
-        url = url or os.environ.get('STEEMD_HTTP_URL')
+        url = url or os.environ.get('STEEMD_HTTP_URL', 'https://api.steemit.com')
         self.url = url
         self.hostname = urlparse(url).hostname
         self.return_with_args = kwargs.get('return_with_args', False)
@@ -91,16 +91,13 @@ class SimpleSteemAPIClient(object):
         '''
         self.request = partial(self.http.urlopen, 'POST', url)
 
-        _logger = sbds.sbds_logging.getLogger('urllib3')
-        sbds.sbds_logging.configure_existing_logger(_logger, level=log_level)
-
     @staticmethod
     def json_rpc_body(name, *args, as_json=True):
         body_dict = {"method": name, "params": args, "jsonrpc": "2.0", "id": 0}
         if as_json:
             return json.dumps(body_dict, ensure_ascii=False).encode('utf8')
-        else:
-            return body_dict
+
+        return body_dict
 
     def exec(self, name, *args, re_raise=None, return_with_args=None):
         body = SimpleSteemAPIClient.json_rpc_body(name, *args)
@@ -150,8 +147,7 @@ class SimpleSteemAPIClient(object):
                 result = response_json.get('result', None)
         if return_with_args:
             return result, args
-        else:
-            return result
+        return result
 
     def exec_multi(self, name, params):
         body_gen = ({
@@ -215,7 +211,7 @@ class SimpleSteemAPIClient(object):
             try:
                 block = self.get_block(block_num)
                 yield block
-            except:
+            except BaseException:
                 pass
             else:
                 block_num += 1
