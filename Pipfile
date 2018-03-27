@@ -72,6 +72,9 @@ serpy = "*"
 inflect = "*"
 "boto3" = "*"
 "psycopg2" = "*"
+furl = "*"
+zmq = "*"
+cchardet = "*"
 
 
 [requires]

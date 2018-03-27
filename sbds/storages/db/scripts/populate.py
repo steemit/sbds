@@ -74,6 +74,7 @@ def get_op_insert_stmt(prepared_op, db_tables):
     STATEMENT_CACHE[op_type] = f'INSERT INTO {table} ({columns_str}) VALUES({values_str}) ON CONFLICT DO NOTHING'
     return STATEMENT_CACHE[op_type]
 
+
 def create_async_engine(database_url, loop=None, minsize=40, maxsize=50, **kwargs):
     sa_db_url = make_url(database_url)
     loop = loop or asyncio.get_event_loop()
@@ -89,7 +90,8 @@ def create_async_engine(database_url, loop=None, minsize=40, maxsize=50, **kwarg
             **kwargs))
     return async_engine
 
-def create_asyncpg_pool(database_url,loop=None,min_size=40, max_size=40, **kwargs):
+
+def create_asyncpg_pool(database_url, loop=None, min_size=40, max_size=40, **kwargs):
     loop = loop or asyncio.get_event_loop()
     return loop.run_until_complete(asyncpg.create_pool(database_url,
                                                        min_size=min_size,
@@ -102,6 +104,7 @@ def as_completed_limit_concurrent(coros_or_futures, concurrency_limit):
         asyncio.ensure_future(c)
         for c in it.islice(coros_or_futures, 0, concurrency_limit)
     ]
+
     async def next_done():
         while True:
             await asyncio.sleep(0)
@@ -117,6 +120,7 @@ def as_completed_limit_concurrent(coros_or_futures, concurrency_limit):
                     return f.result()
     while len(futures) > 0:
         yield next_done()
+
 
 def fmt_success_message(msg, *args):
     base_msg = msg % args
@@ -142,34 +146,43 @@ def fmt_task_message(task_msg,
         task_msg=task_msg)
 
 
-
 def get_account_names(url):
     import requests
     RequestsSession = requests.Session()
-    lower_bound_name  = 'a'
+    lower_bound_name = 'a'
     limit = 1000
     accts = list()
     try:
         while True:
-            resp = RequestsSession.post(url,json={'id':1,'jsonrpc':'2.0','method':'lookup_accounts','params':[lower_bound_name, limit]})
+            resp = RequestsSession.post(
+                url,
+                json={
+                    'id': 1,
+                    'jsonrpc': '2.0',
+                    'method': 'lookup_accounts',
+                    'params': [
+                        lower_bound_name,
+                        limit]})
             accounts_in_resp = resp.json()['result']
             accts.extend(accounts_in_resp)
             if lower_bound_name == accounts_in_resp[-1]:
                 break
             lower_bound_name = accounts_in_resp[-1]
     except Exception as e:
-            print(e)
+        print(e)
     return sorted(list(set(accts)))
 
+
 async def preload_account_names(pool, account_names):
-    non_blank_account_names = (a for a in account_names if a not in ('',None))
+    non_blank_account_names = (a for a in account_names if a not in ('', None))
     unique_account_names = set(non_blank_account_names)
     account_name_records = [(a,) for a in unique_account_names]
     async with pool.acquire() as conn:
         try:
-           await conn.copy_records_to_table('sbds_meta_accounts', records=account_name_records)
+            await conn.copy_records_to_table('sbds_meta_accounts', records=account_name_records)
         except Exception as e:
             logger.exception('error preloading account names', e=e)
+
 
 def task_confirm_db_connectivity(database_url):
     url, table_count = test_connection(database_url)
@@ -209,7 +222,7 @@ def missing_account_name_from_error(e):
 async def get_existing_and_missing_count(engine, start_block, end_block):
     async with engine.acquire() as conn:
         existing_count = await conn.fetchval('SELECT COUNT(*) from sbds_core_blocks WHERE block_num >=$1 AND block_num <= $2', start_block, end_block)
-    range_count = len(range(start_block, end_block+1))
+    range_count = len(range(start_block, end_block + 1))
     missing_count = range_count - existing_count
     return existing_count, missing_count, range_count
 
@@ -238,7 +251,7 @@ async def collect_missing_block_nums(engine, last_chain_block, missing_count, st
 
     async with engine.acquire() as conn:
         async with conn.transaction():
-            cursor = await conn.cursor(query,start_block)
+            cursor = await conn.cursor(query, start_block)
             while True:
                 rows = await cursor.fetch(BLOCKNUM_CHUNK_SEARCH_SIZE)
                 if not rows:
@@ -261,16 +274,17 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
         try:
             response = await client.post(url, data=request_json)
             jsonrpc_response = await response.json()
-            response_pairs = funcy.partition(2,jsonrpc_response)
+            response_pairs = funcy.partition(2, jsonrpc_response)
             results = []
             for get_block, get_ops in response_pairs:
                 assert get_block['id'] == get_ops['id']
-                results.append((get_block['id'],get_block['result'],get_ops['result']))
+                results.append((get_block['id'], get_block['result'], get_ops['result']))
             assert len(results) == len(block_nums)
             return results
         except Exception as e:
             logger.exception('error fetching ops in block',
                              e=e, response=response)
+
 
 async def local_fetch_blocks_and_ops_in_blocks(local_path, block_nums):
     try:
@@ -279,33 +293,15 @@ async def local_fetch_blocks_and_ops_in_blocks(local_path, block_nums):
             with aiofiles.open(f'{local_path}/{block_num}/block.json') as f:
                 raw_block = await f.read()
             with aiofiles.open(f'{local_path}/{block_num}/ops.json') as f:
-               raw_ops = await f.read()
+                raw_ops = await f.read()
             block = json.loads(raw_block)
             ops = json.loads(raw_ops)
-            results.append((block_num,block,ops))
+            results.append((block_num, block, ops))
         assert len(results) == len(block_nums)
         return results
     except Exception as e:
-            logger.exception('error ly localfetching block and/or ops in block',
-                             e=e, local_path=local_path)
-
-async def s3_fetch_blocks_and_ops_in_blocks(s3_url, s3_client, block_nums):
-
-    response = 'n/a'
-    while True:
-        try:
-            response = await client.post(url, data=request_json)
-            jsonrpc_response = await response.json()
-            response_pairs = funcy.partition(2,jsonrpc_response)
-            results = []
-            for get_block, get_ops in response_pairs:
-                assert get_block['id'] == get_ops['id']
-                results.append((get_block['id'],get_block['result'],get_ops['result']))
-            assert len(results) == len(block_nums)
-            return results
-        except Exception as e:
-            logger.exception('error fetching ops in block',
-                             e=e, response=response)
+        logger.exception('error ly localfetching block and/or ops in block',
+                         e=e, local_path=local_path)
 
 
 async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
@@ -326,23 +322,23 @@ async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops
     # collect all account names referenced in block and ops
     account_names_in_ops = extract_account_names(prepared_ops)
     account_names_in_ops.add(prepared_block['witness'])
-    account_name_records = [(a,) for a in account_names_in_ops ]
+    account_name_records = [(a,) for a in account_names_in_ops]
 
     for prepared_op in prepared_ops:
         raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
 
     async with pool.acquire() as conn:
-        prepared_stmts = [await conn.prepare(stmt) for stmt,_ in raw_stmts]
+        prepared_stmts = [await conn.prepare(stmt) for stmt, _ in raw_stmts]
         add_acct_stmt = await conn.prepare(raw_add_account_stmt)
 
-        stmts = zip(prepared_stmts, (vals for _,vals in raw_stmts))
+        stmts = zip(prepared_stmts, (vals for _, vals in raw_stmts))
         async with conn.transaction():
             # add accounts first
             await conn.executemany(raw_add_account_stmt, account_name_records)
 
         async with conn.transaction():
             # add block and ops
-            for i,stmt in enumerate(stmts):
+            for i, stmt in enumerate(stmts):
                 query, args = stmt
                 while True:
                     stmt_tr = conn.transaction()
@@ -385,6 +381,7 @@ async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops
                                          type=prepared.get('operation_type'))
                         raise e
 
+
 async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     """Atomic add block,operations, and virtual operations in block
 
@@ -402,20 +399,20 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
 
     # collect all account names referenced in block and ops
     #account_names_in_ops = extract_account_names(prepared_ops)
-    #account_names_in_ops.add(prepared_block['witness'])
+    # account_names_in_ops.add(prepared_block['witness'])
     #account_name_records = [(a,) for a in account_names_in_ops ]
 
     for prepared_op in prepared_ops:
         raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
 
     async with pool.acquire() as conn:
-        prepared_stmts = [await conn.prepare(stmt) for stmt,_ in raw_stmts]
-        stmts = zip(prepared_stmts, (vals for _,vals in raw_stmts))
+        prepared_stmts = [await conn.prepare(stmt) for stmt, _ in raw_stmts]
+        stmts = zip(prepared_stmts, (vals for _, vals in raw_stmts))
 
         async with conn.transaction():
-            #await conn.executemany(raw_add_account_stmt, account_name_records)
+            # await conn.executemany(raw_add_account_stmt, account_name_records)
             # add block and ops
-            for i,stmt in enumerate(stmts):
+            for i, stmt in enumerate(stmts):
                 query, args = stmt
                 try:
                     await query.fetchval(*args)
@@ -426,19 +423,18 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
                         prepared = prepared_ops[i - 1]
                     logger.exception('error storing block and ops',
                                      e=e,
-                                     #accts=account_names_in_ops,
+                                     # accts=account_names_in_ops,
                                      prepared=prepared,
                                      stmt=stmt,
                                      type=prepared.get('operation_type'))
                     raise e
 
 
-
 async def process_block(block_num, raw_block, raw_ops, pool, db_tables, blocks_pbar=None, ops_pbar=None):
     prepared_futures = [prepare_raw_block_for_storage(raw_block, loop=loop)]
     if raw_ops:
         prepared_futures.extend(prepare_raw_operation_for_storage(raw_op, loop=loop)
-                            for raw_op in raw_ops)
+                                for raw_op in raw_ops)
     prepared = await asyncio.gather(*prepared_futures)
     prepared_block = prepared[0]
     if raw_ops:
@@ -453,25 +449,34 @@ async def process_block(block_num, raw_block, raw_ops, pool, db_tables, blocks_p
     return (block_num, raw_block, prepared_block, raw_ops, prepared_ops)
 
 
-async def process_block_chunk(block_num_batch, url, client, engine, db_tables, blocks_pbar=None,ops_pbar=None):
+async def process_block_chunk(block_num_batch, url, client, engine, db_tables, blocks_pbar=None, ops_pbar=None):
     results = await fetch_blocks_and_ops_in_blocks(url, client, block_num_batch)
     block_futures = [process_block(
-            block_num,
-            raw_block,
-            raw_ops_in_block,
-            engine,
-            db_tables,
-            blocks_pbar=blocks_pbar,
-            ops_pbar=ops_pbar) for block_num, raw_block, raw_ops_in_block in results]
+        block_num,
+        raw_block,
+        raw_ops_in_block,
+        engine,
+        db_tables,
+        blocks_pbar=blocks_pbar,
+        ops_pbar=ops_pbar) for block_num, raw_block, raw_ops_in_block in results]
     return await asyncio.wait(block_futures)
 
-async def process_blocks(missing_block_nums, url, client, pool, db_meta, blocks_pbar=None,ops_pbar=None):
+
+async def process_blocks(missing_block_nums, url, client, pool, db_meta, blocks_pbar=None, ops_pbar=None):
     CONCURRENCY_LIMIT = 5
     BATCH_SIZE = 100
 
     db_tables = db_meta.tables
     block_num_batches = chunkify(missing_block_nums, BATCH_SIZE)
-    futures = (process_block_chunk(block_num_batch, url, client, pool, db_tables,blocks_pbar=blocks_pbar, ops_pbar=ops_pbar) for block_num_batch in block_num_batches)
+    futures = (
+        process_block_chunk(
+            block_num_batch,
+            url,
+            client,
+            pool,
+            db_tables,
+            blocks_pbar=blocks_pbar,
+            ops_pbar=ops_pbar) for block_num_batch in block_num_batches)
 
     for results_future in as_completed_limit_concurrent(futures, CONCURRENCY_LIMIT):
         results = await results_future
@@ -481,6 +486,7 @@ async def process_blocks(missing_block_nums, url, client, pool, db_meta, blocks_
 
 async def prepare_operation_for_storage(raw_operation):
     return await prepare_raw_operation_for_storage(raw_operation)
+
 
 async def task_stream_blocks(engine, steemd_http_url, client):
     while True:
@@ -509,14 +515,22 @@ async def task_stream_blocks(engine, steemd_http_url, client):
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
-@click.option('--start_block',type=int, default=1)
-@click.option('--end_block',type=int, default=-1)
-@click.option('--accounts_file', type=click.Path(dir_okay=False,exists=True))
-def populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block, accounts_file):
-    _populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block, accounts_file)
+@click.option('--start_block', type=int, default=1)
+@click.option('--end_block', type=int, default=-1)
+@click.option('--accounts_file', type=click.Path(dir_okay=False, exists=True))
+def populate(database_url, legacy_database_url, steemd_http_url,
+             start_block, end_block, accounts_file):
+    _populate(
+        database_url,
+        legacy_database_url,
+        steemd_http_url,
+        start_block,
+        end_block,
+        accounts_file)
 
 
-def _populate(database_url, legacy_database_url, steemd_http_url, start_block, end_block,accounts_file):
+def _populate(database_url, legacy_database_url, steemd_http_url,
+              start_block, end_block, accounts_file):
     CONNECTOR = TCPConnector(loop=loop, limit=100)
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
                                             connector=CONNECTOR,
@@ -535,7 +549,7 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
             emoji_code_point=u'\U0001F4DE',
             task_num=task_num)
         click.echo(task_message)
-        #task_confirm_db_connectivity(database_url)
+        # task_confirm_db_connectivity(database_url)
 
         # [2/7] init db if required
         task_num += 1
@@ -550,15 +564,15 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
         task_num += 1
         if end_block == -1:
             task_message = fmt_task_message(
-            'Finding highest blockchain block',
-            emoji_code_point='\U0001F50E',
-            task_num=task_num)
+                'Finding highest blockchain block',
+                emoji_code_point='\U0001F50E',
+                task_num=task_num)
             click.echo(task_message)
             last_chain_block_num = loop.run_until_complete(
                 get_last_irreversible_block_num(steemd_http_url, AIOHTTP_SESSION))
             end_block = last_chain_block_num
             success_msg = fmt_success_message(
-                'last irreversible block number is %s',last_chain_block_num )
+                'last irreversible block number is %s', last_chain_block_num)
             click.echo(success_msg)
         else:
             task_message = fmt_task_message(
@@ -568,13 +582,13 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
             click.echo(task_message)
 
         # [4/7] build list of blocks missing from db
-        existing_count, missing_count, range_count = loop.run_until_complete(get_existing_and_missing_count(pool, start_block, end_block))
+        existing_count, missing_count, range_count = loop.run_until_complete(
+            get_existing_and_missing_count(pool, start_block, end_block))
         task_message = fmt_task_message(
-            f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}' ,
+            f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}',
             emoji_code_point=u'\U0001F52D',
             task_num=4)
         click.echo(task_message)
-
 
         with click.progressbar(length=end_block, **pbar_kwargs) as pbar:
             pbar.update(existing_count)
@@ -599,16 +613,12 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
                 preload_account_names(pool, account_names))
             del account_names
 
-
         # [5/7] add missing blocks and operations
         task_message = fmt_task_message(
             'Adding missing blocks and operations to db',
             emoji_code_point=u'\U0001F52D',
             task_num=5)
         click.echo(task_message)
-
-
-
 
         blocks_progress_bar = tqdm(initial=existing_count,
                                    total=range_count,
@@ -625,12 +635,12 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
                                 unit='    ops')
 
         loop.run_until_complete(process_blocks(missing_block_nums,
-                                             steemd_http_url,
-                                             AIOHTTP_SESSION,
-                                             pool,
-                                             DB_META,
-                                             blocks_pbar=blocks_progress_bar,
-                                             ops_pbar=ops_progress_bar))
+                                               steemd_http_url,
+                                               AIOHTTP_SESSION,
+                                               pool,
+                                               DB_META,
+                                               blocks_pbar=blocks_progress_bar,
+                                               ops_pbar=ops_progress_bar))
 
         # [6/7] Make second sweep for missing blocks
         task_message = fmt_task_message(
@@ -657,7 +667,6 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
                     start_block=start_block,
                     pbar=pbar))
 
-
         blocks_progress_bar = tqdm(initial=existing_count,
                                    total=range_count,
                                    dynamic_ncols=False,
@@ -674,8 +683,6 @@ def _populate(database_url, legacy_database_url, steemd_http_url, start_block, e
                                                DB_META,
                                                blocks_pbar=blocks_progress_bar,
                                                ops_pbar=ops_progress_bar))
-
-
 
         # [7/7] stream new blocks
         task_message = fmt_task_message(

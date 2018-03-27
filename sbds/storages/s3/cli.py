@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
-
-import json
-
 import boto3
 import click
 import structlog
 
 import sbds.sbds_logging
+import sbds.sbds_json
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +36,7 @@ def create_bucket(ctx):
 def put_json_block(s3_resource, block, bucket):
     blocknum = str(block['block_num'])
     key = '/'.join([blocknum, 'block.json'])
-    data = bytes(json.dumps(block), 'utf8')
+    data = sbds.sbds_json.dumps(block).encode()
     result = s3_resource.Object(bucket, key).put(
         Body=data, ContentEncoding='UTF-8', ContentType='application/json')
     return block, bucket, blocknum, key, result
@@ -52,7 +50,7 @@ def put_json_blocks(ctx, blocks):
     s3_resource = ctx.obj['s3_resource']
     bucket = ctx.obj['bucket']
     for block in blocks:
-        block = json.loads(block)
+        block = sbds.sbds_json.loads(block)
         # pylint: disable=unused-variable
         res_block, res_bucket, res_blocknum, res_key, s3_result = put_json_block(
             s3_resource, block, bucket)

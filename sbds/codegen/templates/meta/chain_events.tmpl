@@ -1,0 +1,27 @@
+# -*- coding: utf-8 -*-
+
+import itertools as it
+
+from sqlalchemy import Column
+from sqlalchemy import String
+from sqlalchemy.orm import relationship
+
+from sbds.storages.db.tables import Base
+
+
+
+class ChainEvent(Base):
+    """Steem Blockchain Event Meta Class
+
+    """
+
+    __tablename__ = 'sbds_meta_chain_events'
+
+    id = Column(BigInteger, primary_key=True)
+    timestamp = ()
+    block_num = Column(Integer)
+    transaction_num = ()
+    operation_num = ()
+    operation_id = ()
+    accounts = ()
+    operation_type = ()

@@ -5,20 +5,29 @@ import functools
 import json
 import os
 
+import aiohttp
 import aiopg.sa
 import structlog
 import uvloop
 
 from aiohttp import web
 
+
+from aiohttp.connector import TCPConnector
 from jsonrpcserver import config
 from jsonrpcserver.async_methods import AsyncMethods
 from sqlalchemy.engine.url import make_url
 
-from .methods.account_history_api.methods import get_ops_in_block
-from .methods.account_history_api.methods import get_account_history
+from .methods.account_history_api import get_ops_in_block
+from .methods.account_history_api import get_account_history
+from .methods.account_history import get_state
+
+from sbds_json import loads
+from sbds_json import dumps
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+MAX_CLIENT_TCP_CONNECTIONS = 100
 
 config.log_responses = False
 config.log_requests = False
@@ -28,17 +37,10 @@ logger = structlog.get_logger(__name__)
 # pylint: disable=redefined-outer-name
 
 
-def default_json(obj):
-    if isinstance(obj, datetime.datetime):
-        return str(obj)
-    raise TypeError('Unable to serialize {!r}'.format(obj))
+json_response = functools.partial(web.json_response, dumps=dumps)
 
 
-json_dumps = functools.partial(json.dumps, default=default_json)
-json_response = functools.partial(web.json_response, dumps=json_dumps)
-
-
-async def init_pg(app):
+async def pg(app):
     database_url = app['config']['database_url']
     database_extra = app['config'].get('database_extra', {})
     parsed_db_url = make_url(database_url)
@@ -52,6 +54,27 @@ async def init_pg(app):
     )
     engine = await aiopg.sa.create_engine(**database_kwargs, loop=app.loop)
     app['db'] = engine
+    yield
+    await app['db'].close()
+
+
+async def http_client(app):
+    connector = TCPConnector(loop=app.loop,
+                             limit=app['config']['http_client_max_tcp_conn'])
+    session = aiohttp.ClientSession(
+        skip_auto_headers=['User-Agent'],
+        loop=app.loop,
+        connector=connector,
+        json_serialize=dumps,
+        headers={'Content-Type': 'application/json'})
+    app['http'] = {
+        'session': session,
+        'url': app['config']['steemd_url'],
+        'timeout': app['config']['http_client_timeout']
+    }
+
+    yield
+    await app['http']['session'].close()
 
 
 async def handle_api(aiohttp_request):
@@ -99,10 +122,6 @@ async def healthcheck_handler(request):
     return web.json_response(await api_healthcheck(request))
 
 
-async def on_cleanup(app):
-    logger.info('executing on_cleanup signal handler')
-
-
 def run(host=None,
         port=None,
         database_url=None,
@@ -118,11 +137,12 @@ def run(host=None,
         app['config'].update(**kwargs)
     app['config']['database_url'] = database_url
     app['config']['database_extra'] = database_extra
-    app['db'] = None  # this will be defined by init_pg at app startup
+    app['db'] = None  # defined by pg at startup
+    app['http'] = None  # defined by http_client at startup
 
     # register app lifecycle callbacks
-    app.on_startup.append(init_pg)
-    app.on_cleanup.append(on_cleanup)
+    app.cleanup_ctx.append(pg)
+    app.cleanup_ctx.append(http_client)
 
     # register app routes
     app.router.add_post('/', handle_api)

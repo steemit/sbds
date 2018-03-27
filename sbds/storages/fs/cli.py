@@ -10,13 +10,14 @@ import structlog
 import hashlib
 
 from sbds.sbds_json import dumps
+from . import FileSystemStorage
 
 logger = structlog.get_logger(__name__)
 
 CHARS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
 
 
-def fetch(session, steemd_url, block_num, method):
+def fetch_from_chain(session, source_url, block_num, method):
     if method == 'get_block':
         jsonrpc_data = dict(id=block_num, jsonrpc='2.0', method=method,
                             params=[block_num])
@@ -25,7 +26,7 @@ def fetch(session, steemd_url, block_num, method):
                             params=[block_num, False])
     else:
         raise ValueError('unknown method %s' % method)
-    response = session.post(steemd_url, json=jsonrpc_data)
+    response = session.post(source_url, json=jsonrpc_data)
     response.raise_for_status()
     response_json = response.json()
     response_raw = response.content
@@ -46,35 +47,35 @@ def put(pathobj, data):
 
 
 @click.group(name='fs')
-@click.option('--path', type=click.Path(file_okay=False), default='blocks_data')
+@click.option('--uri',
+              type=click.STRING,
+              help='the uri for the storage path: "file:///<path>/"')
 @click.pass_context
-def fs(ctx, path):
+def fs(ctx, uri):
     """Interact with a filesystem storage backend"""
-    ctx.obj = dict(path=path)
+    fs = FileSystemStorage(uri=uri)
+    ctx.obj = dict(storage=fs)
 
 
 @fs.command('init')
 @click.pass_context
 def init(ctx):
     """Create path to store blocks"""
-    prefix_permutations = [f'{d0}{d1}{d2}' for d0 in CHARS for d1 in CHARS for d2 in CHARS]
-    base_path = ctx.obj['path']
-    if not os.path.exists(base_path):
-        os.mkdir(base_path)
-    for dir in prefix_permutations:
-        os.makedirs(os.path.join(base_path, dir[0:2], dir[2:4], dir[4:6]), exist_ok=True)
+    storage = ctx.obj['storage']
+    click.echo(f'initializing storage at {storage.uri}')
+    storage.init()
 
 
 @fs.command(name='put-blocks-and-ops')
-@click.argument('steemd_url', type=click.STRING, default='https://api.steemit.com')
-@click.option('--start', type=click.INT, default=1)
-@click.option('--end', type=click.INT, default=20000000)
+@click.argument('--source_uri', type=click.STRING, help='source URI where blocks are fetched')
+@click.option('--start_block', type=click.INT, default=1)
+@click.option('--end_block', type=click.INT, default=20000000)
 @click.option('--skip_existing', type=click.BOOL, default=True)
 @click.pass_context
-def put_blocks_and_ops(ctx, steemd_url, start, end, skip_existing):
+def put_blocks_and_ops(ctx, source_uri, start_block, end_block, skip_existing):
     session = requests.Session()
     base_path = ctx.obj['path']
-    for block_num in range(start, end + 1):
+    for block_num in range(start_block, end_block + 1):
         ops_key = None
         block_key = None
         try:
@@ -83,7 +84,7 @@ def put_blocks_and_ops(ctx, steemd_url, start, end, skip_existing):
                 logger.info('put blocks', block_num=block_num, key=block_key, exists=True)
                 continue
 
-            raw, block = fetch(session, steemd_url, block_num, 'get_block')
+            raw, block = fetch_from_chain(session, source_url, block_num, 'get_block')
             block = block['result']
             put(block_key, block)
             logger.info('put_blocks_and_ops', block_num=block_num, key=block_key)
@@ -93,8 +94,7 @@ def put_blocks_and_ops(ctx, steemd_url, start, end, skip_existing):
                 logger.info('put ops', block_num=block_num, key=ops_key,
                             exists=True)
                 continue
-            raw, ops = fetch(session, steemd_url, block_num, 'get_ops_in_block')
-
+            raw, ops = fetch_from_chain(session, source_url, block_num, 'get_ops_in_block')
             ops = ops['result']
             put(ops_key, ops)
             logger.info('put_blocks_and_ops', block_num=block_num, key=ops_key)
@@ -104,12 +104,12 @@ def put_blocks_and_ops(ctx, steemd_url, start, end, skip_existing):
 
 
 @fs.command(name='put-blocks')
-@click.argument('steemd_url', type=click.STRING, default='https://api.steemit.com')
+@click.argument('source_url', type=click.STRING, default='https://api.steemit.com')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=20000000)
 @click.option('--skip_existing', type=click.BOOL, default=True)
 @click.pass_context
-def put_blocks(ctx, steemd_url, start, end, skip_existing):
+def put_blocks(ctx, source_url, start, end, skip_existing):
     session = requests.Session()
     base_path = ctx.obj['path']
     for block_num in range(start, end + 1):
@@ -119,7 +119,7 @@ def put_blocks(ctx, steemd_url, start, end, skip_existing):
             if skip_existing and block_key.exists():
                 logger.info('put blocks', block_num=block_num, key=block_key, exists=True)
                 continue
-            raw, block = fetch(session, steemd_url, block_num, 'get_block')
+            raw, block = fetch_from_chain(session, source_url, block_num, 'get_block')
             block = block['result']
             put(block_key, block)
             logger.info('put_blocks', block_num=block_num, key=block_key)
@@ -129,12 +129,12 @@ def put_blocks(ctx, steemd_url, start, end, skip_existing):
 
 
 @fs.command(name='put-ops')
-@click.argument('steemd_url', type=click.STRING, default='https://api.steemit.com')
+@click.argument('source_url', type=click.STRING, default='https://api.steemit.com')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=20000000)
 @click.option('--skip_existing', type=click.BOOL, default=True)
 @click.pass_context
-def put_ops(ctx, steemd_url, start, end, skip_existing):
+def put_ops(ctx, source_url, start, end, skip_existing):
     session = requests.Session()
     base_path = ctx.obj['path']
     for block_num in range(start, end + 1):
@@ -145,7 +145,7 @@ def put_ops(ctx, steemd_url, start, end, skip_existing):
                 logger.info('put_ops', block_num=block_num, key=ops_key,
                             exists=True)
                 continue
-            raw, ops = fetch(session, steemd_url, block_num, 'get_ops_in_block')
+            raw, ops = fetch_from_chain(session, source_url, block_num, 'get_ops_in_block')
             ops = ops['result']
             put(ops_key, ops)
             logger.info('put ops', block_num=block_num, key=ops_key)
