@@ -227,7 +227,7 @@ async def get_existing_and_missing_count(engine, start_block, end_block):
     return existing_count, missing_count, range_count
 
 
-async def get_latest_db_block_num(engine):
+async def get_highest_db_block_num(engine):
     async with engine.acquire() as conn:
         last_block_num = await conn.scalar('SELECT MAX(block_num) from sbds_core_blocks')
     return last_block_num
@@ -239,28 +239,23 @@ async def get_last_irreversible_block_num(url, client):
     return jsonrpc_response['result']['last_irreversible_block_num']
 
 
-async def collect_missing_block_nums(engine, last_chain_block, missing_count, start_block=None, pbar=None):
-    BLOCKNUM_CHUNK_SEARCH_SIZE = 10_000
+async def collect_missing_block_nums(engine, end_block, missing_count, start_block=None, pbar=None):
     start_block = start_block or 1
-    complete_block_nums = range(start_block, last_chain_block + 1)
+    complete_block_nums = range(start_block, end_block + 1)
 
-    if missing_count == last_chain_block:
+    if missing_count == end_block:
         return complete_block_nums
-    missing_block_nums = set(complete_block_nums)
-    query = 'SELECT block_num from sbds_core_blocks WHERE block_num>=$1'
+
+    query = '''
+    SELECT generate_series($1::int,$2::int)
+    EXCEPT
+    SELECT block_num from sbds_core_blocks where block_num BETWEEN $3 AND $4;
+    '''
 
     async with engine.acquire() as conn:
-        async with conn.transaction():
-            cursor = await conn.cursor(query, start_block)
-            while True:
-                rows = await cursor.fetch(BLOCKNUM_CHUNK_SEARCH_SIZE)
-                if not rows:
-                    break
-                missing_block_nums.difference_update(set(b[0] for b in rows))
-                if pbar:
-                    pbar.update(BLOCKNUM_CHUNK_SEARCH_SIZE)
-    pbar.update(len(missing_block_nums))
-    return missing_block_nums
+        results = await conn.fetch(query, start_block, end_block, start_block, end_block)
+
+    return [r[0] for r in results]
 
 
 # --- Blocks ---
@@ -302,84 +297,6 @@ async def local_fetch_blocks_and_ops_in_blocks(local_path, block_nums):
     except Exception as e:
         logger.exception('error ly localfetching block and/or ops in block',
                          e=e, local_path=local_path)
-
-
-async def safe_store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
-    """Atomic add block,operations, and virtual operations in block
-
-
-
-    :param pool:
-    :param db_tables:
-    :param prepared_block:
-    :param prepared_ops:
-    :return:
-    """
-
-    raw_add_account_stmt = STATEMENT_CACHE['account']
-    raw_stmts = [(STATEMENT_CACHE['block'], prepared_block.values())]
-
-    # collect all account names referenced in block and ops
-    account_names_in_ops = extract_account_names(prepared_ops)
-    account_names_in_ops.add(prepared_block['witness'])
-    account_name_records = [(a,) for a in account_names_in_ops]
-
-    for prepared_op in prepared_ops:
-        raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
-
-    async with pool.acquire() as conn:
-        prepared_stmts = [await conn.prepare(stmt) for stmt, _ in raw_stmts]
-        add_acct_stmt = await conn.prepare(raw_add_account_stmt)
-
-        stmts = zip(prepared_stmts, (vals for _, vals in raw_stmts))
-        async with conn.transaction():
-            # add accounts first
-            await conn.executemany(raw_add_account_stmt, account_name_records)
-
-        async with conn.transaction():
-            # add block and ops
-            for i, stmt in enumerate(stmts):
-                query, args = stmt
-                while True:
-                    stmt_tr = conn.transaction()
-                    await stmt_tr.start()
-                    try:
-                        await query.fetchval(*args)
-                        await stmt_tr.commit()
-                        break
-                    except (asyncpg.exceptions.ForeignKeyViolationError) as e:
-                        await stmt_tr.rollback()
-                        if is_name_missing_from_accounts_error(e):
-                            missing_account_name = missing_account_name_from_error(
-                                e)
-                            stmt2_tr = conn.transaction()
-                            await stmt2_tr.start()
-                            await add_acct_stmt.fetchval(missing_account_name)
-                            await stmt2_tr.commit()
-                        else:
-                            if i == 0:
-                                prepared = prepared_block
-                            else:
-                                prepared = prepared_ops[i - 1]
-                            logger.exception('error storing block and ops',
-                                             e=e,
-                                             accts=account_names_in_ops,
-                                             prepared=prepared,
-                                             stmt=stmt)
-                            raise e
-                    except Exception as e:
-                        await stmt_tr.rollback()
-                        if i == 0:
-                            prepared = prepared_block
-                        else:
-                            prepared = prepared_ops[i - 1]
-                        logger.exception('error storing block and ops',
-                                         e=e,
-                                         accts=account_names_in_ops,
-                                         prepared=prepared,
-                                         stmt=stmt,
-                                         type=prepared.get('operation_type'))
-                        raise e
 
 
 async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
@@ -462,9 +379,9 @@ async def process_block_chunk(block_num_batch, url, client, engine, db_tables, b
     return await asyncio.wait(block_futures)
 
 
-async def process_blocks(missing_block_nums, url, client, pool, db_meta, blocks_pbar=None, ops_pbar=None):
-    CONCURRENCY_LIMIT = 5
-    BATCH_SIZE = 100
+async def process_blocks(missing_block_nums, url, client, pool, db_meta, concurrency, jsonrpc_batch_size, blocks_pbar=None, ops_pbar=None):
+    CONCURRENCY_LIMIT = concurrency
+    BATCH_SIZE = jsonrpc_batch_size
 
     db_tables = db_meta.tables
     block_num_batches = chunkify(missing_block_nums, BATCH_SIZE)
@@ -492,7 +409,7 @@ async def task_stream_blocks(engine, steemd_http_url, client):
     while True:
         tasks = [
             get_last_irreversible_block_num(steemd_http_url, client),
-            get_latest_db_block_num(engine)
+            get_highest_db_block_num(engine)
         ]
         done, pending = await asyncio.wait(tasks)
 
@@ -515,22 +432,26 @@ async def task_stream_blocks(engine, steemd_http_url, client):
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
     help='Steemd HTTP server URL')
-@click.option('--start_block', type=int, default=1)
-@click.option('--end_block', type=int, default=-1)
+@click.option('--start_block', type=click.INT, default=1)
+@click.option('--end_block', type=click.INT, default=-1)
 @click.option('--accounts_file', type=click.Path(dir_okay=False, exists=True))
+@click.option('--concurrency', type=click.INT, default=10)
+@click.option('--jsonrpc_batch_size', type=click.INT, default=500)
 def populate(database_url, legacy_database_url, steemd_http_url,
-             start_block, end_block, accounts_file):
+             start_block, end_block, accounts_file, concurrency, jsonrpc_batch_size):
     _populate(
         database_url,
         legacy_database_url,
         steemd_http_url,
         start_block,
         end_block,
-        accounts_file)
+        accounts_file,
+        concurrency,
+        jsonrpc_batch_size)
 
 
 def _populate(database_url, legacy_database_url, steemd_http_url,
-              start_block, end_block, accounts_file):
+              start_block, end_block, accounts_file, concurrency, jsonrpc_batch_size):
     CONNECTOR = TCPConnector(loop=loop, limit=100)
     AIOHTTP_SESSION = aiohttp.ClientSession(loop=loop,
                                             connector=CONNECTOR,
@@ -639,6 +560,8 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
                                                AIOHTTP_SESSION,
                                                pool,
                                                DB_META,
+                                               concurrency,
+                                               jsonrpc_batch_size,
                                                blocks_pbar=blocks_progress_bar,
                                                ops_pbar=ops_progress_bar))
 
@@ -681,6 +604,8 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
                                                AIOHTTP_SESSION,
                                                pool,
                                                DB_META,
+                                               concurrency,
+                                               jsonrpc_batch_size,
                                                blocks_pbar=blocks_progress_bar,
                                                ops_pbar=ops_progress_bar))
 

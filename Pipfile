@@ -1,11 +1,8 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 
-
 [dev-packages]
-
 "autopep8" = "*"
 "pep8" = "*"
 ipython = "*"
@@ -13,10 +10,6 @@ pytest = "*"
 pytest-console-scripts = "*"
 pytest-docker = "*"
 pytest-pylint = "*"
-recommonmark = "*"
-sphinx = "*"
-sphinxcontrib-programoutput = "*"
-sphinxcontrib-restbuilder = "*"
 yapf = "*"
 isort = "*"
 pre-commit = "*"
@@ -27,14 +20,12 @@ mypy = "*"
 python-rapidjson = "*"
 inflect = "*"
 awscli = "*"
-
+pytest-asyncio = "*"
 
 [packages]
-
 aiodns = "*"
 aiofiles = "*"
 aiohttp = "*"
-aiomysql = "*"
 certifi = "*"
 click = "*"
 click-spinner = "*"
@@ -42,17 +33,13 @@ cytoolz = "*"
 funcy = "*"
 janus = "*"
 jsonrpcserver = "*"
-langdetect = "*"
 maya = "*"
 mysqlclient = "*"
-pymysql = "*"
 python-json-logger = "*"
-rollbar = "*"
 sqlalchemy = "*"
 structlog = "*"
 toolz = "*"
 ujson = "*"
-"urllib3" = "*"
 uvloop = "*"
 "w3lib" = "*"
 jsonrpcclient = "*"
@@ -62,8 +49,6 @@ colorama = "*"
 tqdm = "*"
 python-dateutil = "*"
 requests = "*"
-ipython = "*"
-aiotask-context = "*"
 asyncpg = "*"
 "jinja2" = "*"
 sqlalchemy-utils = "*"
@@ -73,10 +58,7 @@ inflect = "*"
 "boto3" = "*"
 "psycopg2" = "*"
 furl = "*"
-zmq = "*"
 cchardet = "*"
 
-
 [requires]
-
 python_version = "3.6"

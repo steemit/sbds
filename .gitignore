@@ -118,3 +118,4 @@ build_dir
 *.sql.gz
 account_names.json
 blocks_data/
+.pytest_cache/

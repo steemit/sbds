@@ -58,10 +58,32 @@ VIRTUAL_OPERATIONS_SELECT_SQL = '''
     {% endfor -%};
 '''
 
+BLOCKS_VIEW_SQL = '''
+    SELECT sbds_core_blocks.block_num as block_num,
+           sbds_core_blocks.timestamp as timestamp,
+            {% for table_name in all_tables -%}
+            {% if 'virtual' in table_name %}
+            {{ table_name }}.transaction_num as {{ table_name }}_tx_num,
+            {{ table_name }}.operation_num as {{ table_name }}_op_num,
+            {{ table_name }}.id as {{ table_name }}_trx_id,
+             1 as {{ table_name }}_virtual,
+            {{ table_name }}.operation_type as {{ table_name }}_type{% if not loop.last %},{% endif -%}
+            {% else %}
+            {{ table_name }}.transaction_num as {{ table_name }}_tx_num,
+            {{ table_name }}.operation_num as {{ table_name }}_op_num,
+            {{ table_name }}.trx_id as {{ table_name }}_trx_id,
+            0 as {{ table_name }}_virtual,
+            {{ table_name }}.operation_type as {{ table_name }}_type{% if not loop.last %},{% endif -%}
+        {% endif -%}
+    {%- endfor -%}
+    FROM sbds_core_blocks
+    {% for table_name in all_tables -%}
+        JOIN {{ table_name }} USING(block_num)
+    {% endfor -%};
+'''
 
 def create_operations_view():
     from sbds.storages.db.tables import metadata
     operations_view = view('sbds_views_operations',metadata, OPERATIONS_SELECT_SQL)
 
 create_operations_view()
-

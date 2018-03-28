@@ -77,39 +77,37 @@ class AccountCreateOperation(Base):
     __table_args__ = (
         PrimaryKeyConstraint('block_num', 'transaction_num', 'operation_num'),
         ForeignKeyConstraint(['creator'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),
+                             deferrable=True, initially='DEFERRED', use_alter=True),
         ForeignKeyConstraint(['new_account_name'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),)
+                             deferrable=True, initially='DEFERRED', use_alter=True),)
 
-    
     block_num = Column(Integer, nullable=False, index=True)
     transaction_num = Column(SmallInteger, nullable=False, index=True)
     operation_num = Column(SmallInteger, nullable=False, index=True)
-    trx_id = Column(String(40),nullable=False)
+    trx_id = Column(String(40), nullable=False)
     timestamp = Column(DateTime(timezone=False))
-    fee = Column(Numeric(20,6), nullable=False) # steem_type:asset
-    fee_symbol = Column(String(5)) # steem_type:asset
-    creator = Column(String(16)) # steem_type:account_name_type
-    new_account_name = Column(String(16)) # steem_type:account_name_type
-    owner = Column(JSONB) # steem_type:authority
-    active = Column(JSONB) # steem_type:authority
-    posting = Column(JSONB) # steem_type:authority
-    memo_key = Column(String(60), nullable=False) # steem_type:public_key_type
-    json_metadata = Column(JSONB) # name:json_metadata
-    operation_type = Column(operation_types_enum,nullable=False,index=True,default='account_create')
-
+    fee = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
+    fee_symbol = Column(String(5))  # steem_type:asset
+    creator = Column(String(16))  # steem_type:account_name_type
+    new_account_name = Column(String(16))  # steem_type:account_name_type
+    owner = Column(JSONB)  # steem_type:authority
+    active = Column(JSONB)  # steem_type:authority
+    posting = Column(JSONB)  # steem_type:authority
+    memo_key = Column(String(60), nullable=False)  # steem_type:public_key_type
+    json_metadata = Column(JSONB)  # name:json_metadata
+    operation_type = Column(operation_types_enum, nullable=False, default='account_create')
 
     _fields = dict(
-        fee=lambda x: amount_field(x.get('fee'), num_func=float), # steem_type:asset
-        fee_symbol=lambda x: amount_symbol_field(x.get('fee')), # steem_type:asset
-        owner=lambda x:json_string_field(x.get('owner')), # steem_type:authority
-        active=lambda x: json_string_field(x.get('active')), # name:active
-        posting=lambda x: json_string_field(x.get('posting')), # name:posting
-        json_metadata=lambda x: json_string_field(x.get('json_metadata')), # name:json_metadata
-        
+        fee=lambda x: amount_field(x.get('fee'), num_func=float),  # steem_type:asset
+        fee_symbol=lambda x: amount_symbol_field(x.get('fee')),  # steem_type:asset
+        owner=lambda x: json_string_field(x.get('owner')),  # steem_type:authority
+        active=lambda x: json_string_field(x.get('active')),  # name:active
+        posting=lambda x: json_string_field(x.get('posting')),  # name:posting
+        json_metadata=lambda x: json_string_field(x.get('json_metadata')),  # name:json_metadata
+
     )
 
-    _account_fields = frozenset(['creator','new_account_name',])
+    _account_fields = frozenset(['creator', 'new_account_name', ])
 
     def dump(self):
         return dissoc(self.__dict__, '_sa_instance_state')

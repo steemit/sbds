@@ -1,23 +1,10 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 import asyncio
 
 import async_timeout
 
-from sbds_json import loads
-from sbds_json import dumps
-
-
-async def fetch(session, url, timeout, **kwargs):
-    async with async_timeout.timeout(timeout):
-        async with session.post(url, **kwargs) as response:
-            return await response.json()
-
-
-async def query_db(engine, query, **kwargs):
-    async with engine.acquire() as conn:
-        # FIXME
-        pass
+from sbds.sbds_json import loads
+from sbds.sbds_json import dumps
 
 
 async def get_dynamic_global_properties(session, url, timeout):

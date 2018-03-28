@@ -151,16 +151,13 @@ class Block(Base, UniqueMixin):
     __tablename__ = 'sbds_core_blocks'
 
     raw = Column(UnicodeText())
-    block_num = Column(
-        Integer, primary_key=True, autoincrement=False)
-    block_id = Column(String(40), default='0000000000000000000000000000000000000000')
+    block_num = Column(Integer, primary_key=True, autoincrement=False)
     previous = Column(String(50), nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
     witness = Column(String(16), ForeignKey("sbds_meta_accounts.name")
                      )  # steem_type:{account_name_type}'
     witness_signature = Column(String(150))
     transaction_merkle_root = Column(String(40))
-
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (self.block_num,

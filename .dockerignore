@@ -57,3 +57,4 @@ envfile
 Pipfile.lockdump.sql
 blocks.json
 build_dir
+.pytest_cache/

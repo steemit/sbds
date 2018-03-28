@@ -67,7 +67,7 @@ def init(ctx):
 
 
 @fs.command(name='put-blocks-and-ops')
-@click.argument('--source_uri', type=click.STRING, help='source URI where blocks are fetched')
+@click.argument('--source_uri', type=click.STRING)
 @click.option('--start_block', type=click.INT, default=1)
 @click.option('--end_block', type=click.INT, default=20000000)
 @click.option('--skip_existing', type=click.BOOL, default=True)

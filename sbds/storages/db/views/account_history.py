@@ -30,7 +30,7 @@ from .views import view
 
 def create_account_history_view():
     from sbds.storages.db.tables import metadata
-    accounts_view = view('sbds_views_accounts',metadata, '''
+    accounts_view = view('sbds_views_accounts', metadata, '''
     SELECT
         block_num,
         transaction_num,
@@ -914,6 +914,8 @@ def create_account_history_view():
         null as field4_name,
         null as field4_value
         FROM sbds_op_virtual_producer_rewards
-    
+
     ''')
-create_accounts_view()
+
+
+create_account_history_view()
