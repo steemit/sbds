@@ -11,6 +11,8 @@ from sqlalchemy import String
 from sqlalchemy import UnicodeText
 from sqlalchemy import ForeignKey
 from sqlalchemy import func
+from sqlalchemy import ARRAY
+from sqlalchemy import Index
 
 from toolz import dissoc
 
@@ -149,6 +151,12 @@ class Block(Base, UniqueMixin):
     """
     # pylint: enable=line-too-long
     __tablename__ = 'sbds_core_blocks'
+    __table_args__ = (
+        Index('ix_sbds_core_blocks_accounts', 'accounts',
+              postgresql_using='gin'),
+        Index('ix_sbds_core_blocks_op_types', 'op_types',
+              postgresql_using='gin')
+    )
 
     raw = Column(UnicodeText())
     block_num = Column(Integer, primary_key=True, autoincrement=False)
@@ -158,6 +166,8 @@ class Block(Base, UniqueMixin):
                      )  # steem_type:{account_name_type}'
     witness_signature = Column(String(150))
     transaction_merkle_root = Column(String(40))
+    accounts = Column(ARRAY(String(16)))
+    op_types = Column(ARRAY(String(30)))
 
     def __repr__(self):
         return "<Block(block_num='%s', timestamp='%s')>" % (self.block_num,

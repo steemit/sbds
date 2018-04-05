@@ -18,7 +18,7 @@ from sbds.utils import chunkify
 logger = structlog.get_logger(__name__)
 
 
-@click.group(short_help='Interact with an SQL storage backend')
+@click.group(name='db', short_help='Interact with an SQL storage backend')
 @click.option(
     '--database_url',
     type=str,
@@ -28,7 +28,7 @@ logger = structlog.get_logger(__name__)
 )
 @click.option('--echo', is_flag=True)
 @click.pass_context
-def db(ctx, database_url, echo):
+def cli(ctx, database_url, echo):
     """Interact with an SQL storage backend
         Typical usage would be reading blocks in JSON format from STDIN
         and then storing those blocks in the database:
@@ -55,7 +55,7 @@ def db(ctx, database_url, echo):
             Session=Session)
 
 
-@db.command()
+@cli.command()
 @click.pass_context
 def test(ctx):
     """Test connection to database"""
@@ -69,7 +69,7 @@ def test(ctx):
         ctx.exit(code=127)
 
 
-@db.command(name='insert-blocks')
+@cli.command(name='insert-blocks')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.pass_context
 def insert_blocks(ctx, blocks):
@@ -89,8 +89,7 @@ def insert_blocks(ctx, blocks):
         blocks, session, insert=True, merge_insert=False, insert_many=False)
 
 
-
-@db.command(name='bulk-add')
+@cli.command(name='bulk-add')
 @click.argument('blocks', type=click.File('r', encoding='utf8'), default='-')
 @click.option('--chunksize', type=click.INT, default=1000)
 @click.pass_context
@@ -118,7 +117,7 @@ def bulk_add_blocks(ctx, blocks, chunksize):
         session.close_all()
 
 
-@db.command(name='init')
+@cli.command(name='init')
 @click.pass_context
 def init_db_tables(ctx):
     """Create any missing tables on the database"""
@@ -128,7 +127,7 @@ def init_db_tables(ctx):
     init_tables(database_url, metadata)
 
 
-@db.command(name='reset')
+@cli.command(name='reset')
 @click.confirmation_option(
     prompt='Are you sure you want to drop and then create all db tables?')
 @click.pass_context
@@ -139,7 +138,7 @@ def reset_db_tables(ctx):
     reset_tables(database_url, metadata)
 
 
-@db.command(name='last-block')
+@cli.command(name='last-block')
 @click.pass_context
 def last_block(ctx):
     """Return the highest block stored in the database"""
@@ -157,7 +156,7 @@ def last_block(ctx):
     click.echo(Block.highest_block(session))
 
 
-@db.command(name='find-missing-blocks')
+@cli.command(name='find-missing-blocks')
 @click.option(
     '--url',
     metavar='STEEMD_HTTP_URL',
@@ -187,7 +186,7 @@ def find_missing_blocks(ctx, url):
             Block.find_missing(session, last_chain_block=last_chain_block)))
 
 
-@db.command(name='raw-sql')
+@cli.command(name='raw-sql')
 @click.argument('sql')
 @click.pass_context
 def raw_sql(ctx, sql):
@@ -202,5 +201,3 @@ def raw_sql(ctx, sql):
     with engine.connect() as conn:
         results = conn.execute(stmt).fetchall()
     click.echo(json.dumps(results))
-
-

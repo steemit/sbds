@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import dateutil.parser
 
-
+from funcy import flatten
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -15,6 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
+from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from toolz.dicttoolz import dissoc
 
@@ -43,58 +44,45 @@ class CommentOptionsOperation(Base):
       "extensions": []
     }
 
+
+
     """
 
     __tablename__ = 'sbds_op_comment_option'
     __table_args__ = (
         PrimaryKeyConstraint('block_num', 'transaction_num', 'operation_num'),
+
         ForeignKeyConstraint(['author'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),)
+                             deferrable=True, initially='DEFERRED', use_alter=True),
 
-    
-    block_num = Column(Integer, nullable=False, index=True)
-    transaction_num = Column(SmallInteger, nullable=False, index=True)
-    operation_num = Column(SmallInteger, nullable=False, index=True)
-    trx_id = Column(String(40),nullable=False)
-    timestamp = Column(DateTime(timezone=False))
-    author = Column(String(16)) # steem_type:account_name_type
-    permlink = Column(Unicode(256), index=True) # name:permlink
-    max_accepted_payout = Column(Numeric(20,6), nullable=False) # steem_type:asset
-    max_accepted_payout_symbol = Column(String(5)) # steem_type:asset
-    percent_steem_dollars = Column(Integer) # steem_type:uint16_t
-    allow_votes = Column(Boolean) # steem_type:bool
-    allow_curation_rewards = Column(Boolean) # steem_type:bool
-    extensions = Column(JSONB) # steem_type:steemit::protocol::comment_options_extensions_type
-    operation_type = Column(operation_types_enum,nullable=False,index=True,default='comment_options')
+        Index('ix_sbds_op_comment_option_accounts', 'accounts', postgresql_using='gin')
 
-
-    _fields = dict(
-        max_accepted_payout=lambda x: amount_field(x.get('max_accepted_payout'), num_func=float), # steem_type:asset
-        max_accepted_payout_symbol=lambda x: amount_symbol_field(x.get('max_accepted_payout')), # steem_type:asset
-        extensions=lambda x:json_string_field(x.get('extensions')), # steem_type:steemit::protocol::comment_options_extensions_type
-        
     )
 
-    _account_fields = frozenset(['author',])
+    block_num = Column(Integer, nullable=False)
+    transaction_num = Column(SmallInteger, nullable=False)
+    operation_num = Column(SmallInteger, nullable=False)
+    timestamp = Column(DateTime(timezone=False))
+    trx_id = Column(String(40), nullable=False)
+    accounts = Column(ARRAY(String(16)))
+    author = Column(String(16), nullable=True)  # steem_type:account_name_type
+    permlink = Column(Unicode(256), index=True)  # name:permlink
+    max_accepted_payout = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
+    max_accepted_payout_symbol = Column(String(5))  # steem_type:asset
+    percent_steem_dollars = Column(Integer)  # steem_type:uint16_t
+    allow_votes = Column(Boolean)  # steem_type:bool
+    allow_curation_rewards = Column(Boolean)  # steem_type:bool
+    extensions = Column(JSONB)  # steem_type:steemit::protocol::comment_options_extensions_type
+    operation_type = Column(operation_types_enum, nullable=False, default='comment_options')
 
-    def dump(self):
-        return dissoc(self.__dict__, '_sa_instance_state')
+    _fields = dict(
+        max_accepted_payout=lambda x: amount_field(
+            x.get('max_accepted_payout'), num_func=float),  # steem_type:asset
+        max_accepted_payout_symbol=lambda x: amount_symbol_field(
+            x.get('max_accepted_payout')),  # steem_type:asset
+        # steem_type:steemit::protocol::comment_options_extensions_type
+        extensions=lambda x: json_string_field(x.get('extensions')),
+        accounts=lambda x: tuple(flatten((x.get('author'),)))
+    )
 
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('json_metadata'), str) and decode_json:
-            data_dict['json_metadata'] = sbds.sbds_json.loads(
-                data_dict['json_metadata'])
-        return data_dict
-
-    def to_json(self):
-        data_dict = self.to_dict()
-        return sbds.sbds_json.dumps(data_dict)
-
-    def __repr__(self):
-        return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
-            self.__class__.__name__, self.block_num, self.transaction_num,
-            self.operation_num, tuple(self.dump().keys()))
-
-    def __str__(self):
-        return str(self.dump())
+    _account_fields = frozenset(['author', ])

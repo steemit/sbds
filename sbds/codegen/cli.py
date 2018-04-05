@@ -58,11 +58,11 @@ columns_map.update({
 fields_map = defaultdict(lambda: [])
 fields_map.update({
     'body': [f"body=lambda x: comment_body_field(x.get('body')), # name:body"],
-    'json_metadata':[f"json_metadata=lambda x: json_string_field(x.get('json_metadata')), # name:json_metadata"],
-    'json':[f"json=lambda x: json_string_field(x.get('json')), # name:json"],
-    'posting':[f"posting=lambda x: json_string_field(x.get('posting')), # name:posting"],
-    'active':[f"active=lambda x: json_string_field(x.get('active')), # name:active"],
-    'json_meta':[f"json_meta=lambda x: json_string_field(x.get('json_meta')), # name:json_meta"],
+    'json_metadata': [f"json_metadata=lambda x: json_string_field(x.get('json_metadata')), # name:json_metadata"],
+    'json': [f"json=lambda x: json_string_field(x.get('json')), # name:json"],
+    'posting': [f"posting=lambda x: json_string_field(x.get('posting')), # name:posting"],
+    'active': [f"active=lambda x: json_string_field(x.get('active')), # name:active"],
+    'json_meta': [f"json_meta=lambda x: json_string_field(x.get('json_meta')), # name:json_meta"],
 })
 
 
@@ -103,6 +103,7 @@ ACCOUNT_NAME_TYPES = {
     'account_name_type'
     'flat_set< account_name_type>',
 }
+
 
 def get_fields(name, _type):
 
@@ -283,12 +284,12 @@ def op_table_name(op_name):
 
 
 def iter_operation_classes(headers):
-    if not isinstance(headers, (list,tuple)):
+    if not isinstance(headers, (list, tuple)):
         headers = [headers]
     for header in headers:
-         for name, cls in header['classes'].items():
+        for name, cls in header['classes'].items():
             if 'operation' in name:
-                yield name,cls
+                yield name, cls
 
 
 def iter_properties_keys(cls, keys=None):
@@ -309,8 +310,8 @@ def op_columns(cls):
     return columns
 
 
-def is_account_name_reference(name,_type):
-    return _type == 'account_name_type'
+def is_account_name_reference(name, _type):
+    return _type in {'account_name_type', 'flat_set< account_name_type>'}
 
 
 def op_fields(cls):
@@ -331,7 +332,7 @@ def op_source(op_name, examples_path=None):
         with open(f'{examples_path}/{examples_path}.txt') as f:
             print(f'loading {op_name} source', file=sys.stderr)
             return f.read()
-    except:
+    except BaseException:
         return None
 
 
@@ -368,7 +369,7 @@ def operation_class_data(op_name, cls, cache_dir=None, refs=None):
     op_example = get_op_example(op_name, cache_dir=cache_dir)
     return dict(
         op_name=op_name,
-        op_short_name=op_name.replace('_operation',''),
+        op_short_name=op_name.replace('_operation', ''),
         op_class_name=op_class_name(cls),
         op_table_name=op_table_name(op_name),
         op_columns=op_columns(cls),
@@ -385,12 +386,12 @@ def _generate_account_refs(headers):
     refs = []
     block = {
         'name': 'block',
-        'short_name':'block',
+        'short_name': 'block',
         'class_name': 'Block',
         'table_name': 'sbds_core_blocks',
         'field_name': 'witness',
         'class_field_name': 'witness',
-        'ref_name':   'sbds_core_blocks.witness',
+        'ref_name': 'sbds_core_blocks.witness',
     }
     refs.append(block)
     for header in headers:
@@ -405,15 +406,15 @@ def _generate_account_refs(headers):
                 if not is_account_name_reference(name, _type):
                     continue
                 refs.append({
-                    'name':       op_name,
-                    'short_name': op_name.replace('_operation',''),
+                    'name': op_name,
+                    'short_name': op_name.replace('_operation', ''),
                     'class_name': op_class_name(cls),
                     'table_name': op_table_name(op_name),
-                    'columns':    get_columns(name, _type, op_name),
+                    'columns': get_columns(name, _type, op_name),
                     'field_name': name,
-                    'type':       _type,
+                    'type': _type,
                     'class_field_name': class_field_name,
-                    'ref_name':   f'{op_table_name(op_name)}.{name}'
+                    'ref_name': f'{op_table_name(op_name)}.{name}'
                 })
     return refs
 
@@ -426,32 +427,32 @@ def load_json_files_from_path(path):
     return [json.load(f) for f in load_files_from_path(path)]
 
 
-@click.group()
-def codegen():
+@click.group(name='codegen')
+def cli():
     """Generate code to build apps on the Steemit Blockchain"""
 
 
-@codegen.command(name='generate-account-class')
-@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
-                default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+@cli.command(name='generate-account-class')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
 def generate_account_class(headers_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
     refs = _generate_account_refs(header_files)
     grouped_refs = toolz.groupby('short_name', refs)
-    for name,ref_group in grouped_refs.items():
+    for name, ref_group in grouped_refs.items():
         grouped_refs[name] = frozenset(r['field_name'] for r in ref_group)
 
     env = Environment(loader=FileSystemLoader(templates_path))
-    template = env.get_template('meta/accounts.tmpl')
+    template = env.get_template('meta/account_class.tmpl')
     click.echo(template.render(refs=refs, grouped_refs=grouped_refs))
 
 
-@codegen.command(name='generate-accounts-view')
-@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
-                default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+@cli.command(name='generate-accounts-view')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
 def generate_accounts_view(headers_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
@@ -459,64 +460,73 @@ def generate_accounts_view(headers_path, templates_path):
 
     grouped_refs = toolz.groupby('table_name', refs)
     max_refs = max(len(refs) for refs in grouped_refs.values())
-    default_refs = lambda: [('null',f'field{i}_name','null',f'field{i}_value') for i in range(max_refs)]
+
+    def default_refs(): return [
+        ('null', f'field{i}_name', 'null', f'field{i}_value') for i in range(max_refs)]
     grouped_refs_fields = dict()
-    for table_name,table_refs in grouped_refs.items():
+    for table_name, table_refs in grouped_refs.items():
         if table_name == 'sbds_core_blocks':
             continue
         grouped_refs_fields[table_name] = default_refs()
-        for i,ref in enumerate(table_refs):
-            grouped_refs_fields[table_name][i] = (f"'{ref['field_name']}'",f'field{i}_name',f"{table_name}.{ref['field_name']}",f'field{i}_value')
+        for i, ref in enumerate(table_refs):
+            grouped_refs_fields[table_name][i] = (
+                f"'{ref['field_name']}'",
+                f'field{i}_name',
+                f"{table_name}.{ref['field_name']}",
+                f'field{i}_value')
 
     env = Environment(loader=FileSystemLoader(templates_path))
     template = env.get_template('views/accounts_view.tmpl')
     click.echo(template.render(grouped_refs=grouped_refs_fields))
 
 
-@codegen.command(name='generate-operations-view')
-@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
-                default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+@cli.command(name='generate-operations-view')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
 def generate_operations_view(headers_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
     operation_classes = iter_operation_classes(header_files)
 
-    all_tables = [op_table_name(op_name) for op_name,cls in operation_classes]
+    all_tables = [op_table_name(op_name) for op_name, cls in operation_classes]
     virtual_tables = [t for t in all_tables if 'virtual' in t]
     real_tables = [t for t in all_tables if 'virtual' not in t]
 
     env = Environment(loader=FileSystemLoader(templates_path))
     template = env.get_template('views/operations_view.tmpl')
-    click.echo(template.render(all_tables=all_tables,virtual_tables=virtual_tables,real_tables=real_tables))
+    click.echo(
+        template.render(
+            all_tables=all_tables,
+            virtual_tables=virtual_tables,
+            real_tables=real_tables))
 
 
-@codegen.command(name='generate-count-operations-view')
-@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
-                default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+@cli.command(name='generate-count-operations-view')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
 def generate_count_operations_view(headers_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
     operation_classes = iter_operation_classes(header_files)
-    all_tables = [op_table_name(op_name) for op_name,cls in operation_classes]
+    all_tables = [op_table_name(op_name) for op_name, cls in operation_classes]
     env = Environment(loader=FileSystemLoader(templates_path))
     template = env.get_template('views/op_counts_view.tmpl')
     click.echo(template.render(all_tables=all_tables))
 
 
-@codegen.command(name='generate-operation')
+@cli.command(name='generate-operation')
 @click.argument('op_name', type=click.STRING)
-@click.option('--headers_path', type=click.Path(exists=True,file_okay=False),
-                default=os.path.join(BASE_PATH, 'headers'))
-@click.option('--examples_path',type=click.Path(exists=True,file_okay=False),
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--examples_path', type=click.Path(exists=True, file_okay=False),
               default=EXAMPLES_PATH)
-@click.option('--templates_path', type=click.Path(exists=True,file_okay=False),
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
 def generate_operation(op_name, headers_path, examples_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
-    refs = toolz.groupby('name',_generate_account_refs(header_files))
-
+    refs = toolz.groupby('name', _generate_account_refs(header_files))
 
     if not op_name.endswith('_operation'):
         op_name = op_name + '_operation'
@@ -534,6 +544,3 @@ def generate_operation(op_name, headers_path, examples_path, templates_path):
     env = Environment(loader=FileSystemLoader(templates_path))
     template = env.get_template('operations/operation_class.tmpl')
     click.echo(template.render(**data), file=sys.stdout)
-
-
-

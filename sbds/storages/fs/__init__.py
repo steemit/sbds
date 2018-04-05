@@ -24,7 +24,15 @@ def key(block_num, name=None, base_path=None):
     return pathlib.PosixPath(*[part for part in (base_path,
                                                  block_num_sha[:2],
                                                  block_num_sha[2:4],
-                                                 block_num_sha[4:6],
+                                                 str(block_num),
+                                                 name) if part])
+
+
+def key2(block_num, name=None, base_path=None):
+    block_num_sha = str(block_num)
+    return pathlib.PosixPath(*[part for part in (base_path,
+                                                 block_num_sha[:2],
+                                                 block_num_sha[2:4],
                                                  str(block_num),
                                                  name) if part])
 
@@ -33,12 +41,7 @@ class FileSystemStorage(BaseStorage):
     def __init__(self, uri=None):
         super().__init__(uri=uri)
         assert self.uri.path.isabsolute
-        #assert self.uri.path.isdir
         self._base_path = pathlib.PosixPath(str(self.uri.path))
-
-    @property
-    def base_path(self):
-        return self._base_path
 
     def init(self):
         prefix_permutations = it.permutations(CHARS, 6)
@@ -47,7 +50,7 @@ class FileSystemStorage(BaseStorage):
             base_path.mkdir(parents=True)
         for perm in prefix_permutations:
             path = pathlib.PosixPath(
-                base_path, f'{perm[0]}{perm[1]}/{perm[2]}{perm[3]}/{perm[4]}{perm[5]}')
+                base_path, f'{perm[0]}{perm[1]}/{perm[2]}{perm[3]}')
             if not path.exists():
                 path.mkdir(parents=True)
 
@@ -57,49 +60,48 @@ class FileSystemStorage(BaseStorage):
                 'read': os.access(base_path.as_posix(), os.R_OK),
                 'write': os.access(base_path.as_posix(), os.W_OK)}
 
-    def __getitem__(self, key):
-        return loads(key.read_bytes())
+    def key(self, block_num, name):
+        return key(block_num=block_num, name=name, base_path=self.base_path)
 
-    def __setitem__(self, key, value):
+    def get(self, key):
+        try:
+            return loads(key.read_bytes())
+        except KeyError:
+            return None
+
+    def put(self, key, value, ignore_existing=True):
         key.write_bytes(dumps(value).encode())
 
-    def __contains__(self, key):
-        return key.exists()
+    def get_block(self, block_num):
+        return self.get(self.key(block_num, 'block.json'))
 
-    def __iter__(self):
-        for dir in self.__blocknum_dirs():
-            block_pth = pathlib.Path(dir, 'block.json')
-            if block_pth.exists():
-                yield block_pth.read_bytes()
-            ops_pth = pathlib.Path(dir, 'ops.json')
-            if ops_pth.exists():
-                yield ops_pth.read_bytes()
+    def get_ops(self, block_num):
+        return self.get(self.key(block_num, 'ops_in_block.json'))
 
-    def __len__(self):
-        return reduce(lambda x, y: x + len(y), self.__blocknum_dirs(), 0)
+    def get_block_and_ops(self, block_num):
+        base_key = key(block_num, base_path=self.base_path)
+        return (self.get(base_key.joinpath('block.json')),
+                self.get(base_key.joinpath('ops_in_block.json')))
 
-    def get(self, key, default=None):
-        'D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.'
-        try:
-            return self.__getitem__(key)
-        except KeyError:
-            return default
+    def put_block(self, block_num, block, skip_existing=True):
+        return self.put(self.key(block_num, 'block.json'), block)
 
-    def keys(self):
-        "D.keys() -> a set-like object providing a view on D's keys"
+    def put_ops(self, block_num, ops, skip_existing=True):
+        return self.put(self.key(block_num, 'ops_in_block.json'), ops)
 
-    def items(self):
-        "D.items() -> a set-like object providing a view on D's items"
-        pass
+    def put_block_and_ops(self, block_num, block, ops, skip_existing=True):
+        return all([
+            self.put_block(block_num, block),
+            self.put_ops(block_num, ops)])
 
-    def values(self):
-        "D.values() -> an object providing a view on D's values"
-        pass
+    @property
+    def base_path(self):
+        return self._base_path
 
     def __dirs(self):
-        prefix_permutations = it.permutations(CHARS, 6)
+        prefix_permutations = it.permutations(CHARS, 4)
         for perm in prefix_permutations:
-            yield pathlib.PosixPath(self.base_path, f'{perm[0]}{perm[1]}/{perm[2]}{perm[3]}/{perm[4]}{perm[5]}')
+            yield pathlib.PosixPath(self.base_path, f'{perm[0]}{perm[1]}/{perm[2]}{perm[3]}')
 
     def __blocknum_dirs(self):
         for dir in self.__dirs():
@@ -117,20 +119,3 @@ class FileSystemStorage(BaseStorage):
             ops_pth = pathlib.Path(dir, 'ops.json')
             if ops_pth.exists():
                 yield ops_pth
-
-    def clear(self):
-        raise NotImplementedError
-
-    def update(self):
-        raise NotImplementedError
-
-    def get_block(self, block_num):
-        return self.get(key(block_num, base_path=self.base_path, name='block.json'))
-
-    def get_ops(self, block_num):
-        return self.get(key(block_num, base_path=self.base_path, name='ops.json'))
-
-    def get_block_and_ops(self, block_num):
-        base_key = key(block_num, base_path=self.base_path)
-        return (self.get(base_key.joinpath('block.json')),
-                self.get(base_key.joinpath('ops.json')))

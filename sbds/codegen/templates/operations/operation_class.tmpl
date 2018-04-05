@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import dateutil.parser
 
-
+from funcy import flatten
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -15,7 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import Array
+from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from toolz.dicttoolz import dissoc
 
@@ -32,9 +32,9 @@ from ...{{op_rel_import_dot}}field_handlers import comment_body_field
 class {{op_class_name}}(Base):
     """
 
-    {% include '../blockchain_example.tmpl' %}
+    {% include 'blockchain_example.tmpl' %}
 
-    {% include '../cpp_source.tmpl' %}
+    {% include 'cpp_source.tmpl' %}
 
     """
 
@@ -44,8 +44,14 @@ class {{op_class_name}}(Base):
         PrimaryKeyConstraint('block_num', 'transaction_num', 'operation_num'),
         {%-  endif %}
         {%- for ref in refs %}
+            {%  if ref.type == 'account_name_type' %}
         ForeignKeyConstraint(['{{ ref.field_name }}'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),{% endfor -%}
+            deferrable=True, initially='DEFERRED', use_alter=True),
+            {% endif %}
+        {% endfor -%}
+        {%  if refs|length > 0 -%}
+        Index('ix_{{op_table_name}}_accounts','accounts',postgresql_using='gin')
+        {% endif %}
     )
 
     {% if 'virtual' in op_table_name -%}
@@ -54,8 +60,9 @@ class {{op_class_name}}(Base):
     block_num = Column(Integer, nullable=False)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
+    timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40),nullable=False)
-    accts = Column(Array(String(16))
+    accounts = Column(ARRAY(String(16)))
     {% for col in op_columns -%}
         {{col}}
     {% endfor -%}
@@ -65,29 +72,10 @@ class {{op_class_name}}(Base):
     _fields = dict(
         {% for field in op_fields -%}
             {{field}}
-        {% endfor %}
+        {% endfor -%}
+        {%  if refs|length > 0 -%}
+        accounts=lambda x:tuple(flatten(({% for ref in refs -%}x.get('{{ ref.field_name  }}'),{% endfor -%})))
+        {%  endif -%}
     )
 
     _account_fields = frozenset([{% for ref in refs %}'{{ ref.field_name }}',{% endfor %}])
-
-    def dump(self):
-        return dissoc(self.__dict__, '_sa_instance_state')
-
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('json_metadata'), str) and decode_json:
-            data_dict['json_metadata'] = sbds.sbds_json.loads(
-                data_dict['json_metadata'])
-        return data_dict
-
-    def to_json(self):
-        data_dict = self.to_dict()
-        return sbds.sbds_json.dumps(data_dict)
-
-    def __repr__(self):
-        return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
-            self.__class__.__name__, self.block_num, self.transaction_num,
-            self.operation_num, tuple(self.dump().keys()))
-
-    def __str__(self):
-        return str(self.dump())

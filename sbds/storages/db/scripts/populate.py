@@ -2,17 +2,15 @@
 import asyncio
 import itertools as it
 import os
-from functools import partial
+
 import aiopg.sa
 import asyncpg
 import click
 
-from asyncio import Queue
 
-import aiofiles
 import uvloop
 from tqdm import tqdm
-import psycopg2
+
 import funcy
 
 from sqlalchemy.engine.url import make_url
@@ -45,7 +43,7 @@ TOTAL_TASKS = 7
 
 STATEMENT_CACHE = {
     'account': 'INSERT INTO sbds_meta_accounts (name) VALUES($1) ON CONFLICT DO NOTHING',
-    'block': 'INSERT INTO sbds_core_blocks (raw, block_num, previous, timestamp, witness, witness_signature, transaction_merkle_root) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING'
+    'block': 'INSERT INTO sbds_core_blocks (raw, block_num, previous, timestamp, witness, witness_signature, transaction_merkle_root,accounts,op_types) VALUES ($1, $2, $3, $4, $5, $6, $7,$8,$9) ON CONFLICT DO NOTHING'
 }
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -144,33 +142,6 @@ def fmt_task_message(task_msg,
         total_tasks=total_tasks,
         task_emoji=_emoji,
         task_msg=task_msg)
-
-
-def get_account_names(url):
-    import requests
-    RequestsSession = requests.Session()
-    lower_bound_name = 'a'
-    limit = 1000
-    accts = list()
-    try:
-        while True:
-            resp = RequestsSession.post(
-                url,
-                json={
-                    'id': 1,
-                    'jsonrpc': '2.0',
-                    'method': 'lookup_accounts',
-                    'params': [
-                        lower_bound_name,
-                        limit]})
-            accounts_in_resp = resp.json()['result']
-            accts.extend(accounts_in_resp)
-            if lower_bound_name == accounts_in_resp[-1]:
-                break
-            lower_bound_name = accounts_in_resp[-1]
-    except Exception as e:
-        print(e)
-    return sorted(list(set(accts)))
 
 
 async def preload_account_names(pool, account_names):
@@ -281,24 +252,6 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
                              e=e, response=response)
 
 
-async def local_fetch_blocks_and_ops_in_blocks(local_path, block_nums):
-    try:
-        results = []
-        for block_num in block_nums:
-            with aiofiles.open(f'{local_path}/{block_num}/block.json') as f:
-                raw_block = await f.read()
-            with aiofiles.open(f'{local_path}/{block_num}/ops.json') as f:
-                raw_ops = await f.read()
-            block = json.loads(raw_block)
-            ops = json.loads(raw_ops)
-            results.append((block_num, block, ops))
-        assert len(results) == len(block_nums)
-        return results
-    except Exception as e:
-        logger.exception('error ly localfetching block and/or ops in block',
-                         e=e, local_path=local_path)
-
-
 async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     """Atomic add block,operations, and virtual operations in block
 
@@ -348,16 +301,13 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
 
 
 async def process_block(block_num, raw_block, raw_ops, pool, db_tables, blocks_pbar=None, ops_pbar=None):
-    prepared_futures = [prepare_raw_block_for_storage(raw_block, loop=loop)]
     if raw_ops:
-        prepared_futures.extend(prepare_raw_operation_for_storage(raw_op, loop=loop)
-                                for raw_op in raw_ops)
-    prepared = await asyncio.gather(*prepared_futures)
-    prepared_block = prepared[0]
-    if raw_ops:
-        prepared_ops = prepared[1:]
+        prepared_futures = [prepare_raw_operation_for_storage(raw_op, loop=loop)
+                            for raw_op in raw_ops]
+        prepared_ops = await asyncio.gather(*prepared_futures)
     else:
         prepared_ops = []
+    prepared_block = await prepare_raw_block_for_storage(raw_block, prepared_ops=prepared_ops, loop=loop)
     await store_block_and_ops(pool, db_tables, prepared_block, prepared_ops)
     blocks_pbar.update()
     if len(raw_ops) < 50:
@@ -425,7 +375,7 @@ async def task_stream_blocks(engine, steemd_http_url, client):
     '--legacy_database_url',
     type=str,
     envvar='LEGACY_DATABASE_URL',
-    help='Database connection URL in RFC-1738 format, read from "DATABASE_URL" ENV var by default'
+    help='Database connection URL in RFC-1738 format, read from "LEGACY_DATABASE_URL" ENV var by default'
 )
 @click.option(
     '--steemd_http_url',
@@ -435,8 +385,8 @@ async def task_stream_blocks(engine, steemd_http_url, client):
 @click.option('--start_block', type=click.INT, default=1)
 @click.option('--end_block', type=click.INT, default=-1)
 @click.option('--accounts_file', type=click.Path(dir_okay=False, exists=True))
-@click.option('--concurrency', type=click.INT, default=10)
-@click.option('--jsonrpc_batch_size', type=click.INT, default=500)
+@click.option('--concurrency', type=click.INT, default=5)
+@click.option('--jsonrpc_batch_size', type=click.INT, default=300)
 def populate(database_url, legacy_database_url, steemd_http_url,
              start_block, end_block, accounts_file, concurrency, jsonrpc_batch_size):
     _populate(
@@ -599,6 +549,7 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
                                 total=range_count * 50,
                                 dynamic_ncols=False,
                                 unit='    ops')
+
         loop.run_until_complete(process_blocks(missing_block_nums,
                                                steemd_http_url,
                                                AIOHTTP_SESSION,

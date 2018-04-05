@@ -172,29 +172,19 @@ README.rst: docs/src/README.rst
 	cd $(DOCS_DIR) && $(MAKE) README
 
 # --- CODEGEN -- #
-$(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
-	$(SBDS_BASE_CMD) codegen generate-class $(*F) \
+$(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
 	--examples_path $(EXAMPLES_PATH) > $@
 
-$(OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
-	$(SBDS_BASE_CMD) codegen generate-class $(*F) \
+
+sbds/storages/db/tables/operations/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
 	--examples_path $(EXAMPLES_PATH) > $@
 
-$(VIEW_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
-	$(SBDS_BASE_CMD) codegen generate-view $(*F) \
-	--templates_path $(TEMPLATES_PATH) \
-	--headers_path $(HEADERS_PATH) \
-	--examples_path $(EXAMPLES_PATH) > $@
-
-$(META_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
-	$(SBDS_BASE_CMD) codegen generate-meta $(*F) \
-	--templates_path $(TEMPLATES_PATH) \
-	--headers_path $(HEADERS_PATH) \
-	--examples_path $(EXAMPLES_PATH) > $@
 
 virtual-ops: $(VIRTUAL_OPERATION_PYTHON_FILES)
 ops: $(OPERATION_PYTHON_FILES)
@@ -216,9 +206,28 @@ build-ops: ops virtual-ops
 .PHONY: rebuild-ops
 rebuild-ops: remove-ops build-ops
 
-$(VIEWS_PATH)/%.py: $(TEMPLATES_PATH)/operation_class.tmpl
-	$(SBDS_BASE_CMD) codegen generate-view $(*F) \
-	--templates_path $(TEMPLATES_PATH) \
-	--headers_path $(HEADERS_PATH) \
-	--examples_path $(EXAMPLES_PATH) > $@
 
+
+.PHONY: debug-CODEGEN_PATH
+debug-CODEGEN_PATH:
+	echo $(CODEGEN_PATH)
+
+.PHONY: debug-OPERATIONS_PATH
+debug-OPERATIONS_PATH:
+	echo $(OPERATIONS_PATH)
+
+.PHONY: debug-OPERATION_NAMES
+debug-OPERATION_NAMES:
+	echo $(OPERATION_NAMES)
+
+.PHONY: debug-VIRTUAL-OPERATION_NAMES
+debug-VIRTUAL-OPERATION_NAMES:
+	echo $(VIRTUAL-OPERATION_NAMES)
+
+.PHONY: debug-OPERATION_PYTHON_FILES
+debug-OPERATION_PYTHON_FILES:
+	echo $(OPERATION_PYTHON_FILES)
+
+.PHONY: debug-VIRTUAL_OPERATION_PYTHON_FILES
+debug-VIRTUAL_OPERATION_PYTHON_FILES:
+	echo $(VIRTUAL_OPERATION_PYTHON_FILES)

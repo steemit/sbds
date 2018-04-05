@@ -12,7 +12,7 @@ logger = structlog.get_logger(__name__)
 @click.group(name='s3')
 @click.argument('bucket', type=click.STRING)
 @click.pass_context
-def s3(ctx, bucket):
+def cli(ctx, bucket):
     """Interact with an S3 storage backend"""
     ctx.obj = dict(
         bucket=bucket,
@@ -21,7 +21,7 @@ def s3(ctx, bucket):
         region='us-east-1')
 
 
-@s3.command('create-bucket')
+@cli.command('create-bucket')
 @click.pass_context
 def create_bucket(ctx):
     """Create S3 bucket to store blocks"""
@@ -42,7 +42,7 @@ def put_json_block(s3_resource, block, bucket):
     return block, bucket, blocknum, key, result
 
 
-@s3.command(name='put-blocks')
+@cli.command(name='put-blocks')
 @click.argument('blocks', type=click.File('r'))
 @click.pass_context
 def put_json_blocks(ctx, blocks):

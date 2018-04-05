@@ -2,18 +2,18 @@
 import click
 
 import structlog
-from .serve import run
+
 
 logger = structlog.get_logger(__name__)
 
 
 @click.group()
-def server():
+def cli():
     """HTTP server for answering DB queries"""
 
 
 # Development server
-@server.command(name='serve')
+@cli.command(name='serve')
 @click.option('--http_host',
               type=click.STRING,
               envvar='HTTP_HOST',
@@ -61,6 +61,7 @@ def server_command(http_host,
                    database_url,
                    steemd_http_url):
     """server"""
+    from sbds.server.serve import run
     run(http_host,
         http_port,
         http_client_max_tcp_conn=http_client_max_tcp_conn,

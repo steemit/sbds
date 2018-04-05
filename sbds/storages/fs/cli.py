@@ -9,8 +9,6 @@ import requests
 import structlog
 import hashlib
 
-from sbds.sbds_json import dumps
-from . import FileSystemStorage
 
 logger = structlog.get_logger(__name__)
 
@@ -42,6 +40,7 @@ def key(block_num, name, base_path):
 
 
 def put(pathobj, data):
+    from sbds.sbds_json import dumps
     pathobj.parent.mkdir(parents=True, exist_ok=True)
     pathobj.write_bytes(dumps(data).encode())
 
@@ -51,13 +50,15 @@ def put(pathobj, data):
               type=click.STRING,
               help='the uri for the storage path: "file:///<path>/"')
 @click.pass_context
-def fs(ctx, uri):
+def cli(ctx, uri):
     """Interact with a filesystem storage backend"""
+    from sbds.sbds_json import dumps
+    from . import FileSystemStorage
     fs = FileSystemStorage(uri=uri)
     ctx.obj = dict(storage=fs)
 
 
-@fs.command('init')
+@cli.command('init')
 @click.pass_context
 def init(ctx):
     """Create path to store blocks"""
@@ -66,7 +67,7 @@ def init(ctx):
     storage.init()
 
 
-@fs.command(name='put-blocks-and-ops')
+@cli.command(name='put-blocks-and-ops')
 @click.argument('--source_uri', type=click.STRING)
 @click.option('--start_block', type=click.INT, default=1)
 @click.option('--end_block', type=click.INT, default=20000000)
@@ -84,7 +85,7 @@ def put_blocks_and_ops(ctx, source_uri, start_block, end_block, skip_existing):
                 logger.info('put blocks', block_num=block_num, key=block_key, exists=True)
                 continue
 
-            raw, block = fetch_from_chain(session, source_url, block_num, 'get_block')
+            raw, block = fetch_from_chain(session, source_uri, block_num, 'get_block')
             block = block['result']
             put(block_key, block)
             logger.info('put_blocks_and_ops', block_num=block_num, key=block_key)
@@ -94,7 +95,7 @@ def put_blocks_and_ops(ctx, source_uri, start_block, end_block, skip_existing):
                 logger.info('put ops', block_num=block_num, key=ops_key,
                             exists=True)
                 continue
-            raw, ops = fetch_from_chain(session, source_url, block_num, 'get_ops_in_block')
+            raw, ops = fetch_from_chain(session, source_uri, block_num, 'get_ops_in_block')
             ops = ops['result']
             put(ops_key, ops)
             logger.info('put_blocks_and_ops', block_num=block_num, key=ops_key)
@@ -103,7 +104,7 @@ def put_blocks_and_ops(ctx, source_uri, start_block, end_block, skip_existing):
                          block_key=block_key, ops_key=ops_key)
 
 
-@fs.command(name='put-blocks')
+@cli.command(name='put-blocks')
 @click.argument('source_url', type=click.STRING, default='https://api.steemit.com')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=20000000)
@@ -128,7 +129,7 @@ def put_blocks(ctx, source_url, start, end, skip_existing):
             logger.error('put_blocks', error=e, block_num=block_num, key=block_key)
 
 
-@fs.command(name='put-ops')
+@cli.command(name='put-ops')
 @click.argument('source_url', type=click.STRING, default='https://api.steemit.com')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=20000000)

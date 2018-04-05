@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import dateutil.parser
 
-
+from funcy import flatten
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -15,6 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
+from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from toolz.dicttoolz import dissoc
 
@@ -33,49 +34,29 @@ class HardforkVirtualOperation(Base):
 
     Steem Blockchain Example
     ======================
-    
+
+
+
 
     """
 
     __tablename__ = 'sbds_op_virtual_hardforks'
     __table_args__ = (
-        )
+
+    )
 
     id = Column(Integer, primary_key=True)
-    
-    block_num = Column(Integer, nullable=False, index=True)
-    transaction_num = Column(SmallInteger, nullable=False, index=True)
-    operation_num = Column(SmallInteger, nullable=False, index=True)
-    trx_id = Column(String(40),nullable=False)
-    timestamp = Column(DateTime(timezone=False))
-    hardfork_id = Column(Numeric) # steem_type:uint32_t
-    operation_type = Column(operation_types_enum,nullable=False,index=True,default='hardfork')
 
+    block_num = Column(Integer, nullable=False)
+    transaction_num = Column(SmallInteger, nullable=False)
+    operation_num = Column(SmallInteger, nullable=False)
+    timestamp = Column(DateTime(timezone=False))
+    trx_id = Column(String(40), nullable=False)
+    accounts = Column(ARRAY(String(16)))
+    hardfork_id = Column(Numeric)  # steem_type:uint32_t
+    operation_type = Column(operation_types_enum, nullable=False, default='hardfork')
 
     _fields = dict(
-        
     )
 
     _account_fields = frozenset([])
-
-    def dump(self):
-        return dissoc(self.__dict__, '_sa_instance_state')
-
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('json_metadata'), str) and decode_json:
-            data_dict['json_metadata'] = sbds.sbds_json.loads(
-                data_dict['json_metadata'])
-        return data_dict
-
-    def to_json(self):
-        data_dict = self.to_dict()
-        return sbds.sbds_json.dumps(data_dict)
-
-    def __repr__(self):
-        return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
-            self.__class__.__name__, self.block_num, self.transaction_num,
-            self.operation_num, tuple(self.dump().keys()))
-
-    def __str__(self):
-        return str(self.dump())

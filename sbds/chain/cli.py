@@ -11,12 +11,12 @@ from sbds.utils import chunkify
 logger = structlog.get_logger(__name__)
 
 
-@click.group()
-def chain():
+@click.group(name='chain')
+def cli():
     """Query the Steem blockchain"""
 
 
-@chain.command(name='stream-blocks')
+@cli.command(name='stream-blocks')
 @click.option(
     '--url',
     metavar='STEEMD_HTTP_URL',
@@ -81,7 +81,7 @@ def _stream_blocks(rpc, block_nums):
         yield block
 
 
-@chain.command()
+@cli.command()
 @click.option(
     '--url',
     metavar='STEEMD_HTTP_URL',
@@ -92,7 +92,7 @@ def block_height(url):
     click.echo(rpc.last_irreversible_block_num())
 
 
-@chain.command(name='get-blocks')
+@cli.command(name='get-blocks')
 @click.option('--start', type=click.INT, default=1)
 @click.option('--end', type=click.INT, default=0)
 @click.option('--chunksize', type=click.INT, default=100)

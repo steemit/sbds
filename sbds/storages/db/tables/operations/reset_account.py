@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import dateutil.parser
 
-
+from funcy import flatten
 from sqlalchemy import DateTime
 from sqlalchemy import String
 from sqlalchemy import Column
@@ -15,6 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
+from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from toolz.dicttoolz import dissoc
 
@@ -33,55 +34,43 @@ class ResetAccountOperation(Base):
 
     Steem Blockchain Example
     ======================
-    
+
+
+
 
     """
 
     __tablename__ = 'sbds_op_reset_accounts'
     __table_args__ = (
         PrimaryKeyConstraint('block_num', 'transaction_num', 'operation_num'),
+
         ForeignKeyConstraint(['reset_account'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),
+                             deferrable=True, initially='DEFERRED', use_alter=True),
+
+
+
         ForeignKeyConstraint(['account_to_reset'], ['sbds_meta_accounts.name'],
-            deferrable=True, initially='DEFERRED', use_alter=True),)
+                             deferrable=True, initially='DEFERRED', use_alter=True),
 
-    
-    block_num = Column(Integer, nullable=False, index=True)
-    transaction_num = Column(SmallInteger, nullable=False, index=True)
-    operation_num = Column(SmallInteger, nullable=False, index=True)
-    trx_id = Column(String(40),nullable=False)
-    timestamp = Column(DateTime(timezone=False))
-    reset_account = Column(String(16)) # steem_type:account_name_type
-    account_to_reset = Column(String(16)) # steem_type:account_name_type
-    new_owner_authority = Column(JSONB) # steem_type:authority
-    operation_type = Column(operation_types_enum,nullable=False,index=True,default='reset_account')
+        Index('ix_sbds_op_reset_accounts_accounts', 'accounts', postgresql_using='gin')
 
-
-    _fields = dict(
-        new_owner_authority=lambda x:json_string_field(x.get('new_owner_authority')), # steem_type:authority
-        
     )
 
-    _account_fields = frozenset(['reset_account','account_to_reset',])
+    block_num = Column(Integer, nullable=False)
+    transaction_num = Column(SmallInteger, nullable=False)
+    operation_num = Column(SmallInteger, nullable=False)
+    timestamp = Column(DateTime(timezone=False))
+    trx_id = Column(String(40), nullable=False)
+    accounts = Column(ARRAY(String(16)))
+    reset_account = Column(String(16), nullable=True)  # steem_type:account_name_type
+    account_to_reset = Column(String(16), nullable=True)  # steem_type:account_name_type
+    new_owner_authority = Column(JSONB)  # steem_type:authority
+    operation_type = Column(operation_types_enum, nullable=False, default='reset_account')
 
-    def dump(self):
-        return dissoc(self.__dict__, '_sa_instance_state')
+    _fields = dict(
+        new_owner_authority=lambda x: json_string_field(
+            x.get('new_owner_authority')),  # steem_type:authority
+        accounts=lambda x: tuple(flatten((x.get('reset_account'), x.get('account_to_reset'),)))
+    )
 
-    def to_dict(self, decode_json=True):
-        data_dict = self.dump()
-        if isinstance(data_dict.get('json_metadata'), str) and decode_json:
-            data_dict['json_metadata'] = sbds.sbds_json.loads(
-                data_dict['json_metadata'])
-        return data_dict
-
-    def to_json(self):
-        data_dict = self.to_dict()
-        return sbds.sbds_json.dumps(data_dict)
-
-    def __repr__(self):
-        return "<%s (block_num:%s transaction_num: %s operation_num: %s keys: %s)>" % (
-            self.__class__.__name__, self.block_num, self.transaction_num,
-            self.operation_num, tuple(self.dump().keys()))
-
-    def __str__(self):
-        return str(self.dump())
+    _account_fields = frozenset(['reset_account', 'account_to_reset', ])
