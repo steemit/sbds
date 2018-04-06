@@ -267,11 +267,6 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
     raw_add_account_stmt = STATEMENT_CACHE['account']
     raw_stmts = [(STATEMENT_CACHE['block'], prepared_block.values())]
 
-    # collect all account names referenced in block and ops
-    #account_names_in_ops = extract_account_names(prepared_ops)
-    # account_names_in_ops.add(prepared_block['witness'])
-    #account_name_records = [(a,) for a in account_names_in_ops ]
-
     for prepared_op in prepared_ops:
         raw_stmts.append((get_op_insert_stmt(prepared_op, db_tables), prepared_op.values()))
 
@@ -279,25 +274,38 @@ async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):
         prepared_stmts = [await conn.prepare(stmt) for stmt, _ in raw_stmts]
         stmts = zip(prepared_stmts, (vals for _, vals in raw_stmts))
 
-        async with conn.transaction():
-            # await conn.executemany(raw_add_account_stmt, account_name_records)
-            # add block and ops
-            for i, stmt in enumerate(stmts):
-                query, args = stmt
-                try:
-                    await query.fetchval(*args)
-                except Exception as e:
-                    if i == 0:
-                        prepared = prepared_block
-                    else:
-                        prepared = prepared_ops[i - 1]
-                    logger.exception('error storing block and ops',
-                                     e=e,
-                                     # accts=account_names_in_ops,
-                                     prepared=prepared,
-                                     stmt=stmt,
-                                     type=prepared.get('operation_type'))
-                    raise e
+        try:
+            async with conn.transaction():
+                # add block and ops
+                for i, stmt in enumerate(stmts):
+                    query, args = stmt
+                    try:
+                        await query.fetchval(*args)
+                    except Exception as e:
+                        if i == 0:
+                            prepared = prepared_block
+                        else:
+                            prepared = prepared_ops[i - 1]
+                        logger.exception('error storing block and ops',
+                                         e=e,
+                                         prepared=prepared,
+                                         stmt=stmt,
+                                         type=prepared.get('operation_type'))
+                        raise e
+        except (asyncpg.exceptions.ForeignKeyViolationError) as e:
+            async with conn.transaction():
+                # collect all account names referenced in block and ops
+                account_name_records = [(a,) for a in prepared_block['accounts']]
+                await conn.executemany(raw_add_account_stmt, account_name_records)
+                for i, stmt in enumerate(stmts):
+                    query, args = stmt
+                    try:
+                        await query.fetchval(*args)
+                        return
+                    except Exception as e:
+                        logger.exception('second error while storing block and ops',
+                                         e=e, stmt=stmt, prepared_block=prepared_block)
+                        raise e
 
 
 async def process_block(block_num, raw_block, raw_ops, pool, db_tables, blocks_pbar=None, ops_pbar=None):
