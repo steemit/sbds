@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -56,7 +54,9 @@ class ReportOverProductionOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     reporter = Column(String(16), nullable=True)  # steem_type:account_name_type
     first_block = Column(JSONB)  # steem_type:signed_block_header
     second_block = Column(JSONB)  # steem_type:signed_block_header
@@ -67,7 +67,8 @@ class ReportOverProductionOperation(Base):
             x.get('first_block')),  # steem_type:signed_block_header
         second_block=lambda x: json_string_field(
             x.get('second_block')),  # steem_type:signed_block_header
-        accounts=lambda x: tuple(flatten((x.get('reporter'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('reporter'),))) if acct])
     )
 
     _account_fields = frozenset(['reporter', ])

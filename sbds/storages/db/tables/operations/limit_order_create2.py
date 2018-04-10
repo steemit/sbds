@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -56,7 +54,9 @@ class LimitOrderCreate2Operation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     owner = Column(String(16), nullable=True)  # steem_type:account_name_type
     orderid = Column(Numeric)  # steem_type:uint32_t
     amount_to_sell = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
@@ -74,7 +74,8 @@ class LimitOrderCreate2Operation(Base):
         exchange_rate=lambda x: json_string_field(x.get('exchange_rate')),  # steem_type:price
         expiration=lambda x: dateutil.parser.parse(
             x.get('expiration')),  # steem_type:time_point_sec
-        accounts=lambda x: tuple(flatten((x.get('owner'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('owner'),))) if acct])
     )
 
     _account_fields = frozenset(['owner', ])

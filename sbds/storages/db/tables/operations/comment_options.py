@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -64,7 +62,9 @@ class CommentOptionsOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     author = Column(String(16), nullable=True)  # steem_type:account_name_type
     permlink = Column(Unicode(256), index=True)  # name:permlink
     max_accepted_payout = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
@@ -82,7 +82,8 @@ class CommentOptionsOperation(Base):
             x.get('max_accepted_payout')),  # steem_type:asset
         # steem_type:steemit::protocol::comment_options_extensions_type
         extensions=lambda x: json_string_field(x.get('extensions')),
-        accounts=lambda x: tuple(flatten((x.get('author'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('author'),))) if acct])
     )
 
     _account_fields = frozenset(['author', ])

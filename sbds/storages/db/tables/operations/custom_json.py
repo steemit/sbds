@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -62,7 +60,9 @@ class CustomJsonOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     required_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
     required_posting_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
     id = Column(UnicodeText)  # steem_type:string -> default
@@ -77,11 +77,8 @@ class CustomJsonOperation(Base):
             x.get('required_posting_auths')),
         # steem_type:flat_set< account_name_type>
         json=lambda x: json_string_field(x.get('json')),  # name:json
-        accounts=lambda x: tuple(
-            flatten(
-                (x.get('required_auths'),
-                 x.get('required_posting_auths'),
-                 )))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('required_auths'), x.get('required_posting_auths'),))) if acct])
     )
 
     _account_fields = frozenset(['required_auths', 'required_posting_auths', ])

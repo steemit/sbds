@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import asyncio
 import concurrent.futures
 
@@ -36,8 +35,8 @@ async def prepare_raw_block_for_storage(raw_block, prepared_ops=None, loop=None,
         witness=block_dict['witness'],
         witness_signature=block_dict['witness_signature'],
         transaction_merkle_root=block_dict['transaction_merkle_root'],
-        accounts=accounts,
-        op_types=tuple(set(op['operation_type'] for op in prepared_ops))
+        accounts=sbds.sbds_json.dumps(list(accounts)),
+        op_types=sbds.sbds_json.dumps(list(set(op['operation_type'] for op in prepared_ops)))
     )
 
 
@@ -79,6 +78,7 @@ async def load_raw_block(raw_block, loop=None, executor=EXECUTOR):
 
 
 async def prepare_raw_operation_for_storage(raw_operation, loop=None, executor=EXECUTOR):
+    data = raw_operation['op'][1]
     op_dict = {
         'block_num': raw_operation['block'],
         'transaction_num': raw_operation['trx_in_block'],
@@ -86,14 +86,13 @@ async def prepare_raw_operation_for_storage(raw_operation, loop=None, executor=E
         'timestamp': ciso8601.parse_datetime(raw_operation['timestamp']),
         'trx_id': raw_operation['trx_id'],
         'operation_type': raw_operation['op'][0],
-        'data': raw_operation['op'][1]
+        'raw': sbds.sbds_json.dumps(raw_operation['op'][1])
     }
     op_cls = op_class_for_type(op_dict['operation_type'])
     _fields = op_cls._fields
-    prepared_fields = await loop.run_in_executor(executor, prepare_op_class_fields, op_dict['data'], _fields)
+    prepared_fields = await loop.run_in_executor(executor, prepare_op_class_fields, data, _fields)
     op_dict.update(prepared_fields)
-    op_dict.update({k: v for k, v in op_dict['data'].items() if k not in prepared_fields})
-    del op_dict['data']
+    op_dict.update({k: v for k, v in data.items() if k not in prepared_fields})
     return op_dict
 
 

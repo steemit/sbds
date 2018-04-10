@@ -1,28 +1,18 @@
 # -*- coding: utf-8 -*-
-from functools import partial
-
-import sqlalchemy.dialects
 
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
-from sqlalchemy import SmallInteger
 from sqlalchemy import String
-from sqlalchemy import UnicodeText
 from sqlalchemy import ForeignKey
-from sqlalchemy import func
-from sqlalchemy import ARRAY
 from sqlalchemy import Index
+from sqlalchemy.dialects.postgresql import JSONB
 
-from toolz import dissoc
 
-import sbds.sbds_json
 from sbds.storages.db.tables import Base
-from sbds.storages.db.tables.core import prepare_raw_block
-from sbds.storages.db.utils import UniqueMixin
 
 
-class Block(Base, UniqueMixin):
+class Block(Base):
     """Steem Block class
 
     {
@@ -153,12 +143,14 @@ class Block(Base, UniqueMixin):
     __tablename__ = 'sbds_core_blocks'
     __table_args__ = (
         Index('ix_sbds_core_blocks_accounts', 'accounts',
-              postgresql_using='gin'),
+              postgresql_using='gin',
+              ),
         Index('ix_sbds_core_blocks_op_types', 'op_types',
-              postgresql_using='gin')
+              postgresql_using='gin',
+              )
     )
 
-    raw = Column(UnicodeText())
+    raw = Column(JSONB)
     block_num = Column(Integer, primary_key=True, autoincrement=False)
     previous = Column(String(50), nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
@@ -166,104 +158,5 @@ class Block(Base, UniqueMixin):
                      )  # steem_type:{account_name_type}'
     witness_signature = Column(String(150))
     transaction_merkle_root = Column(String(40))
-    accounts = Column(ARRAY(String(16)))
-    op_types = Column(ARRAY(String(30)))
-
-    def __repr__(self):
-        return "<Block(block_num='%s', timestamp='%s')>" % (self.block_num,
-                                                            self.timestamp)
-
-    def dump(self):
-        return dissoc(self.__dict__, '_sa_instance_state')
-
-    def to_dict(self, include_raw=False):
-        data = self.dump()
-        if not include_raw:
-            return dissoc(data, 'raw')
-
-        return data
-
-    def to_json(self):
-        return sbds.sbds_json.dumps(self.to_dict())
-
-    @classmethod
-    def _prepare_for_storage(cls, raw_block):
-        """
-        Convert raw block to dict formatted for storage.
-
-        Args:
-            raw_block (Union[Dict[str, str], Dict[str, List]]):
-
-        Returns:
-            Union[Dict[str, str], Dict[str, int]]:
-        """
-        block = prepare_raw_block(raw_block)
-        return dict(
-            raw=block['raw'],
-            block_num=block['block_num'],
-            previous=block['previous'],
-            timestamp=block['timestamp'],
-            witness=block['witness'],
-            witness_signature=block['witness_signature'],
-            transaction_merkle_root=block['transaction_merkle_root'])
-
-    @classmethod
-    def get_or_create_from_raw_block(cls, raw_block, session=None):
-        """
-        Return Block instance from raw block, creating if necessary.
-
-        Args:
-            raw_block (Dict[str, str]):
-            session (sqlalchemy.orm.session.Session):
-
-        Returns:
-            sbds.storages.db.tables.core.Block:
-        """
-        prepared = cls._prepare_for_storage(raw_block)
-        return cls.as_unique(session, **prepared)
-
-    @classmethod
-    def from_raw_block(cls, raw_block):
-        """
-        Instantiate Block from raw block.
-
-        Args:
-            raw_block (Union[Dict[str, str], Dict[str, List]]):
-
-        Returns:
-            sbds.storages.db.tables.core.Block:
-        """
-        prepared = cls._prepare_for_storage(raw_block)
-        return cls(**prepared)
-
-    # pylint: disable=unused-argument
-    @classmethod
-    def unique_hash(cls, *args, **kwargs):
-        return kwargs['block_num']
-
-    @classmethod
-    def unique_filter(cls, query, *args, **kwargs):
-        return query.filter(cls.block_num == kwargs['block_num'])
-
-    # pylint: enable=unused-argument
-
-    @classmethod
-    def highest_block(cls, session):
-        """
-        Return integer result of MAX(block_num) db query.
-
-        This does not have the same meaning as last irreversible block, ie, it
-        makes no claim that the all blocks lower than the MAX(block_num) exist
-        in the database.
-
-        Args:
-            session (sqlalchemy.orm.session.Session):
-
-        Returns:
-            int:
-        """
-        highest = session.query(func.max(cls.block_num)).scalar()
-        if not highest:
-            return 0
-
-        return highest
+    accounts = Column(JSONB)
+    op_types = Column(JSONB)

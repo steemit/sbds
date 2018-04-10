@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -66,7 +64,9 @@ class SetWithdrawVestingRouteOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     from_account = Column(String(16), nullable=True)  # steem_type:account_name_type
     to_account = Column(String(16), nullable=True)  # steem_type:account_name_type
     percent = Column(Integer)  # steem_type:uint16_t
@@ -77,7 +77,8 @@ class SetWithdrawVestingRouteOperation(Base):
         default='set_withdraw_vesting_route')
 
     _fields = dict(
-        accounts=lambda x: tuple(flatten((x.get('from_account'), x.get('to_account'),)))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('from_account'), x.get('to_account'),))) if acct])
     )
 
     _account_fields = frozenset(['from_account', 'to_account', ])

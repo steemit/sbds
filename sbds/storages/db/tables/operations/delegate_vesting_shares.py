@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -65,7 +63,9 @@ class DelegateVestingSharesOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     delegator = Column(String(16), nullable=True)  # steem_type:account_name_type
     delegatee = Column(String(16), nullable=True)  # steem_type:account_name_type
     vesting_shares = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
@@ -77,7 +77,8 @@ class DelegateVestingSharesOperation(Base):
             x.get('vesting_shares'), num_func=float),  # steem_type:asset
         vesting_shares_symbol=lambda x: amount_symbol_field(
             x.get('vesting_shares')),  # steem_type:asset
-        accounts=lambda x: tuple(flatten((x.get('delegator'), x.get('delegatee'),)))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('delegator'), x.get('delegatee'),))) if acct])
     )
 
     _account_fields = frozenset(['delegator', 'delegatee', ])

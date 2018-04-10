@@ -461,8 +461,9 @@ def generate_accounts_view(headers_path, templates_path):
     grouped_refs = toolz.groupby('table_name', refs)
     max_refs = max(len(refs) for refs in grouped_refs.values())
 
-    def default_refs(): return [
-        ('null', f'field{i}_name', 'null', f'field{i}_value') for i in range(max_refs)]
+    def default_refs():
+        return [('null', f'field{i}_name', 'null', f'field{i}_value') for i in range(max_refs)]
+
     grouped_refs_fields = dict()
     for table_name, table_refs in grouped_refs.items():
         if table_name == 'sbds_core_blocks':
@@ -476,7 +477,7 @@ def generate_accounts_view(headers_path, templates_path):
                 f'field{i}_value')
 
     env = Environment(loader=FileSystemLoader(templates_path))
-    template = env.get_template('views/accounts_view.tmpl')
+    template = env.get_template('views/account_history_view.tmpl')
     click.echo(template.render(grouped_refs=grouped_refs_fields))
 
 

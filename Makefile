@@ -172,14 +172,20 @@ README.rst: docs/src/README.rst
 	cd $(DOCS_DIR) && $(MAKE) README
 
 # --- CODEGEN -- #
-$(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
+$(OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
 	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
 	--examples_path $(EXAMPLES_PATH) > $@
 
 
-sbds/storages/db/tables/operations/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
+$(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) \
+	--examples_path $(EXAMPLES_PATH) > $@
+
+$(VIEWS_PATH)/%.py: $(TEMPLATES_PATH)/views/account_history_view.tmpl
 	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
@@ -205,8 +211,6 @@ build-ops: ops virtual-ops
 
 .PHONY: rebuild-ops
 rebuild-ops: remove-ops build-ops
-
-
 
 .PHONY: debug-CODEGEN_PATH
 debug-CODEGEN_PATH:

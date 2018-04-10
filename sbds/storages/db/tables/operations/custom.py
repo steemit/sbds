@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -59,7 +57,9 @@ class CustomOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     required_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
     id = Column(Integer)  # steem_type:uint16_t
     data = Column(String(100))  # steem_type:vector< char>
@@ -69,7 +69,8 @@ class CustomOperation(Base):
         required_auths=lambda x: json_string_field(
             x.get('required_auths')),
         # steem_type:flat_set< account_name_type>
-        accounts=lambda x: tuple(flatten((x.get('required_auths'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('required_auths'),))) if acct])
     )
 
     _account_fields = frozenset(['required_auths', ])

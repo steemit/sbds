@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -59,7 +57,9 @@ class CancelTransferFromSavingsOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     _from = Column('from', String(16))  # name:from
     request_id = Column(Numeric)  # steem_type:uint32_t
     operation_type = Column(
@@ -68,7 +68,8 @@ class CancelTransferFromSavingsOperation(Base):
         default='cancel_transfer_from_savings')
 
     _fields = dict(
-        accounts=lambda x: tuple(flatten((x.get('from'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('from'),))) if acct])
     )
 
     _account_fields = frozenset(['from', ])

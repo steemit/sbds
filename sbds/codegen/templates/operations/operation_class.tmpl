@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -62,7 +60,9 @@ class {{op_class_name}}(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40),nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     {% for col in op_columns -%}
         {{col}}
     {% endfor -%}
@@ -74,7 +74,7 @@ class {{op_class_name}}(Base):
             {{field}}
         {% endfor -%}
         {%  if refs|length > 0 -%}
-        accounts=lambda x:tuple(flatten(({% for ref in refs -%}x.get('{{ ref.field_name  }}'),{% endfor -%})))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(flatten(({% for ref in refs -%}x.get('{{ ref.field_name  }}'),{% endfor -%}))) if acct])
         {%  endif -%}
     )
 

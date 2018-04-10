@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -71,7 +69,9 @@ class PowOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     worker_account = Column(String(16), nullable=True)  # steem_type:account_name_type
     block_id = Column(String(40))  # steem_type:block_id_type
     nonce = Column(Numeric)  # steem_type:uint64_t
@@ -82,7 +82,8 @@ class PowOperation(Base):
     _fields = dict(
         work=lambda x: json_string_field(x.get('work')),  # steem_type:pow
         props=lambda x: json_string_field(x.get('props')),  # steem_type:chain_properties
-        accounts=lambda x: tuple(flatten((x.get('worker_account'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('worker_account'),))) if acct])
     )
 
     _account_fields = frozenset(['worker_account', ])

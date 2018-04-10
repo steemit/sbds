@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -75,7 +73,9 @@ class RequestAccountRecoveryOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     recovery_account = Column(String(16), nullable=True)  # steem_type:account_name_type
     account_to_recover = Column(String(16), nullable=True)  # steem_type:account_name_type
     new_owner_authority = Column(JSONB)  # steem_type:authority
@@ -89,7 +89,8 @@ class RequestAccountRecoveryOperation(Base):
         new_owner_authority=lambda x: json_string_field(
             x.get('new_owner_authority')),  # steem_type:authority
         extensions=lambda x: json_string_field(x.get('extensions')),  # steem_type:extensions_type
-        accounts=lambda x: tuple(flatten((x.get('recovery_account'), x.get('account_to_recover'),)))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('recovery_account'), x.get('account_to_recover'),))) if acct])
     )
 
     _account_fields = frozenset(['recovery_account', 'account_to_recover', ])

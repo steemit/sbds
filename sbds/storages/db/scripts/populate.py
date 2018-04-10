@@ -237,19 +237,24 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
     request_json = f'[{request_data}]'.encode()
     response = 'n/a'
     while True:
+        get_block, get_ops = None, None
         try:
             response = await client.post(url, data=request_json)
+            response.raise_for_status()
             jsonrpc_response = await response.json()
+            if not isinstance(request_json, list):
+                raise ValueError(f'Bad JSONRPC response: {jsonrpc_response}')
             response_pairs = funcy.partition(2, jsonrpc_response)
             results = []
             for get_block, get_ops in response_pairs:
-                assert get_block['id'] == get_ops['id']
+                assert get_block['id'] == int(
+                    get_ops['id']), f"{get_block['id']} != f{int(get_ops['id'])}"
                 results.append((get_block['id'], get_block['result'], get_ops['result']))
             assert len(results) == len(block_nums)
             return results
         except Exception as e:
             logger.exception('error fetching ops in block',
-                             e=e, response=response)
+                             e=e, response=response, block=get_block, ops=get_ops)
 
 
 async def store_block_and_ops(pool, db_tables, prepared_block, prepared_ops):

@@ -72,23 +72,52 @@ from .views import view
 
 '''
 
-def create_account_history_view():
-    from sbds.storages.db.tables import metadata
-    accounts_view = view('sbds_views_accounts',metadata, '''
+
+ALL_OPERATIONS_SQL = '''
+    CREATE VIEW sbds_all_ops_view AS
     {% for table_name,fields in grouped_refs.items() -%}
     SELECT
         block_num,
         transaction_num,
         operation_num,
         operation_type,
-        {% for col_name_value,col_name_name,col_field_value,col_field in fields -%}
-        {{ col_name_value }} as {{ col_name_name }},
-        {{ col_field_value }} as {{ col_field }}{% if not loop.last %},{% endif %}
-        {%  endfor -%}
+        accounts,
+        raw
     FROM {{ table_name }}
     {% if not loop.last %}UNION ALL{% endif %}
     {% endfor -%}
-    ''')
+'''
 
-create_accounts_view()
+REAL_OPERATIONS_SQL = '''
+    CREATE VIEW sbds_real_ops_view AS
+    {% for table_name,fields in grouped_refs.items() -%}
+        {% if 'virtual' not in table_name -%}
+        SELECT
+        block_num,
+        transaction_num,
+        operation_num,
+        operation_type,
+        accounts,
+        raw
+    FROM {{ table_name }}
+    {% if not loop.last %}UNION ALL{% endif %}
+        {%-  endif -%}
+    {% endfor -%}
+'''
 
+VIRTUAL_OPERATIONS_SQL = '''
+    CREATE VIEW sbds_virtual_ops_view AS
+    {% for table_name,fields in grouped_refs.items() -%}
+        {% if 'virtual' in table_name -%}
+    SELECT
+        block_num,
+        transaction_num,
+        operation_num,
+        operation_type,
+        accounts,
+        raw
+    FROM {{ table_name }}
+    {% if not loop.last %}UNION ALL{% endif %}
+        {%-  endif -%}
+    {% endfor -%}
+'''

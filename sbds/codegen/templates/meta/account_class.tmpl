@@ -31,7 +31,7 @@ OPERATION_TO_ACCOUNT_FIELD_MAP = {{ grouped_refs|pprint }}
 
 ACCOUNT_NAME_EXTRACTORS = {
     {% for short_name,fields in grouped_refs.items() -%}
-        '{{ short_name }}': lambda op: tuple(flatten(({% for f in fields %}op.get('{{ f }}'),{% endfor %}))),
+        '{{ short_name }}': lambda op: [acct for acct in set(flatten(({% for f in fields %}op.get('{{ f }}'),{% endfor %}))) if acct],
     {% endfor -%}
 }
 

@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -74,7 +72,9 @@ class AccountUpdateOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     account = Column(String(16), nullable=True)  # steem_type:account_name_type
     owner = Column(JSONB)  # steem_type:optional< authority>
     active = Column(JSONB)  # steem_type:optional< authority>
@@ -88,7 +88,8 @@ class AccountUpdateOperation(Base):
         active=lambda x: json_string_field(x.get('active')),  # name:active
         posting=lambda x: json_string_field(x.get('posting')),  # name:posting
         json_metadata=lambda x: json_string_field(x.get('json_metadata')),  # name:json_metadata
-        accounts=lambda x: tuple(flatten((x.get('account'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('account'),))) if acct])
     )
 
     _account_fields = frozenset(['account', ])

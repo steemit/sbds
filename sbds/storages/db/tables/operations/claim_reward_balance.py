@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -61,7 +59,9 @@ class ClaimRewardBalanceOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     account = Column(String(16), nullable=True)  # steem_type:account_name_type
     reward_steem = Column(Numeric(20, 6), nullable=False)  # steem_type:asset
     reward_steem_symbol = Column(String(5))  # steem_type:asset
@@ -82,7 +82,8 @@ class ClaimRewardBalanceOperation(Base):
             x.get('reward_vests'), num_func=float),  # steem_type:asset
         reward_vests_symbol=lambda x: amount_symbol_field(
             x.get('reward_vests')),  # steem_type:asset
-        accounts=lambda x: tuple(flatten((x.get('account'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('account'),))) if acct])
     )
 
     _account_fields = frozenset(['account', ])

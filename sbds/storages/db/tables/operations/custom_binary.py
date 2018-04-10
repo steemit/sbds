@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -57,7 +55,9 @@ class CustomBinaryOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     required_owner_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
     required_active_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
     required_posting_auths = Column(JSONB)  # steem_type:flat_set< account_name_type>
@@ -78,12 +78,8 @@ class CustomBinaryOperation(Base):
         # steem_type:flat_set< account_name_type>
         required_auths=lambda x: json_string_field(
             x.get('required_auths')),  # steem_type:vector< authority>
-        accounts=lambda x: tuple(
-            flatten(
-                (x.get('required_owner_auths'),
-                 x.get('required_active_auths'),
-                    x.get('required_posting_auths'),
-                 )))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(flatten((x.get(
+            'required_owner_auths'), x.get('required_active_auths'), x.get('required_posting_auths'),))) if acct])
     )
 
     _account_fields = frozenset(

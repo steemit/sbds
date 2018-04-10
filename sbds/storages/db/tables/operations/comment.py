@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -69,7 +67,9 @@ class CommentOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     parent_author = Column(String(16), nullable=True)  # steem_type:account_name_type
     parent_permlink = Column(Unicode(256), index=True)  # name:parent_permlink
     author = Column(String(16), nullable=True)  # steem_type:account_name_type
@@ -82,7 +82,8 @@ class CommentOperation(Base):
     _fields = dict(
         body=lambda x: comment_body_field(x.get('body')),  # name:body
         json_metadata=lambda x: json_string_field(x.get('json_metadata')),  # name:json_metadata
-        accounts=lambda x: tuple(flatten((x.get('parent_author'), x.get('author'),)))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('parent_author'), x.get('author'),))) if acct])
     )
 
     _account_fields = frozenset(['parent_author', 'author', ])

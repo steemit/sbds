@@ -60,6 +60,7 @@ inflect = "*"
 furl = "*"
 cchardet = "*"
 "ciso8601" = "*"
+asciimatics = "*"
 
 [requires]
 python_version = "3.6"

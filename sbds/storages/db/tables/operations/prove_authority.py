@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -56,13 +54,16 @@ class ProveAuthorityOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     challenged = Column(String(16), nullable=True)  # steem_type:account_name_type
     require_owner = Column(Boolean)  # steem_type:bool
     operation_type = Column(operation_types_enum, nullable=False, default='prove_authority')
 
     _fields = dict(
-        accounts=lambda x: tuple(flatten((x.get('challenged'),)))
+        accounts=lambda x: sbds.sbds_json.dumps(
+            [acct for acct in set(flatten((x.get('challenged'),))) if acct])
     )
 
     _account_fields = frozenset(['challenged', ])

@@ -15,9 +15,7 @@ from sqlalchemy import BigInteger
 from sqlalchemy import ForeignKeyConstraint
 from sqlalchemy import PrimaryKeyConstraint
 from sqlalchemy import Index
-from sqlalchemy import ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
-from toolz.dicttoolz import dissoc
 
 import sbds.sbds_json
 
@@ -66,7 +64,9 @@ class CommentBenefactorRewardVirtualOperation(Base):
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
     trx_id = Column(String(40), nullable=False)
-    accounts = Column(ARRAY(String(16)))
+    accounts = Column(JSONB)
+    raw = Column(JSONB)
+
     benefactor = Column(String(16), nullable=True)  # steem_type:account_name_type
     author = Column(String(16), nullable=True)  # steem_type:account_name_type
     permlink = Column(Unicode(256), index=True)  # name:permlink
@@ -80,7 +80,8 @@ class CommentBenefactorRewardVirtualOperation(Base):
     _fields = dict(
         reward=lambda x: amount_field(x.get('reward'), num_func=float),  # steem_type:asset
         reward_symbol=lambda x: amount_symbol_field(x.get('reward')),  # steem_type:asset
-        accounts=lambda x: tuple(flatten((x.get('benefactor'), x.get('author'),)))
+        accounts=lambda x: sbds.sbds_json.dumps([acct for acct in set(
+            flatten((x.get('benefactor'), x.get('author'),))) if acct])
     )
 
     _account_fields = frozenset(['benefactor', 'author', ])
