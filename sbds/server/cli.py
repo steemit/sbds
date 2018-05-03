@@ -7,13 +7,12 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-@click.group()
+@click.group(name='server')
 def cli():
     """HTTP server for answering DB queries"""
 
 
-# Development server
-@cli.command(name='serve')
+@cli.command()
 @click.option('--http_host',
               type=click.STRING,
               envvar='HTTP_HOST',
@@ -25,7 +24,7 @@ def cli():
               type=click.INT,
               envvar='HTTP_PORT',
               metavar='HTTP_PORT',
-              default=8080,
+              default=9000,
               required=True,
               help='host TCP port')
 @click.option('--http_client_max_tcp_conn',
@@ -53,18 +52,22 @@ def cli():
     type=click.STRING,
     metavar='STEEMD_HTTP_URL',
     envvar='STEEMD_HTTP_URL',
-    required=True)
-def server_command(http_host,
-                   http_port,
-                   http_client_max_tcp_conn,
-                   http_client_timeout,
-                   database_url,
-                   steemd_http_url):
+    required=True,
+    default='https://api.steemit.com')
+def serve(http_host,
+          http_port,
+          http_client_max_tcp_conn,
+          http_client_timeout,
+          database_url,
+          steemd_http_url):
     """server"""
     from sbds.server.serve import run
+    app_extra = {}
+
     run(http_host,
         http_port,
         http_client_max_tcp_conn=http_client_max_tcp_conn,
         http_client_timeout=http_client_timeout,
         database_url=database_url,
-        steemd_http_url=steemd_http_url)
+        steemd_http_url=steemd_http_url,
+        app_extra=app_extra)

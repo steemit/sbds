@@ -5,9 +5,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import ENUM
 
 
-
-
-
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 Session = sessionmaker()
@@ -21,6 +18,7 @@ def init_tables(database_url, _metadata, checkfirst=True):
     import sbds.storages.db.tables.operations
     import sbds.storages.db.tables.block
     import sbds.storages.db.tables.meta
+    import sbds.storages.db.views
     with isolated_nullpool_engine(database_url) as engine:
         _metadata.create_all(bind=engine, checkfirst=checkfirst)
 
@@ -30,10 +28,17 @@ def reset_tables(database_url, _metadata):
 
     # use reflected MetaData to avoid errors due to ORM classes
     # being inconsistent with existing tables
+    import sbds.storages.db.tables.operations
+    import sbds.storages.db.tables.block
+    import sbds.storages.db.tables.meta
+    import sbds.storages.db.views
     with isolated_nullpool_engine(database_url) as engine:
         seperate_metadata = MetaData()
+        for view in (sbds.storages.db.views.CreateAllOpsView,
+                     sbds.storages.db.views.CreateRealOpsView, sbds.storages.db.views.CreateVirtualOpsView):
+            engine.execute(f'DROP VIEW IF EXISTS {view.name}')
         seperate_metadata.reflect(bind=engine)
-        seperate_metadata.drop_all(bind=engine)
+        seperate_metadata.drop_all(bind=engine, checkfirst=True)
         ENUM(name='sbds_operation_types').drop(engine)
 
     # use ORM clases to define tables to create

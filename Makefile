@@ -32,6 +32,8 @@ TABLES_PATH := $(STORAGES_DB_PATH)/tables
 META_PATH := $(TABLES_PATH)/meta
 OPERATIONS_PATH := $(TABLES_PATH)/operations
 VIRTUAL_OPERATIONS_PATH := $(TABLES_PATH)/operations/virtual
+RULES_PATH := $(STORAGES_DB_PATH)
+ROLES_PATH := $(STORAGES_DB_PATH)
 
 OPERATIONS_HEADER_FILE := $(HEADERS_PATH)/operations_header.json
 VIRTUAL_OPERATIONS_HEADER_FILE := $(HEADERS_PATH)/virtual_operations_header.json
@@ -42,12 +44,15 @@ VIRTUAL_OPERATION_NAMES := $(filter %operation, $(shell jq -r '.classes[].name' 
 OPERATION_PYTHON_FILES := $(addprefix $(OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(OPERATION_NAMES))))
 VIRTUAL_OPERATION_PYTHON_FILES := $(addprefix $(VIRTUAL_OPERATIONS_PATH)/, $(addsuffix .py, $(subst _operation,,$(VIRTUAL_OPERATION_NAMES))))
 
-META_NAMES := accounts
-META_PYTHON_FILES := $(addprefix $(VIEWS_PATH)/, $(addsuffix .py, $(META_NAMES)))
+META_PYTHON_FILES := $(META_PATH)/accounts.py
 
-VIEWS_NAMES := accounts accounts_history
-VIEWS_PYTHON_FILES := $(addprefix $(VIEWS_PATH)/, $(addsuffix .py, $(VIEWS_NAMES)))
+VIEWS_PYTHON_FILES := $(VIEWS_PATH)/operations.py
 
+RULES_PYTHON_FILES := $(RULES_PATH)/rules.py
+
+ALL_CODEGEN_PYTHON_FILES := $(OPERATION_PYTHON_FILES) $(VIRTUAL_OPERATION_PYTHON_FILES) $(META_PYTHON_FILES) $(VIEWS_PYTHON_FILES) $(RULES_PYTHON_FILES)
+
+ROLES_SQL_FILES := $(ROLES_PATH)/roles.sql
 
 
 default: help
@@ -158,11 +163,15 @@ sql:
 
 .PHONY: reset-db
 reset-db:
-	$(PIPENV) run python -m sbds.cli db reset
+	$(SBDS_BASE_CMD) db reset
 
 .PHONY: init-db
 init-db:
-	$(PIPENV) run python -m sbds.cli db init
+	$(SBDS_BASE_CMD) db init
+
+.PHONY: serve
+serve:
+	$(SBDS_BASE_CMD) server serve
 
 .PHONY: ipython
 ipython:
@@ -172,46 +181,157 @@ README.rst: docs/src/README.rst
 	cd $(DOCS_DIR) && $(MAKE) README
 
 # --- CODEGEN -- #
+# Real Ops
+# -----------------
 $(OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
 	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
 	--examples_path $(EXAMPLES_PATH) > $@
 
+.PHONY: delete-real-ops
+delete-real-ops:
+	-rm $(OPERATION_PYTHON_FILES)
 
+build-real-ops: $(OPERATION_PYTHON_FILES) $(TEMPLATES_PATH)/operations/operation_class.tmpl
+
+.PHONY: rebuild-real-ops
+rebuild-real-ops: delete-real-ops build-real-ops
+
+
+# Virtual Ops
+# -----------------
 $(VIRTUAL_OPERATIONS_PATH)/%.py: $(TEMPLATES_PATH)/operations/operation_class.tmpl
 	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
 	--templates_path $(TEMPLATES_PATH) \
 	--headers_path $(HEADERS_PATH) \
 	--examples_path $(EXAMPLES_PATH) > $@
 
-$(VIEWS_PATH)/%.py: $(TEMPLATES_PATH)/views/account_history_view.tmpl
-	$(SBDS_BASE_CMD) codegen generate-operation $(*F) \
-	--templates_path $(TEMPLATES_PATH) \
-	--headers_path $(HEADERS_PATH) \
-	--examples_path $(EXAMPLES_PATH) > $@
-
-
-virtual-ops: $(VIRTUAL_OPERATION_PYTHON_FILES)
-ops: $(OPERATION_PYTHON_FILES)
-
 .PHONY: delete-virtual-ops
 delete-virtual-ops:
 	-rm $(VIRTUAL_OPERATION_PYTHON_FILES)
 
-.PHONY: delete-ops
-delete-ops:
-	-rm $(OPERATION_PYTHON_FILES)
+build-virtual-ops: $(VIRTUAL_OPERATION_PYTHON_FILES) $(TEMPLATES_PATH)/operations/operation_class.tmpl
 
-.PHONY: remove-ops
-remove-ops: delete-ops delete-virtual-ops
+.PHONY: rebuild-virtual-ops
+rebuild-virtual-ops: delete-virtual-ops build-virtual-ops
+
+# All Ops
+# -----------------
+.PHONY: delete-ops
+delete-ops: delete-real-ops delete-virtual-ops
 
 .PHONY: build-ops
-build-ops: ops virtual-ops
+build-ops: build-real-ops build-virtual-ops
 
 .PHONY: rebuild-ops
-rebuild-ops: remove-ops build-ops
+rebuild-ops: delete-ops build-ops fmt-ops
 
+.PHONY: fmt-ops
+fmt-ops: $(OPERATION_PYTHON_FILES) $(VIRTUAL_OPERATION_PYTHON_FILES)
+	$(PIPENV) run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -4 --in-place $^
+	$(PIPENV) run yapf --in-place --style pep8 $^
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports $^
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $^
+
+# Views
+# -----------------
+$(VIEWS_PATH)/%.py: $(TEMPLATES_PATH)/views/%_view.tmpl
+	$(SBDS_BASE_CMD) codegen generate-$*-view  \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) > $@
+	$(PIPENV) run yapf --in-place --style pep8 $@
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports $@
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $@
+
+.PHONY: delete-views
+delete-views:
+	-rm $(VIEWS_PYTHON_FILES)
+
+.PHONY: build-views
+build-views: $(VIEWS_PYTHON_FILES) $(TEMPLATES_PATH)/views/*.tmpl
+
+.PHONY: rebuild-views
+rebuild-views: delete-views build-views
+
+# Meta
+# -----------------
+$(META_PATH)/%.py: $(TEMPLATES_PATH)/meta/%_class.tmpl
+	$(SBDS_BASE_CMD) codegen generate-$*-class \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH) > $@
+	$(PIPENV) run yapf --in-place --style pep8 $@
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports $@
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $@
+
+.PHONY: delete-meta
+delete-meta:
+	-rm $(META_PYTHON_FILES)
+
+.PHONY: build-meta
+build-meta: $(META_PYTHON_FILES) $(TEMPLATES_PATH)/meta/*.tmpl
+
+.PHONY: rebuild-meta
+rebuild-meta: delete-meta build-meta
+
+# Rules
+# -----------------
+$(RULES_PATH)/rules.py: $(TEMPLATES_PATH)/rules.tmpl
+	$(SBDS_BASE_CMD) codegen generate-rules \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH)  > $@
+	$(PIPENV) run yapf --in-place --style pep8 $@
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports $@
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $@
+
+.PHONY: delete-rules
+delete-rules:
+	-rm $(RULES_PYTHON_FILES)
+
+.PHONY: build-rules
+build-rules: $(RULES_PYTHON_FILES) $(TEMPLATES_PATH)/rules.tmpl
+
+.PHONY: rebuild-rules
+rebuild-rules: delete-rules build-rules
+
+# Roles
+# -----------------
+$(ROLES_PATH)/roles.sql: $(TEMPLATES_PATH)/roles.tmpl
+	$(SBDS_BASE_CMD) codegen generate-roles \
+	--templates_path $(TEMPLATES_PATH) \
+	--headers_path $(HEADERS_PATH)  > $@
+
+.PHONY: delete-roles
+delete-roles:
+	-rm $(ROLES_SQL_FILES)
+
+.PHONY: build-roles
+build-roles: $(ROLES_SQL_FILES) $(TEMPLATES_PATH)/roles.tmpl
+
+.PHONY: rebuild-roles
+rebuild-roles: delete-roles build-roles
+
+
+# All
+# -----------------
+.PHONY: delete-all
+delete-all: delete-ops delete-virtual-ops delete-views delete-meta delete-rules delete-roles
+
+.PHONY: build-all
+build-all: build-ops build-virtual-ops build-views build-meta build-rules build-roles
+
+.PHONY: rebuild-all
+rebuild-all: delete-all build-all fmt-built
+
+.PHONY: fmt-built
+fmt-built: $(ALL_CODEGEN_PYTHON_FILES)
+	$(PIPENV) run autopep8 --verbose --verbose --max-line-length=100 --aggressive --jobs -4 --in-place $^
+	$(PIPENV) run yapf --in-place --style pep8 $^
+	$(PIPENV) run autoflake --in-place --remove-all-unused-imports $^
+	$(PIPENV) run isort --verbose --recursive --atomic --settings-path  .editorconfig --virtual-env .venv $^
+
+# Debug
+# -----------------
 .PHONY: debug-CODEGEN_PATH
 debug-CODEGEN_PATH:
 	echo $(CODEGEN_PATH)

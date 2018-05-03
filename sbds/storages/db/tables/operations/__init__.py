@@ -134,6 +134,11 @@ virtual_op_class_map = {
 
 combined_ops_class_map = dict(**op_class_map, **virtual_op_class_map)
 
+combined_ops_db_table_map = {
+    k: combined_ops_class_map[k].__tablename__.replace(
+        '_operation',
+        '') for k in combined_ops_class_map.keys()}
+
 
 class UndefinedTransactionType(Exception):
     """Exception raised when undefined transction is encountered"""
@@ -144,4 +149,4 @@ def op_class_for_type(op_type):
 
 
 def op_db_table_for_type(op_type):
-    return combined_ops_class_map[op_type].__tablename__.replace('_operation', '')
+    return combined_ops_db_table_map[op_type]

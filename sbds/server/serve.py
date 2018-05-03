@@ -7,6 +7,7 @@ import os
 
 import aiohttp
 import aiopg.sa
+import asyncpg
 import structlog
 import uvloop
 
@@ -16,14 +17,15 @@ from aiohttp import web
 from aiohttp.connector import TCPConnector
 from jsonrpcserver import config
 from jsonrpcserver.async_methods import AsyncMethods
-from sqlalchemy.engine.url import make_url
+
 
 from .handlers import handle_api
 from .handlers import handle_healthcheck
 
-from .methods.account_history_api import get_ops_in_block
-from .methods.account_history_api import get_account_history
-from .methods.account_history import get_state
+
+from .methods import get_account_history
+
+import sbds.sbds_logging
 
 from sbds.sbds_json import loads
 from sbds.sbds_json import dumps
@@ -46,17 +48,11 @@ json_response = functools.partial(web.json_response, dumps=dumps)
 async def pg(app):
     database_url = app['config']['database_url']
     database_extra = app['config'].get('database_extra', {})
-    parsed_db_url = make_url(database_url)
-    database_kwargs = dict(
-        database=parsed_db_url.database,
-        user=parsed_db_url.username,
-        password=parsed_db_url.password,
-        host=parsed_db_url.host,
-        port=parsed_db_url.port,
-        **database_extra
-    )
-    engine = await aiopg.sa.create_engine(**database_kwargs, loop=app.loop)
-    app['db'] = engine
+    pool = await asyncpg.create_pool(database_url,
+                                     min_size=10,
+                                     max_size=20,
+                                     **database_extra)
+    app['db'] = pool
     yield
     await app['db'].close()
 
@@ -82,13 +78,22 @@ async def http_client(app):
 
 def run(http_host,
         http_port,
+        http_client_max_tcp_conn,
+        http_client_timeout,
+        database_url,
+        steemd_http_url,
         **kwargs):
 
     app_extra = kwargs.get('app_extra', {})
 
     # layout basic aiohttp config and context
     app = web.Application()
-    app['config'] = dict()
+    app['config'] = dict(
+        http_client_max_tcp_conn=http_client_max_tcp_conn,
+        http_client_timeout=http_client_timeout,
+        database_url=database_url,
+        steemd_http_url=steemd_http_url
+    )
     if kwargs:
         app['config'].update(**kwargs)
 
@@ -109,8 +114,6 @@ def run(http_host,
 
     # register jsonrpc methods with dispatcher
     # TODO add additional methods here
-    jsonrpc_methods.add(get_ops_in_block)
-    jsonrpc_methods.add(get_state)
     jsonrpc_methods.add(get_account_history)
 
     # add jsonrpc method dispatcher to aiohttp app context

@@ -4,6 +4,7 @@ import structlog
 from funcy import flatten
 
 from sbds import sbds_json
+from .tables.meta.accounts import extract_account_names
 
 logger = structlog.get_logger(__name__)
 
@@ -55,6 +56,17 @@ def json_string_field(value):
                 f'Unsupported JSON type: {type(value)} value:{value}')
 
 
-def accounts_field(op):
-    accts = set(flatten((op.get('parent_author'), op.get('author'),)))
-    return filter(lambda acct: acct, accts)
+def binary_field(value):
+    if isinstance(value, str):
+        return value.encode()
+    elif isinstance(value, bytes):
+        return value
+    else:
+        raise ValueError(
+            f'Unsupported binary type: {type(value)} value:{value}')
+
+
+def accounts_field(op, op_type):
+    if op:
+        op['operation_type'] = op_type
+        return sbds_json.dumps(list(extract_account_names([op])))

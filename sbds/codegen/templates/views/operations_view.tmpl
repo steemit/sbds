@@ -74,8 +74,7 @@ from .views import view
 
 
 ALL_OPERATIONS_SQL = '''
-    CREATE VIEW sbds_all_ops_view AS
-    {% for table_name,fields in grouped_refs.items() -%}
+    {% for table_name in all_tables -%}
     SELECT
         block_num,
         transaction_num,
@@ -89,9 +88,8 @@ ALL_OPERATIONS_SQL = '''
 '''
 
 REAL_OPERATIONS_SQL = '''
-    CREATE VIEW sbds_real_ops_view AS
-    {% for table_name,fields in grouped_refs.items() -%}
-        {% if 'virtual' not in table_name -%}
+    {% for table_name in real_tables -%}
+
         SELECT
         block_num,
         transaction_num,
@@ -101,14 +99,12 @@ REAL_OPERATIONS_SQL = '''
         raw
     FROM {{ table_name }}
     {% if not loop.last %}UNION ALL{% endif %}
-        {%-  endif -%}
     {% endfor -%}
 '''
 
 VIRTUAL_OPERATIONS_SQL = '''
-    CREATE VIEW sbds_virtual_ops_view AS
-    {% for table_name,fields in grouped_refs.items() -%}
-        {% if 'virtual' in table_name -%}
+    {% for table_name in virtual_tables -%}
+
     SELECT
         block_num,
         transaction_num,
@@ -118,6 +114,21 @@ VIRTUAL_OPERATIONS_SQL = '''
         raw
     FROM {{ table_name }}
     {% if not loop.last %}UNION ALL{% endif %}
-        {%-  endif -%}
     {% endfor -%}
 '''
+
+def create_all_ops_view():
+    from sbds.storages.db.tables import metadata
+    return view('sbds_views_all_ops',metadata, ALL_OPERATIONS_SQL)
+
+def create_real_ops_view():
+    from sbds.storages.db.tables import metadata
+    return view('sbds_views_real_ops',metadata, REAL_OPERATIONS_SQL)
+
+def create_virtual_ops_view():
+    from sbds.storages.db.tables import metadata
+    return view('sbds_views_virtual_ops',metadata, VIRTUAL_OPERATIONS_SQL)
+
+CreateAllOpsView = create_all_ops_view()
+CreateRealOpsView = create_real_ops_view()
+CreateVirtualOpsView = create_virtual_ops_view()

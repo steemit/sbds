@@ -7,13 +7,10 @@ import pytest
 import requests
 from requests.exceptions import ConnectionError
 
-from sbds.http_client import SimpleSteemAPIClient
 from sbds.storages.db.tables import Session
 from sbds.storages.db.utils import configure_engine
 
 import sbds
-import sbds.chain
-import sbds.chain.cli
 import sbds.server
 import sbds.server.cli
 import sbds.server.methods

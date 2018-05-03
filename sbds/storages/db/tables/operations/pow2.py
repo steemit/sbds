@@ -1,30 +1,17 @@
 # -*- coding: utf-8 -*-
-import dateutil.parser
 
-from funcy import flatten
-from sqlalchemy import DateTime
-from sqlalchemy import String
-from sqlalchemy import Column
-from sqlalchemy import Numeric
-from sqlalchemy import Unicode
-from sqlalchemy import UnicodeText
-from sqlalchemy import Boolean
-from sqlalchemy import SmallInteger
-from sqlalchemy import Integer
 from sqlalchemy import BigInteger
-from sqlalchemy import ForeignKeyConstraint
-from sqlalchemy import PrimaryKeyConstraint
-from sqlalchemy import Index
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import Integer
+from sqlalchemy import SmallInteger
+from sqlalchemy import Text
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
-import sbds.sbds_json
-
-from ..import Base
+from .. import Base
 from ...enums import operation_types_enum
 from ...field_handlers import json_string_field
-from ...field_handlers import amount_field
-from ...field_handlers import amount_symbol_field
-from ...field_handlers import comment_body_field
 
 
 class Pow2Operation(Base):
@@ -56,22 +43,22 @@ class Pow2Operation(Base):
     """
 
     __tablename__ = 'sbds_op_pow2s'
-    __table_args__ = (
-        PrimaryKeyConstraint('block_num', 'transaction_num', 'operation_num'),
-    )
+    __table_args__ = (UniqueConstraint('block_num', 'transaction_num',
+                                       'operation_num', 'raw'), )
 
+    _id = Column(BigInteger, autoincrement=True, primary_key=True)
     block_num = Column(Integer, nullable=False)
     transaction_num = Column(SmallInteger, nullable=False)
     operation_num = Column(SmallInteger, nullable=False)
     timestamp = Column(DateTime(timezone=False))
-    trx_id = Column(String(40), nullable=False)
+    trx_id = Column(Text, nullable=False)
     accounts = Column(JSONB)
     raw = Column(JSONB)
 
     work = Column(JSONB)  # steem_type:steemit::protocol::pow2_work
-    new_owner_key = Column(String(60))  # steem_type:optional< public_key_type>
+    new_owner_key = Column(Text)  # steem_type:optional< public_key_type>
     props = Column(JSONB)  # steem_type:chain_properties
-    operation_type = Column(operation_types_enum, nullable=False, default='pow2')
+    operation_type = Column(operation_types_enum, nullable=False, default='')
 
     _fields = dict(
         work=lambda x: json_string_field(x.get('work')),  # steem_type:steemit::protocol::pow2_work

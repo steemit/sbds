@@ -61,3 +61,4 @@ operation_types_enum = Enum(
     'witness_update',
     name='sbds_operation_types')
 
+asset_types_enum = Enum('STEEM', 'SBD', 'VESTS', name='asset_types')

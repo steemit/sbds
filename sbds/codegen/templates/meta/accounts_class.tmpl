@@ -4,11 +4,11 @@ import itertools as it
 from funcy import flatten
 
 from sqlalchemy import Column
-from sqlalchemy import String
+from sqlalchemy import Text
+from sqlalchemy import BigInteger
 from sqlalchemy.orm import relationship
 
 from sbds.storages.db.tables import Base
-from sbds.storages.db.utils import UniqueMixin
 
 
 class Account(Base):
@@ -17,11 +17,8 @@ class Account(Base):
     """
 
     __tablename__ = 'sbds_meta_accounts'
-    name = Column(String(16), primary_key=True)
-    {% for ref in refs -%}
-    {{ ref.short_name }}_{{ ref.field_name }} = relationship('{{ ref.class_name }}',backref='account_{{ ref.field_name }}',foreign_keys='{{ ref.class_name }}.{{ ref.class_field_name }}')
-    {%  endfor %}
-
+    id = Column(BigInteger, autoincrement=True, primary_key=True)
+    name = Column(Text)
 
 
 

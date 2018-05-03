@@ -21,30 +21,6 @@ async def get_dynamic_global_properties(session, url, timeout):
             return data['result']
 
 
-async def get_trending_tags(session, url, timeout):
-    data = b'{"id":1,"jsonrpc":"2.0","method":"tags_api.get_trending_tags"}'
-    async with async_timeout.timeout(timeout):
-        async with session.post(url, data=data) as response:
-            data = await response.json()
-            return data['result']
-
-
-async def get_witness_schedule(session, url, timeout):
-    data = b'{"id":1,"jsonrpc":"2.0","method":"database_api.get_witness_schedule"}'
-    async with async_timeout.timeout(timeout):
-        async with session.post(url, data=data) as response:
-            data = await response.json()
-            return data['result']
-
-
-async def get_current_median_history_price(session, url, timeout):
-    data = b'{"id":1,"jsonrpc":"2.0","method":"condenser_api.get_current_median_history_price","params":[]}'
-    async with async_timeout.timeout(timeout):
-        async with session.post(url, data=data) as response:
-            data = await response.json()
-            return data['result']
-
-
 async def get_last_irreversible_block_num(session, url, timeout):
     data = b'{"id":1,"jsonrpc":"2.0","method":"database_api.get_dynamic_global_properties"}'
     async with async_timeout.timeout(timeout):

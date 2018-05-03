@@ -4,170 +4,17 @@ import asyncio
 from collections import namedtuple
 from contextlib import contextmanager
 
-import aiopg.sa
 import structlog
 import uvloop
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import FlushError
 from sqlalchemy.pool import NullPool
-
-import sbds.sbds_json
 
 
 logger = structlog.get_logger(__name__)
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
-
-# pylint: disable=too-many-arguments, broad-except, protected-access
-def _unique(session, cls, hashfunc, queryfunc, constructor, args, kwargs):
-    cache = getattr(session, '_unique_cache', None)
-    cls_name = cls.__name__
-    if cache is None:
-        session._unique_cache = cache = {}
-        logger.debug('_unique created session cache')
-    key = (cls, hashfunc(*args, **kwargs))
-    if key in cache:
-        logger.debug('_unique key %s found in session cache', key)
-        return cache[key]
-
-    logger.debug('_unique key %s not found in session cache', key)
-    with session.no_autoflush:
-        q = session.query(cls)
-        q = queryfunc(q, *args, **kwargs)
-        logger.debug('_unique query %s', q)
-        obj = q.one_or_none()
-        if not obj:
-            logger.debug('_unique query found no existing %s instance',
-                         cls_name)
-            obj = constructor(*args, **kwargs)
-
-            # prevent race condition by using savepoint (begin_nested)
-            session.begin(subtransactions=True)
-            logger.debug('_unique beginning subtransaction')
-            try:
-                logger.debug(
-                    '_unique while in subtransaction: attempting to create %s',
-                    obj)
-                session.add(obj)
-                session.commit()
-                logger.debug('_unique while in subtransaction: created %s',
-                             obj)
-            except IntegrityError as e:
-                logger.debug(
-                    '_unique IntegrityError while creating %s instance',
-                    cls_name)
-                session.rollback()
-                logger.debug(
-                    '_unique while handling IntegrityError: rollback transaction'
-                )
-                q = session.query(cls)
-                q = queryfunc(q, *args, **kwargs)
-                obj = q.one()
-                logger.debug(
-                    '_unique while handling IntegrityError: query found  %s',
-                    obj)
-            except Exception as e:
-                logger.error('_unique error creating %s instance: %s',
-                             cls_name, e)
-                raise e
-            else:
-                logger.debug('_unique %s instance created', cls_name)
-        else:
-            logger.debug('_unique query found existing %s instance',
-                         cls_name)
-    cache[key] = obj
-    return obj
-
-
-class UniqueMixin(object):
-    @classmethod
-    def unique_hash(cls, *arg, **kw):
-        raise NotImplementedError()
-
-    @classmethod
-    def unique_filter(cls, query, *arg, **kw):
-        raise NotImplementedError()
-
-    @classmethod
-    def as_unique(cls, session, *arg, **kw):
-        return _unique(session, cls, cls.unique_hash, cls.unique_filter, cls,
-                       arg, kw)
-
-
-def is_duplicate_entry_error(error):
-    if isinstance(error, FlushError):
-        return 'conflicts with persistent instance' in str(error)
-    elif isinstance(error, IntegrityError):
-        code, msg = error.orig.args
-        msg = msg.lower()
-        return all([code == 1062, "duplicate entry" in msg])
-
-
-# pylint: disable=too-many-branches, too-many-statements
-@contextmanager
-def session_scope(session=None,
-                  close=False,
-                  expunge=False,
-                  _raise_unknown=False,
-                  _raise_known=False,
-                  _raise_all=False):
-    """Provide a transactional scope around a series of db operations."""
-    if _raise_all:
-        _raise_known = True
-        _raise_unknown = True
-
-    # rollback passed session if required
-    if not session.is_active:
-        logger.debug('rolling back passed session')
-        session.rollback()
-    try:
-        session.info['err'] = None
-        session.begin(subtransactions=True)
-        yield session
-        session.commit()
-        session.commit()
-    except (IntegrityError, FlushError) as e:
-        session.rollback()
-        session.info['err'] = e
-        if is_duplicate_entry_error(e):
-            logger.debug('duplicate entry error caught')
-        else:
-            logger.exception('non-duplicate IntegrityError, unable to commit')
-        if _raise_known:
-            raise e
-    except DBAPIError as e:
-        session.rollback()
-        session.info['err'] = e
-        logger.exception('Caught DBAPI error')
-        if _raise_known:
-            raise e
-    except Exception as e:
-        session.rollback()
-        session.info['err'] = e
-        logger.exception('unable to commit')
-        if _raise_unknown:
-            raise e
-    finally:
-        if close:
-            logger.debug('calling session.close')
-            session.close()
-        elif expunge:
-            logger.debug('calling session.expunge_all')
-            session.expunge_all()
-        if not session.is_active:
-            logger.debug('second session.rollback required...rolling back')
-            session.rollback()
-
-
-def row_to_json(row):
-    if getattr(row, 'to_json'):
-        return row.to_json()
-    return sbds.sbds_json.dumps(dict(row.items()))
 
 
 EngineConfig = namedtuple('EngineConfig',
@@ -181,7 +28,7 @@ def configure_engine(database_url, **kwargs):
         base_engine_kwargs = dict()
 
     url = make_url(database_url)
-    logger.debug('configuring engine using %s', url.__repr__())
+    logger.debug('configuring engine', url=url.__repr__())
     backend = url.get_backend_name()
 
     if backend == 'sqlite':
@@ -223,7 +70,7 @@ def isolated_nullpool_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info('error',e=e)
+        logger.info('error', e=e)
     finally:
         del engine_config
         engine.dispose()
@@ -237,7 +84,7 @@ def isolated_engine(database_url, **kwargs):
     try:
         yield engine
     except Exception as e:
-        logger.info('error',e=e)
+        logger.info('error', e=e)
     finally:
         del engine_config
         engine.dispose()
@@ -254,27 +101,3 @@ def isolated_engine_config(database_url, **kwargs):
     finally:
         engine_config.engine.dispose()
         del engine_config
-
-
-def create_aiopg_engine(database_url, loop=None, minsize=10, maxsize=30, **kwargs):
-    loop = loop or asyncio.get_event_loop()
-    async_engine = loop.run_until_complete(
-        async_create_aiopg_engine(
-            database_url,
-            minsize=minsize,
-            maxsize=maxsize,
-            **kwargs))
-    return async_engine
-
-
-async def async_create_aiopg_engine(database_url, minsize=10, maxsize=30, **kwargs):
-    sa_db_url = make_url(database_url)
-    return await aiopg.sa.create_engine(
-        user=sa_db_url.username,
-        password=sa_db_url.password,
-        host=sa_db_url.host,
-        port=sa_db_url.port,
-        dbname=sa_db_url.database,
-        minsize=minsize,
-        maxsize=maxsize,
-        **kwargs)

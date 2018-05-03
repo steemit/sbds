@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
-from sbds.storages.db.tables.operations import op_db_table_for_type
 
-
-async def get_ops_in_block(block_num, only_virtual, context=None):
-    """
-    This function demonstrates how to write a method to run
-    an SQL query which returns a single number
-
-    :param context:
-    :return: int
-    """
-    engine = context['aiohttp_request'].app['db']
-    query = 'FIXME'
-    async with engine.acquire() as conn:
-        # FIXME
-        return await conn.scalar(query)
+import sbds.sbds_json
 
 
 async def get_account_history(account_name, context=None):
@@ -26,9 +12,22 @@ async def get_account_history(account_name, context=None):
     :return: List[Dict]
 
     """
+    logger = context['logger']
     engine = context['aiohttp_request'].app['db']
-    query = 'FIXME'
+    query = '''SELECT block_num, transaction_num, operation_num,operation_type, raw  from sbds_all_ops_view  where sbds_all_ops_view.accounts @> $1::jsonb LIMIT 100;'''
     async with engine.acquire() as conn:
-        # FIXME
-        cursor = await conn.execute(query)
-        return await cursor.fetchall()
+        await conn.set_type_codec(
+            'jsonb',
+            encoder=sbds.sbds_json.dumps,
+            decoder=sbds.sbds_json.loads,
+            schema='pg_catalog'
+        )
+        async with conn.transaction():
+
+            results = []
+            logger.info('executing query', query=query,
+                        account_name=account_name)
+            async for record in conn.cursor(query, account_name):
+                result = dict(record.items())
+                results.append(result)
+    return results

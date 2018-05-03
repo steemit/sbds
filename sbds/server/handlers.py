@@ -32,8 +32,12 @@ async def handle_api(aiohttp_request):
     :param aiohttp_request:
     :return:
     """
+
     json_request_dict = await aiohttp_request.json()
-    jsonrpc_request_context = {'aiohttp_request': aiohttp_request}
+    jsonrpc_request_context = {
+        'aiohttp_request': aiohttp_request,
+        'logger': logger.bind(
+            request=aiohttp_request)}
     jsonrpc_methods = aiohttp_request.app['jsonrpc_methods_dispatcher']
     jsonrpc_method_response = await jsonrpc_methods.dispatch(json_request_dict, context=jsonrpc_request_context)
     return json_response(jsonrpc_method_response)

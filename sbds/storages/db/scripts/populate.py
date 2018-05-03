@@ -1,53 +1,40 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import itertools as it
-import os
+import rapidjson as json
 
+import aiohttp
 import aiopg.sa
 import asyncpg
+import asyncpg.exceptions
 import click
+import funcy
+import os
+import structlog
 
-
-import uvloop
+from aiohttp.connector import TCPConnector
+from sqlalchemy.engine.url import make_url
 from tqdm import tqdm
 
-import funcy
-
-from sqlalchemy.engine.url import make_url
-import rapidjson as json
-import structlog
-import aiohttp
-
-from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.postgresql import insert
-from aiohttp.connector import TCPConnector
-import asyncpg.exceptions
-
-from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
-from sbds.storages.db.tables.operations import op_db_table_for_type
-from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
 from sbds.storages.db.tables import Base
-from sbds.storages.db.tables.meta.accounts import extract_account_names
-
 from sbds.storages.db.tables import init_tables
 from sbds.storages.db.tables import test_connection
+from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
+from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
+from sbds.storages.db.tables.operations import op_db_table_for_type
 from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
-
-import sbds.sbds_logging
 
 # pylint: skip-file
 logger = structlog.get_logger(__name__)
 
 TOTAL_TASKS = 7
+TASK_NUM = iter(range(1, 20))
 
 STATEMENT_CACHE = {
     'account': 'INSERT INTO sbds_meta_accounts (name) VALUES($1) ON CONFLICT DO NOTHING',
     'block': 'INSERT INTO sbds_core_blocks (raw, block_num, previous, timestamp, witness, witness_signature, transaction_merkle_root,accounts,op_types) VALUES ($1, $2, $3, $4, $5, $6, $7,$8,$9) ON CONFLICT DO NOTHING'
 }
-
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-loop = asyncio.get_event_loop()
 
 
 pbar_kwargs = dict(
@@ -71,22 +58,6 @@ def get_op_insert_stmt(prepared_op, db_tables):
     columns_str = ', '.join(f'"{k}"' for k in prepared_op.keys())
     STATEMENT_CACHE[op_type] = f'INSERT INTO {table} ({columns_str}) VALUES({values_str}) ON CONFLICT DO NOTHING'
     return STATEMENT_CACHE[op_type]
-
-
-def create_async_engine(database_url, loop=None, minsize=40, maxsize=50, **kwargs):
-    sa_db_url = make_url(database_url)
-    loop = loop or asyncio.get_event_loop()
-    async_engine = loop.run_until_complete(
-        aiopg.sa.create_engine(
-            user=sa_db_url.username,
-            password=sa_db_url.password,
-            host=sa_db_url.host,
-            port=sa_db_url.port,
-            dbname=sa_db_url.database,
-            minsize=minsize,
-            maxsize=maxsize,
-            **kwargs))
-    return async_engine
 
 
 def create_asyncpg_pool(database_url, loop=None, min_size=40, max_size=40, **kwargs):
@@ -129,7 +100,6 @@ def fmt_success_message(msg, *args):
 def fmt_task_message(task_msg,
                      emoji_code_point=None,
                      show_emoji=None,
-                     task_num=None,
                      total_tasks=TOTAL_TASKS):
 
     show_emoji = show_emoji or os.sys.platform == 'darwin'
@@ -137,6 +107,7 @@ def fmt_task_message(task_msg,
     if show_emoji:
         _emoji = emoji_code_point
 
+    task_num = next(TASK_NUM)
     return '[{task_num}/{total_tasks}] {task_emoji}  {task_msg}...'.format(
         task_num=task_num,
         total_tasks=total_tasks,
@@ -147,7 +118,7 @@ def fmt_task_message(task_msg,
 async def preload_account_names(pool, account_names):
     non_blank_account_names = (a for a in account_names if a not in ('', None))
     unique_account_names = set(non_blank_account_names)
-    account_name_records = [(a,) for a in unique_account_names]
+    account_name_records = [(i, a) for i, a in enumerate(unique_account_names, 1)]
     async with pool.acquire() as conn:
         try:
             await conn.copy_records_to_table('sbds_meta_accounts', records=account_name_records)
@@ -168,7 +139,6 @@ def task_confirm_db_connectivity(database_url):
 
 
 def task_init_db_if_required(database_url):
-
     init_tables(database_url, Base.metadata)
 
 
@@ -178,16 +148,6 @@ def task_load_db_meta(database_url):
         m = MetaData()
         m.reflect(bind=engine)
     return m
-
-
-def is_name_missing_from_accounts_error(e):
-    # Key (worker_account)=(kevtorin) is not present in table "sbds_meta_accounts"
-    err_str = e.detail
-    return 'is not present in table "sbds_meta_accounts"' in err_str
-
-
-def missing_account_name_from_error(e):
-    return e.detail.split('=')[1].split(')')[0].replace('(', '')  # hehe
 
 
 async def get_existing_and_missing_count(engine, start_block, end_block):
@@ -242,7 +202,7 @@ async def fetch_blocks_and_ops_in_blocks(url, client, block_nums):
             response = await client.post(url, data=request_json)
             response.raise_for_status()
             jsonrpc_response = await response.json()
-            if not isinstance(request_json, list):
+            if not isinstance(jsonrpc_response, list):
                 raise ValueError(f'Bad JSONRPC response: {jsonrpc_response}')
             response_pairs = funcy.partition(2, jsonrpc_response)
             results = []
@@ -425,32 +385,45 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
     try:
 
         pool = create_asyncpg_pool(database_url)
-        task_num = 0
+
         # [1/7] confirm db connectivity
-        task_num += 1
+
         task_message = fmt_task_message(
             'Confirm database connectivity',
-            emoji_code_point=u'\U0001F4DE',
-            task_num=task_num)
+            emoji_code_point=u'\U0001F4DE')
         click.echo(task_message)
         # task_confirm_db_connectivity(database_url)
 
         # [2/7] init db if required
-        task_num += 1
+
         task_message = fmt_task_message(
             'Initialising db if required',
-            emoji_code_point=u'\U0001F50C',
-            task_num=task_num)
+            emoji_code_point=u'\U0001F50C')
         click.echo(task_message)
         task_init_db_if_required(database_url=database_url)
 
-        # [3/7] find last irreversible block
-        task_num += 1
+        # [3/7] preload accounts file
+
+        if accounts_file:
+            task_message = fmt_task_message(
+                'Preloading account names',
+                emoji_code_point=u'\U0001F52D')
+            click.echo(task_message)
+            with open(accounts_file) as f:
+                account_names = json.load(f)
+            loop.run_until_complete(
+                preload_account_names(pool, account_names))
+            del account_names
+        else:
+            task_message = fmt_success_message('No accounts file provided...skipping ')
+            click.echo(task_message)
+
+        # [4/7] find last irreversible block
+
         if end_block == -1:
             task_message = fmt_task_message(
                 'Finding highest blockchain block',
-                emoji_code_point='\U0001F50E',
-                task_num=task_num)
+                emoji_code_point='\U0001F50E')
             click.echo(task_message)
             last_chain_block_num = loop.run_until_complete(
                 get_last_irreversible_block_num(steemd_http_url, AIOHTTP_SESSION))
@@ -461,17 +434,16 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
         else:
             task_message = fmt_task_message(
                 f'Using --end_block {end_block} as highest blockchain block to load',
-                emoji_code_point='\U0001F50E',
-                task_num=task_num)
+                emoji_code_point='\U0001F50E')
             click.echo(task_message)
 
-        # [4/7] build list of blocks missing from db
+        # [5/7] build list of blocks missing from db
+
         existing_count, missing_count, range_count = loop.run_until_complete(
             get_existing_and_missing_count(pool, start_block, end_block))
         task_message = fmt_task_message(
             f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}',
-            emoji_code_point=u'\U0001F52D',
-            task_num=4)
+            emoji_code_point=u'\U0001F52D')
         click.echo(task_message)
 
         with click.progressbar(length=end_block, **pbar_kwargs) as pbar:
@@ -484,24 +456,11 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
                     start_block=start_block,
                     pbar=pbar))
 
-        # [5.1/7] preload accounts file
-        if accounts_file:
-            task_message = fmt_task_message(
-                'Preloading account names',
-                emoji_code_point=u'\U0001F52D',
-                task_num=5)
-            click.echo(task_message)
-            with open(accounts_file) as f:
-                account_names = json.load(f)
-            loop.run_until_complete(
-                preload_account_names(pool, account_names))
-            del account_names
+        # [6/7] add missing blocks and operations
 
-        # [5/7] add missing blocks and operations
         task_message = fmt_task_message(
             'Adding missing blocks and operations to db',
-            emoji_code_point=u'\U0001F52D',
-            task_num=5)
+            emoji_code_point=u'\U0001F52D')
         click.echo(task_message)
 
         blocks_progress_bar = tqdm(initial=existing_count,
@@ -529,18 +488,17 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
                                                ops_pbar=ops_progress_bar))
 
         # [6/7] Make second sweep for missing blocks
+
         task_message = fmt_task_message(
             'Adding missing blocks and operations to db (second sweep)',
-            emoji_code_point=u'\U0001F52D',
-            task_num=6)
+            emoji_code_point=u'\U0001F52D')
         click.echo(task_message)
 
         existing_count, missing_count, range_count = loop.run_until_complete(
             get_existing_and_missing_count(pool, start_block, end_block))
         task_message = fmt_task_message(
             f'Building list of {missing_count} blocks missing from db between {start_block}<<-->>{end_block}',
-            emoji_code_point=u'\U0001F52D',
-            task_num=4)
+            emoji_code_point=u'\U0001F52D')
         click.echo(task_message)
 
         with click.progressbar(length=end_block, **pbar_kwargs) as pbar:
@@ -575,8 +533,7 @@ def _populate(database_url, legacy_database_url, steemd_http_url,
 
         # [7/7] stream new blocks
         task_message = fmt_task_message(
-            'Streaming blocks', emoji_code_point=u'\U0001F4DD',
-            task_num=7)
+            'Streaming blocks', emoji_code_point=u'\U0001F4DD')
         click.echo(task_message)
 
     except KeyboardInterrupt:

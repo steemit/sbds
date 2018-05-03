@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from sqlalchemy import BigInteger
 from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
-from sqlalchemy import String
+from sqlalchemy import Text
 from sqlalchemy import ForeignKey
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import JSONB
@@ -142,21 +143,25 @@ class Block(Base):
     # pylint: enable=line-too-long
     __tablename__ = 'sbds_core_blocks'
     __table_args__ = (
+        Index('ix_sbds_core_blocks_block_nums', 'block_num'),
         Index('ix_sbds_core_blocks_accounts', 'accounts',
               postgresql_using='gin',
+              postgresql_ops={'accounts': 'jsonb_path_ops'}
               ),
         Index('ix_sbds_core_blocks_op_types', 'op_types',
               postgresql_using='gin',
+              postgresql_ops={'op_types': 'jsonb_path_ops'}
               )
-    )
 
+    )
+    _id = Column(BigInteger, primary_key=True, autoincrement=True)
     raw = Column(JSONB)
-    block_num = Column(Integer, primary_key=True, autoincrement=False)
-    previous = Column(String(50), nullable=False)
+    block_num = Column(Integer)
+    previous = Column(Text, nullable=False)
     timestamp = Column(DateTime(timezone=False), index=True)
-    witness = Column(String(16), ForeignKey("sbds_meta_accounts.name")
+    witness = Column(Text, ForeignKey("sbds_meta_accounts.name")
                      )  # steem_type:{account_name_type}'
-    witness_signature = Column(String(150))
-    transaction_merkle_root = Column(String(40))
+    witness_signature = Column(Text)
+    transaction_merkle_root = Column(Text)
     accounts = Column(JSONB)
     op_types = Column(JSONB)

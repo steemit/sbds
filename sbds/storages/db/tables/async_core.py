@@ -90,7 +90,7 @@ async def prepare_raw_operation_for_storage(raw_operation, loop=None, executor=E
     }
     op_cls = op_class_for_type(op_dict['operation_type'])
     _fields = op_cls._fields
-    prepared_fields = await loop.run_in_executor(executor, prepare_op_class_fields, data, _fields)
+    prepared_fields = prepare_op_class_fields(data, _fields)
     op_dict.update(prepared_fields)
     op_dict.update({k: v for k, v in data.items() if k not in prepared_fields})
     return op_dict

@@ -42,16 +42,17 @@ VIRTUAL_OPS_NAMES = (
 columns_map = defaultdict(lambda: [])
 columns_map.update({
     'json_metadata': ['json_metadata = Column(JSONB) # name:json_metadata'],
-    'from': ["_from = Column('from',String(16)) # name:from"],
+    'from': ["_from = Column('from',UnicodeText) # name:from"],
     'json': ['json = Column(JSONB) # name:json'],
     'body': ['body = Column(UnicodeText) # name:body'],
     'json_meta': ['json_meta = Column(JSONB) # name:json_meta'],
     'memo': ['memo = Column(UnicodeText) # name:memo'],
-    'permlink': ['permlink = Column(Unicode(256), index=True) # name:permlink'],
-    'comment_permlink': ['permlink = Column(Unicode(256), index=True) # name:comment_permlink'],
-    'parent_permlink': ['parent_permlink = Column(Unicode(256), index=True) # name:parent_permlink'],
-    'title,comment_operation': ['title = Column(Unicode(256), index=True) # name:title,comment_operation'],
-    'comment_permlink,curation_reward_operation': ['comment_permlink = Column(Unicode(256), index=True) # name:comment_permlink,curation_reward_operation'],
+    'permlink': ['permlink = Column(UnicodeText, index=True) # name:permlink'],
+    'comment_permlink': ['permlink = Column(UnicodeText, index=True) # name:comment_permlink'],
+    'parent_permlink': ['parent_permlink = Column(UnicodeText, index=True) # name:parent_permlink'],
+    'title,comment_operation': ['title = Column(UnicodeText, index=True) # name:title,comment_operation'],
+    'comment_permlink,curation_reward_operation': ['comment_permlink = Column(UnicodeText, index=True) # name:comment_permlink,curation_reward_operation'],
+    'data,custom_binary_operation': ['data = Column(BYTEA()) # name: data,custom_binary_operation vector< char>'],
 })
 
 
@@ -63,6 +64,7 @@ fields_map.update({
     'posting': [f"posting=lambda x: json_string_field(x.get('posting')), # name:posting"],
     'active': [f"active=lambda x: json_string_field(x.get('active')), # name:active"],
     'json_meta': [f"json_meta=lambda x: json_string_field(x.get('json_meta')), # name:json_meta"],
+    'data,custom_binary_operation': [f"data=lambda x: binary_field(x.get('data')),  # name: data,custom_binary_operation vector< char>"]
 })
 
 
@@ -105,11 +107,11 @@ ACCOUNT_NAME_TYPES = {
 }
 
 
-def get_fields(name, _type):
+def get_fields(name, _type, op_name):
 
     # first: lookup by name,operation_name
-    if fields_map.get(f'{name},{type}'):
-        return fields_map.get(f'{name},{type}')
+    if fields_map.get(f'{name},{op_name}'):
+        return fields_map.get(f'{name},{op_name}')
 
     # second: lookup by name
     if fields_map.get(name):
@@ -155,15 +157,15 @@ def _get_columns_by_type(name, _type):
         if name == 'from':
             return [
                 f'_from = Column("from",Numeric(20,6), nullable=False) # steem_type:asset',
-                f'from_symbol = Column(String(5)) # steem_type:{_type}']
+                f'from_symbol = Column(asset_types_enum, nullable=False) # steem_type:{_type}']
         return [
             f'{name} = Column(Numeric(20,6), nullable=False) # steem_type:asset',
-            f'{name}_symbol = Column(String(5)) # steem_type:{_type}']
+            f'{name}_symbol = Column(asset_types_enum, nullable=False) # steem_type:{_type}']
 
     # account_name_type
     elif _type == 'account_name_type':
         return [
-            f'{name} = Column(String(16),nullable=True) # steem_type:{_type}']
+            f'{name} = Column(Text, nullable=True) # steem_type:{_type}']
 
     # flat_set< account_name_type>
     elif _type == 'flat_set< account_name_type>':
@@ -171,11 +173,11 @@ def _get_columns_by_type(name, _type):
 
     # public_key_type
     elif _type == 'public_key_type':
-        return [f'{name} = Column(String(60), nullable=False) # steem_type:{_type}']
+        return [f'{name} = Column(Text, nullable=False) # steem_type:{_type}']
 
     # optional< public_key_type>
     elif _type == 'optional< public_key_type>':
-        return [f'{name} = Column(String(60)) # steem_type:{_type}']
+        return [f'{name} = Column(Text) # steem_type:{_type}']
 
     # boolean
     elif _type == 'bool':
@@ -199,11 +201,11 @@ def _get_columns_by_type(name, _type):
 
     # vector< char>
     elif _type == 'vector< char>':
-        return [f'{name} = Column(String(100)) # steem_type:{_type}']
+        return [f'{name} = Column(UnicodeText) # steem_type:{_type}']
 
     # block_id_type (fc::ripemd160)
     elif _type == 'block_id_type':
-        return [f'{name} = Column(String(40)) # steem_type:{_type}']
+        return [f'{name} = Column(Text) # steem_type:{_type}']
 
     # vector< beneficiary_route_type>
     elif _type == 'vector< beneficiary_route_type>':
@@ -316,13 +318,14 @@ def is_account_name_reference(name, _type):
 
 def op_fields(cls):
     fields = []
+    op_name = cls['name']
     props = iter_properties_keys(cls)
     for prop in props:
         name = prop['name']
         _type = prop['type']
         if name == 'from':
             continue
-        flds = get_fields(name, _type)
+        flds = get_fields(name, _type, op_name)
         fields.extend(flds)
     return fields
 
@@ -432,12 +435,12 @@ def cli():
     """Generate code to build apps on the Steemit Blockchain"""
 
 
-@cli.command(name='generate-account-class')
+@cli.command(name='generate-accounts-class')
 @click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
               default=HEADERS_PATH)
 @click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
               default=TEMPLATES_PATH)
-def generate_account_class(headers_path, templates_path):
+def generate_accounts_class(headers_path, templates_path):
     header_files = load_json_files_from_path(headers_path)
     refs = _generate_account_refs(header_files)
     grouped_refs = toolz.groupby('short_name', refs)
@@ -445,40 +448,8 @@ def generate_account_class(headers_path, templates_path):
         grouped_refs[name] = frozenset(r['field_name'] for r in ref_group)
 
     env = Environment(loader=FileSystemLoader(templates_path))
-    template = env.get_template('meta/account_class.tmpl')
+    template = env.get_template('meta/accounts_class.tmpl')
     click.echo(template.render(refs=refs, grouped_refs=grouped_refs))
-
-
-@cli.command(name='generate-accounts-view')
-@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
-              default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
-              default=TEMPLATES_PATH)
-def generate_accounts_view(headers_path, templates_path):
-    header_files = load_json_files_from_path(headers_path)
-    refs = _generate_account_refs(header_files)
-
-    grouped_refs = toolz.groupby('table_name', refs)
-    max_refs = max(len(refs) for refs in grouped_refs.values())
-
-    def default_refs():
-        return [('null', f'field{i}_name', 'null', f'field{i}_value') for i in range(max_refs)]
-
-    grouped_refs_fields = dict()
-    for table_name, table_refs in grouped_refs.items():
-        if table_name == 'sbds_core_blocks':
-            continue
-        grouped_refs_fields[table_name] = default_refs()
-        for i, ref in enumerate(table_refs):
-            grouped_refs_fields[table_name][i] = (
-                f"'{ref['field_name']}'",
-                f'field{i}_name',
-                f"{table_name}.{ref['field_name']}",
-                f'field{i}_value')
-
-    env = Environment(loader=FileSystemLoader(templates_path))
-    template = env.get_template('views/account_history_view.tmpl')
-    click.echo(template.render(grouped_refs=grouped_refs_fields))
 
 
 @cli.command(name='generate-operations-view')
@@ -503,20 +474,6 @@ def generate_operations_view(headers_path, templates_path):
             real_tables=real_tables))
 
 
-@cli.command(name='generate-count-operations-view')
-@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
-              default=HEADERS_PATH)
-@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
-              default=TEMPLATES_PATH)
-def generate_count_operations_view(headers_path, templates_path):
-    header_files = load_json_files_from_path(headers_path)
-    operation_classes = iter_operation_classes(header_files)
-    all_tables = [op_table_name(op_name) for op_name, cls in operation_classes]
-    env = Environment(loader=FileSystemLoader(templates_path))
-    template = env.get_template('views/op_counts_view.tmpl')
-    click.echo(template.render(all_tables=all_tables))
-
-
 @cli.command(name='generate-operation')
 @click.argument('op_name', type=click.STRING)
 @click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
@@ -532,7 +489,7 @@ def generate_operation(op_name, headers_path, examples_path, templates_path):
     if not op_name.endswith('_operation'):
         op_name = op_name + '_operation'
 
-    cls = False
+    cls = None
     for header in header_files:
         if op_name not in header['classes']:
             continue
@@ -545,3 +502,35 @@ def generate_operation(op_name, headers_path, examples_path, templates_path):
     env = Environment(loader=FileSystemLoader(templates_path))
     template = env.get_template('operations/operation_class.tmpl')
     click.echo(template.render(**data), file=sys.stdout)
+
+
+@cli.command(name='generate-rules')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
+              default=TEMPLATES_PATH)
+def generate_rules(headers_path, templates_path):
+    header_files = load_json_files_from_path(headers_path)
+    operation_classes = iter_operation_classes(header_files)
+
+    all_tables = [op_table_name(op_name) for op_name, cls in operation_classes]
+
+    env = Environment(loader=FileSystemLoader(templates_path))
+    template = env.get_template('rules.tmpl')
+    click.echo(template.render(all_tables=all_tables))
+
+
+@cli.command(name='generate-roles')
+@click.option('--headers_path', type=click.Path(exists=True, file_okay=False),
+              default=HEADERS_PATH)
+@click.option('--templates_path', type=click.Path(exists=True, file_okay=False),
+              default=TEMPLATES_PATH)
+def generate_roles(headers_path, templates_path):
+    header_files = load_json_files_from_path(headers_path)
+    operation_classes = iter_operation_classes(header_files)
+
+    all_tables = [op_table_name(op_name) for op_name, cls in operation_classes]
+
+    env = Environment(loader=FileSystemLoader(templates_path))
+    template = env.get_template('roles.tmpl')
+    click.echo(template.render(all_tables=all_tables))

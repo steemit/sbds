@@ -1,0 +1,38 @@
+# -*- coding: utf-8 -*-
+
+CREATE_BLOCK_RULES = [
+        'CREATE OR REPLACE RULE rule_update_block AS ON UPDATE TO sbds_core_blocks DO INSTEAD NOTHING;',
+        'CREATE OR REPLACE RULE rule_delete_block AS ON DELETE TO sbds_core_blocks DO INSTEAD NOTHING;',
+]
+
+CREATE_OP_RULES = [
+    {% for table_name in all_tables -%}
+        'CREATE OR REPLACE RULE rule_update_{{ table_name }} AS ON UPDATE TO {{ table_name }} DO INSTEAD NOTHING;',
+        'CREATE OR REPLACE RULE rule_delete_{{ table_name }} AS ON DELETE TO {{ table_name }} DO INSTEAD NOTHING;',
+    {% endfor -%}
+]
+
+
+DROP_BLOCK_RULES = [
+    'DROP RULE IF EXISTS rule_update_block ON sbds_core_blocks CASCADE;',
+    'DROP RULE IF EXISTS rule_delete_block ON sbds_core_blocks CASCADE;'
+]
+
+DROP_OP_RULES = [
+    {% for table_name in all_tables -%}
+        'DROP RULE IF EXISTS rule_update_{{ table_name }} ON {{ table_name }} CASCADE;',
+        'DROP RULE IF EXISTS rule_delete_{{ table_name }} ON {{ table_name }} CASCADE;',
+    {% endfor -%}
+]
+
+
+def create_rules():
+    pass
+
+def drop_rules():
+    pass
+
+
+
+CreateAllRule = create_rules()
+DropRules = drop_rules()

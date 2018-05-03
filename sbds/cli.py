@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import os
 import logging
 import sys
 
 import click
 import structlog
+import uvloop
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+loop = asyncio.get_event_loop()
 
 structlog.configure(
     processors=[
@@ -32,7 +37,6 @@ logging.basicConfig(
 )
 
 cmd_map = {
-    'chain': 'sbds/chain/cli.py',
     'server': 'sbds/server/cli.py',
     'db': 'sbds/storages/db/cli.py',
     'fs': 'sbds/storages/fs/cli.py',
@@ -44,7 +48,7 @@ cmd_map = {
 class MyCLI(click.MultiCommand):
 
     def list_commands(self, ctx):
-        return ['chain', 'server', 'db', 's3', 'fs', 'codegen']
+        return ['server', 'db', 's3', 'fs', 'codegen']
 
     def get_command(self, ctx, name):
         ns = {}
@@ -70,13 +74,11 @@ def sbds_cli():
 
 
 if __name__ == '__main__':
-    import sbds.chain.cli
     import sbds.server.cli
     import sbds.storages.db.cli
     import sbds.storages.s3.cli
     import sbds.storages.fs.cli
     import sbds.codegen.cli
-    sbds_cli.add_command(sbds.chain.cli.cli)
     sbds_cli.add_command(sbds.server.cli.cli)
     sbds_cli.add_command(sbds.storages.db.cli.cli)
     sbds_cli.add_command(sbds.storages.s3.cli.cli)
