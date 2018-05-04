@@ -381,7 +381,8 @@ def operation_class_data(op_name, cls, cache_dir=None, refs=None):
         op_example=op_example,
         op_class_operation_base=op_class_operation_base(cls),
         op_rel_import_dot=op_rel_import_dot(cls),
-        refs=refs
+        refs=refs,
+        op_is_virtual='virtual' in op_table_name(op_name)
     )
 
 

@@ -9,7 +9,6 @@ from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
 from sqlalchemy import UnicodeText
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .. import Base
@@ -49,8 +48,12 @@ class CommentOperation(Base):
         deferrable=True,
         initially='DEFERRED',
         use_alter=True),
-        UniqueConstraint('block_num', 'transaction_num',
-                         'operation_num', 'raw'),
+        Index(
+        'ix_sbds_sbds_op_comments_unique',
+        'block_num',
+        'transaction_num',
+        'operation_num',
+        unique=True),
         Index(
         'ix_sbds_op_comments_accounts',
         'accounts',

@@ -9,8 +9,8 @@ from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import text
 
 from ... import Base
 from ....enums import asset_types_enum
@@ -38,8 +38,16 @@ class ReturnVestingDelegationVirtualOperation(Base):
             deferrable=True,
             initially='DEFERRED',
             use_alter=True),
-        UniqueConstraint('block_num', 'transaction_num', 'operation_num',
-                         'raw'),
+
+        # not yet supported Index('block_num', 'transaction_num',
+        # 'operation_num','op_virtual', unique=True),
+        Index(
+            'ix_sbds_sbds_op_virtual_return_vesting_delegations_unique',
+            'block_num',
+            'transaction_num',
+            'operation_num',
+            text("MD5('raw')"),
+            unique=True),
         Index(
             'ix_sbds_op_virtual_return_vesting_delegations_accounts',
             'accounts',

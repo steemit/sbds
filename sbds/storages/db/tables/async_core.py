@@ -86,6 +86,7 @@ async def prepare_raw_operation_for_storage(raw_operation, loop=None, executor=E
         'timestamp': ciso8601.parse_datetime(raw_operation['timestamp']),
         'trx_id': raw_operation['trx_id'],
         'operation_type': raw_operation['op'][0],
+        #'virtual_op': raw_operation['virtual_op'],
         'raw': sbds.sbds_json.dumps(raw_operation['op'][1])
     }
     op_cls = op_class_for_type(op_dict['operation_type'])

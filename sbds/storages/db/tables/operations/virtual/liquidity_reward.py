@@ -9,8 +9,8 @@ from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import text
 
 from ... import Base
 from ....enums import asset_types_enum
@@ -32,18 +32,27 @@ class LiquidityRewardVirtualOperation(Base):
     """
 
     __tablename__ = 'sbds_op_virtual_liquidity_rewards'
-    __table_args__ = (ForeignKeyConstraint(
-        ['owner'], ['sbds_meta_accounts.name'],
-        deferrable=True,
-        initially='DEFERRED',
-        use_alter=True),
-        UniqueConstraint('block_num', 'transaction_num',
-                         'operation_num', 'raw'),
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ['owner'], ['sbds_meta_accounts.name'],
+            deferrable=True,
+            initially='DEFERRED',
+            use_alter=True),
+
+        # not yet supported Index('block_num', 'transaction_num',
+        # 'operation_num','op_virtual', unique=True),
         Index(
-        'ix_sbds_op_virtual_liquidity_rewards_accounts',
-        'accounts',
-        postgresql_using='gin',
-        postgresql_ops={'accounts': 'jsonb_path_ops'}))
+            'ix_sbds_sbds_op_virtual_liquidity_rewards_unique',
+            'block_num',
+            'transaction_num',
+            'operation_num',
+            text("MD5('raw')"),
+            unique=True),
+        Index(
+            'ix_sbds_op_virtual_liquidity_rewards_accounts',
+            'accounts',
+            postgresql_using='gin',
+            postgresql_ops={'accounts': 'jsonb_path_ops'}))
 
     _id = Column(BigInteger, autoincrement=True, primary_key=True)
     block_num = Column(Integer, nullable=False)

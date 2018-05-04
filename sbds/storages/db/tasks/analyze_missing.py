@@ -19,6 +19,10 @@ async def get_existing_and_missing_count(pool, start_block, end_block):
         existing_count = await conn.fetchval('SELECT COUNT(timestamp) from sbds_core_blocks WHERE block_num >=$1 AND block_num <= $2', start_block, end_block)
     range_count = len(range(start_block, end_block + 1))
     missing_count = range_count - existing_count
+    logger.info(f'get_existing_and_missing_count',
+                existing_count=existing_count,
+                missing_count=missing_count,
+                range_count=range_count)
     return existing_count, missing_count, range_count
 
 
@@ -28,15 +32,18 @@ async def get_last_irreversible_block_num(steemd_http_url):
         data=f'{{"id":1,"jsonrpc":"2.0","method":"get_dynamic_global_properties"}}'.encode())
     response.raise_for_status()
     jsonrpc_response = response.json()
-    return jsonrpc_response['result']['last_irreversible_block_num']
+    libn = jsonrpc_response['result']['last_irreversible_block_num']
+    logger.info(f'get_last_irreversible_block_num', last_irreversible_block_num=libn)
+    return libn
 
 
 async def collect_missing_block_nums(pool, end_block, missing_count, start_block=None):
     start_block = start_block or 1
     complete_block_nums = range(start_block, end_block + 1)
-
+    logger.debug('collect_missing_block_nums', end_block=end_block,
+                 start_block=start_block)
     if missing_count == end_block:
-        return complete_block_nums
+        return list(complete_block_nums)
 
     query = '''
     SELECT generate_series($1::int,$2::int)
@@ -44,12 +51,10 @@ async def collect_missing_block_nums(pool, end_block, missing_count, start_block
     SELECT block_num from sbds_core_blocks where block_num BETWEEN $3 AND $4;
     '''
 
-    missing = []
     async with pool.acquire() as conn:
-        async with conn.transaction():
-            async for record in conn.cursor(query, start_block, end_block, start_block, end_block):
-                missing.append(record[0])
-    return missing
+        records = await conn.fetch(query, start_block, end_block, start_block, end_block)
+
+    return [r[0] for r in records]
 
 
 async def async_task_collect_missing_block_nums(database_url=None, steemd_http_url=None, start_block=None, end_block=None):
@@ -57,6 +62,7 @@ async def async_task_collect_missing_block_nums(database_url=None, steemd_http_u
         start_block = start_block or 1
         if end_block is None or end_block <= 0:
             end_block = await get_last_irreversible_block_num(steemd_http_url)
+            logger.info(f'last irreversible block number: {end_block}')
         existing_count, missing_count, range_count = await get_existing_and_missing_count(pool, start_block, end_block)
         missing_block_nums = await collect_missing_block_nums(pool, end_block, missing_count, start_block=start_block)
 

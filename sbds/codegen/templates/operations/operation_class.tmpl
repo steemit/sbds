@@ -3,6 +3,7 @@ import dateutil.parser
 
 from funcy import flatten
 from sqlalchemy import DateTime
+from sqlalchemy import func
 from sqlalchemy import String
 from sqlalchemy import Column
 from sqlalchemy import Numeric
@@ -20,6 +21,7 @@ from sqlalchemy import UniqueConstraint
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import BYTEA
+from sqlalchemy.sql import text
 
 import sbds.sbds_json
 
@@ -51,7 +53,12 @@ class {{op_class_name}}(Base):
             deferrable=True, initially='DEFERRED', use_alter=True),
             {% endif %}
         {% endfor -%}
-        UniqueConstraint('block_num', 'transaction_num', 'operation_num','raw'),
+        {%- if op_is_virtual %}
+        # not yet supported Index('block_num', 'transaction_num', 'operation_num','op_virtual', unique=True),
+        Index('ix_sbds_{{ op_table_name }}_unique', 'block_num', 'transaction_num', 'operation_num', text("MD5('raw')"), unique=True),
+        {%- else -%}
+        Index('ix_sbds_{{ op_table_name }}_unique', 'block_num', 'transaction_num', 'operation_num', unique=True),
+        {%  endif -%}
         {%  if refs|length > 0 -%}
         Index('ix_{{op_table_name}}_accounts','accounts', postgresql_using='gin', postgresql_ops={'accounts':'jsonb_path_ops'})
         {% endif %}

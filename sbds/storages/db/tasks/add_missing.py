@@ -2,44 +2,31 @@
 import asyncio
 import functools
 import itertools as it
-import os
-
 import multiprocessing
-from multiprocessing import SimpleQueue
+import os
+import time
+
 from concurrent.futures import ProcessPoolExecutor
 
+import aiohttp
 import asyncpg
-
-
-from tqdm import tqdm
-
+import asyncpg.exceptions
 import funcy
-
-from sqlalchemy.engine.url import make_url
 import rapidjson as json
 import structlog
-import aiohttp
 
 from aiohttp.connector import TCPConnector
-import asyncpg.exceptions
+from tqdm import tqdm
 
-from sbds.storages.db.tables import Base
-from sbds.storages.db.tables import init_tables
-from sbds.storages.db.tables import test_connection
-from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
 from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
-from sbds.storages.db.utils import isolated_engine
+from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
 from sbds.storages.db.tables.operations import combined_ops_db_table_map
+from sbds.storages.db.utils import isolated_engine
 from sbds.utils import chunkify
 
 
-import sbds.sbds_logging
-
-# pylint: skip-file
 logger = structlog.get_logger(__name__)
-
 m = multiprocessing.Manager()
-
 RESULTS_Q = m.Queue()
 
 STATEMENT_CACHE = {
@@ -61,35 +48,11 @@ def get_op_insert_stmt(prepared_op):
     return STATEMENT_CACHE[op_type]
 
 
-def create_asyncpg_pool(database_url, loop=None, min_size=10, max_size=10, **kwargs):
+def create_asyncpg_pool(database_url, loop=None, max_size=10, **kwargs):
     loop = loop or asyncio.get_event_loop()
     return loop.run_until_complete(asyncpg.create_pool(database_url,
-                                                       min_size=min_size,
                                                        max_size=max_size,
                                                        **kwargs))
-
-
-def as_completed_limit_concurrent(coros_or_futures, concurrency_limit):
-    futures = [
-        asyncio.ensure_future(c)
-        for c in it.islice(coros_or_futures, 0, concurrency_limit)
-    ]
-
-    async def next_done():
-        while True:
-            await asyncio.sleep(0)
-            for f in futures:
-                if f.done():
-                    futures.remove(f)
-                    try:
-                        new_future = next(coros_or_futures)
-                        futures.append(
-                            asyncio.ensure_future(new_future))
-                    except StopIteration:
-                        pass
-                    return f.result()
-    while len(futures) > 0:
-        yield next_done()
 
 
 def load_db_meta(database_url):
@@ -204,7 +167,6 @@ async def process_block(block_num, raw_block, raw_ops, pool, loop=None):
 
 
 async def process_block_chunk(block_num_batch, url, client, pool, loop=None):
-    #logger.debug('process_block_chunk', block_num_batch_len=len(block_num_batch))
     fetched_blocks_and_ops = await fetch_blocks_and_ops_in_blocks(url, client, block_num_batch)
     block_futures = [process_block(
         block_num,
@@ -221,23 +183,25 @@ async def prepare_operation_for_storage(raw_operation, loop=None):
 
 
 async def process_blocks(missing_block_nums, url, client, pool, concurrency, jsonrpc_batch_size, loop=None, results_queue=None):
-    logger.debug('processing blocks', async_task_concurrency_limit=concurrency,
-                 jsonrpc_batch_size=jsonrpc_batch_size)
+    _logger = logger.bind(pid=os.getpid())
     block_num_batches = chunkify(missing_block_nums, jsonrpc_batch_size)
-    futures = (
+    _logger.debug('process_blocks', async_task_concurrency_limit=concurrency,
+                  jsonrpc_batch_size=jsonrpc_batch_size)
+    coros = (
         process_block_chunk(
             block_num_batch,
             url,
             client,
             pool,
             loop=loop) for block_num_batch in block_num_batches)
-
-    for results_future in as_completed_limit_concurrent(futures, concurrency):
-        results = await results_future
-        results_queue.put_nowait(results)
-        if results_queue:
-            #logger.debug('process_blocks', success_count=len(results))
-            pass
+    _logger.debug('process_blocks batching coros')
+    for coros_batch in chunkify(coros, 500):
+        futures = [asyncio.ensure_future(c) for c in coros_batch]
+        _logger.debug('scheduled coros batch', fut_cnt=len(futures), coros_cnt=len(coros_batch))
+        for results_future in asyncio.as_completed(futures):
+            results = await results_future
+            if results_queue:
+                results_queue.put_nowait(results)
 
 
 def split_into_num_chunks(seq=None, num_chunks=None):
@@ -249,15 +213,17 @@ def _process_pool_executor_target(missing_block_nums,
                                   steemd_http_url=None,
                                   concurrency=None,
                                   jsonrpc_batch_size=None,
-                                  tcp_connection_limit=100,
+                                  tcp_connection_limit=None,
+                                  db_connection_limit=None,
                                   results_queue=None
                                   ):
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     loop = asyncio.get_event_loop()
+    _logger = logger.bind(pid=os.getpid())
 
     CONNECTOR = TCPConnector(loop=loop, limit=tcp_connection_limit)
-    logger.debug('creating aiohttp TCPConnector', tcp_connection_limit=tcp_connection_limit)
+    _logger.debug('creating aiohttp TCPConnector', tcp_connection_limit=tcp_connection_limit)
     aiohttp_session = aiohttp.ClientSession(loop=loop,
                                             connector=CONNECTOR,
                                             json_serialize=json.dumps,
@@ -265,7 +231,7 @@ def _process_pool_executor_target(missing_block_nums,
                                                 'Content-Type': 'application/json'
                                             })
 
-    pool = create_asyncpg_pool(database_url)
+    pool = create_asyncpg_pool(database_url, max_size=db_connection_limit)
     try:
         loop.run_until_complete(process_blocks(missing_block_nums,
                                                steemd_http_url,
@@ -291,23 +257,31 @@ def task_add_missing_blocks(database_url=None,
                             missing_block_nums=None,
                             existing_count=None,
                             missing_count=None,
+                            tcp_connection_limit=None,
+                            db_connection_limit=None,
                             range_count=None):
 
     num_procs = num_procs or os.cpu_count()
     block_nums_chunks = split_into_num_chunks(missing_block_nums, num_procs)
     block_nums_per_proc = len(block_nums_chunks[0])
 
+    tcp_connection_limit = 50
+    db_connection_limit = 10
     logger.info('initializing process pool',
                 num_procs=num_procs,
                 block_nums_per_proc=block_nums_per_proc,
-                tmbn=type(missing_block_nums),
-                lmbn=len(missing_block_nums))
+                jsonrpc_batch_size=jsonrpc_batch_size,
+                concurrency=concurrency,
+                tcp_connection_limit=tcp_connection_limit,
+                db_connection_limit=db_connection_limit)
 
     proc_func = functools.partial(_process_pool_executor_target,
                                   database_url=database_url,
                                   steemd_http_url=steemd_http_url,
                                   concurrency=concurrency,
                                   jsonrpc_batch_size=jsonrpc_batch_size,
+                                  tcp_connection_limit=tcp_connection_limit,
+                                  db_connection_limit=db_connection_limit,
                                   results_queue=RESULTS_Q)
 
     blocks_progress_bar = tqdm(initial=existing_count,
@@ -322,7 +296,7 @@ def task_add_missing_blocks(database_url=None,
         results_future = proc_pool.map(proc_func, block_nums_chunks,
                                        chunksize=1)
         while True:
-            result = RESULTS_Q.get(timeout=20)
+            result = RESULTS_Q.get(timeout=80)
             #logger.debug('result', result_len=len(result))
             blocks_progress_bar.update(jsonrpc_batch_size)
 

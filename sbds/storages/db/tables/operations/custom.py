@@ -8,7 +8,6 @@ from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
 from sqlalchemy import UnicodeText
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .. import Base
@@ -35,13 +34,17 @@ class CustomOperation(Base):
     """
 
     __tablename__ = 'sbds_op_customs'
-    __table_args__ = (UniqueConstraint('block_num', 'transaction_num',
-                                       'operation_num', 'raw'),
-                      Index(
-                          'ix_sbds_op_customs_accounts',
-                          'accounts',
-                          postgresql_using='gin',
-                          postgresql_ops={'accounts': 'jsonb_path_ops'}))
+    __table_args__ = (Index(
+        'ix_sbds_sbds_op_customs_unique',
+        'block_num',
+        'transaction_num',
+        'operation_num',
+        unique=True),
+        Index(
+        'ix_sbds_op_customs_accounts',
+        'accounts',
+        postgresql_using='gin',
+        postgresql_ops={'accounts': 'jsonb_path_ops'}))
 
     _id = Column(BigInteger, autoincrement=True, primary_key=True)
     block_num = Column(Integer, nullable=False)

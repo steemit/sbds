@@ -8,7 +8,6 @@ from sqlalchemy import Index
 from sqlalchemy import Integer
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .. import Base
@@ -40,8 +39,12 @@ class FeedPublishOperation(Base):
         deferrable=True,
         initially='DEFERRED',
         use_alter=True),
-        UniqueConstraint('block_num', 'transaction_num',
-                         'operation_num', 'raw'),
+        Index(
+        'ix_sbds_sbds_op_feed_publishes_unique',
+        'block_num',
+        'transaction_num',
+        'operation_num',
+        unique=True),
         Index(
         'ix_sbds_op_feed_publishes_accounts',
         'accounts',

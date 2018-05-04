@@ -9,7 +9,6 @@ from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
 from .. import Base
@@ -40,8 +39,12 @@ class WithdrawVestingOperation(Base):
         deferrable=True,
         initially='DEFERRED',
         use_alter=True),
-        UniqueConstraint('block_num', 'transaction_num',
-                         'operation_num', 'raw'),
+        Index(
+        'ix_sbds_sbds_op_withdraw_vestings_unique',
+        'block_num',
+        'transaction_num',
+        'operation_num',
+        unique=True),
         Index(
         'ix_sbds_op_withdraw_vestings_accounts',
         'accounts',

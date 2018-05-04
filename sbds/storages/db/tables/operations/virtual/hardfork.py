@@ -3,12 +3,13 @@
 from sqlalchemy import BigInteger
 from sqlalchemy import Column
 from sqlalchemy import DateTime
+from sqlalchemy import Index
 from sqlalchemy import Integer
 from sqlalchemy import Numeric
 from sqlalchemy import SmallInteger
 from sqlalchemy import Text
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import text
 
 from ... import Base
 from ....enums import operation_types_enum
@@ -26,8 +27,16 @@ class HardforkVirtualOperation(Base):
     """
 
     __tablename__ = 'sbds_op_virtual_hardforks'
-    __table_args__ = (UniqueConstraint('block_num', 'transaction_num',
-                                       'operation_num', 'raw'), )
+    __table_args__ = (
+        # not yet supported Index('block_num', 'transaction_num',
+        # 'operation_num','op_virtual', unique=True),
+        Index(
+            'ix_sbds_sbds_op_virtual_hardforks_unique',
+            'block_num',
+            'transaction_num',
+            'operation_num',
+            text("MD5('raw')"),
+            unique=True), )
 
     _id = Column(BigInteger, autoincrement=True, primary_key=True)
     block_num = Column(Integer, nullable=False)
