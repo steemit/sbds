@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import asyncio.queues
 import functools
 import itertools as it
 import multiprocessing
 import os
 import time
 
+from collections import deque
 from concurrent.futures import ProcessPoolExecutor
+
 
 import aiohttp
 import asyncpg
@@ -18,10 +21,13 @@ import structlog
 from aiohttp.connector import TCPConnector
 from tqdm import tqdm
 
+import sbds.sbds_json
+
 from sbds.storages.db.tables.async_core import prepare_raw_block_for_storage
 from sbds.storages.db.tables.async_core import prepare_raw_operation_for_storage
 from sbds.storages.db.tables.operations import combined_ops_db_table_map
 from sbds.storages.db.utils import isolated_engine
+
 from sbds.utils import chunkify
 
 
@@ -45,14 +51,38 @@ def get_op_insert_stmt(prepared_op):
         f'${i}' for i in range(1, len(prepared_op.keys()) + 1))
     columns_str = ', '.join(f'"{k}"' for k in prepared_op.keys())
     STATEMENT_CACHE[op_type] = f'INSERT INTO {table} ({columns_str}) VALUES({values_str}) ON CONFLICT DO NOTHING'
+    #logger.debug('get_op_insert_stmt', op_type=op_type, statement=STATEMENT_CACHE[op_type])
     return STATEMENT_CACHE[op_type]
+
+
+async def init_conn(conn):
+    # logger.debug('init_conn')
+    await conn.set_type_codec(
+        'jsonb',
+        encoder=sbds.sbds_json.dumps,
+        decoder=sbds.sbds_json.loads,
+        schema='pg_catalog'
+    )
+    #logger.debug('init_conn set jsonb type codec' )
+    await conn.set_type_codec(
+        'json',
+        encoder=sbds.sbds_json.dumps,
+        decoder=sbds.sbds_json.loads,
+        schema='pg_catalog'
+    )
+    #logger.debug('init_conn set json type codec')
 
 
 def create_asyncpg_pool(database_url, loop=None, max_size=10, **kwargs):
     loop = loop or asyncio.get_event_loop()
     return loop.run_until_complete(asyncpg.create_pool(database_url,
                                                        max_size=max_size,
+                                                       init=init_conn,
                                                        **kwargs))
+
+
+def split_into_num_chunks(seq=None, num_chunks=None):
+    return [seq[i::num_chunks] for i in range(num_chunks)]
 
 
 def load_db_meta(database_url):
@@ -166,46 +196,134 @@ async def process_block(block_num, raw_block, raw_ops, pool, loop=None):
     return (block_num, raw_block, prepared_block, raw_ops, prepared_ops)
 
 
-async def process_block_chunk(block_num_batch, url, client, pool, loop=None):
-    fetched_blocks_and_ops = await fetch_blocks_and_ops_in_blocks(url, client, block_num_batch)
-    block_futures = [process_block(
-        block_num,
-        raw_block,
-        raw_ops_in_block,
-        pool,
-        loop=loop) for block_num, raw_block, raw_ops_in_block in fetched_blocks_and_ops]
-    return await asyncio.gather(*block_futures)
-
-
 # --- Operations ---
-async def prepare_operation_for_storage(raw_operation, loop=None):
-    return await prepare_raw_operation_for_storage(raw_operation)
-
-
-async def process_blocks(missing_block_nums, url, client, pool, concurrency, jsonrpc_batch_size, loop=None, results_queue=None):
+async def process_blocks(missing_block_nums, url, client, pool, _concurrency, jsonrpc_batch_size,
+                         loop=None, results_queue=None):
     _logger = logger.bind(pid=os.getpid())
     block_num_batches = chunkify(missing_block_nums, jsonrpc_batch_size)
-    _logger.debug('process_blocks', async_task_concurrency_limit=concurrency,
+    _logger.debug('process_blocks', async_task_concurrency_limit=_concurrency,
                   jsonrpc_batch_size=jsonrpc_batch_size)
-    coros = (
-        process_block_chunk(
-            block_num_batch,
-            url,
-            client,
-            pool,
-            loop=loop) for block_num_batch in block_num_batches)
-    _logger.debug('process_blocks batching coros')
-    for coros_batch in chunkify(coros, 500):
-        futures = [asyncio.ensure_future(c) for c in coros_batch]
-        _logger.debug('scheduled coros batch', fut_cnt=len(futures), coros_cnt=len(coros_batch))
-        for results_future in asyncio.as_completed(futures):
-            results = await results_future
-            if results_queue:
-                results_queue.put_nowait(results)
 
+    fetch_coros = (fetch_blocks_and_ops_in_blocks(url, client, block_num_batch)
+                   for block_num_batch in block_num_batches)
 
-def split_into_num_chunks(seq=None, num_chunks=None):
-    return [seq[i::num_chunks] for i in range(num_chunks)]
+    to_fetch = set()
+    window_size = 5000
+    fetch_timings = deque(maxlen=window_size)
+    store_timings = deque(maxlen=window_size)
+    timings = dict()
+
+    done = asyncio.queues.Queue(loop=loop)
+
+    concurrency_low = _concurrency - 1
+    concurrency_normal = _concurrency
+    concurrency_high = _concurrency + 1
+    concurrency = concurrency_normal
+
+    def _add_fetch_task(fetch_coros=None, to_fetch=None, loop=None):
+        coro = next(fetch_coros)
+        f = asyncio.ensure_future(coro, loop=loop)
+        timings[f] = {'fetch_start': time.perf_counter()}
+        f.add_done_callback(on_fetch_completion)
+        to_fetch.add(f)
+    add_fetch_task = functools.partial(
+        _add_fetch_task,
+        fetch_coros=fetch_coros,
+        to_fetch=to_fetch,
+        loop=loop)
+
+    def _on_fetch_completion(f, to_fetch=None, pool=None, done=None, loop=None):
+        fetch_timings.append(time.perf_counter() - timings[f]['fetch_start'])
+        to_fetch.remove(f)
+        del timings[f]
+        try:
+            fetch_block_op_results = f.result()
+        except Exception as e:
+            logger.error('_on_fetch_completion', e=e)
+            return
+        for block_num, block, ops in fetch_block_op_results:
+            f2 = asyncio.ensure_future(process_block(block_num, block, ops, pool, loop=loop))
+            timings[f2] = {'store_start': time.perf_counter()}
+            f2.add_done_callback(lambda f: done.put_nowait(f))
+
+    on_fetch_completion = functools.partial(
+        _on_fetch_completion,
+        to_fetch=to_fetch,
+        pool=pool,
+        done=done,
+        loop=loop)
+
+    # schedule inital batch of coros
+    while len(to_fetch) < concurrency:
+        try:
+            add_fetch_task()
+        except StopIteration:
+            return
+
+    logger.debug('process_blocks scheduled initial batch of coros', concurrency=concurrency)
+
+    loop_count = 0
+    loop_start = time.perf_counter()
+    block_rates = deque(maxlen=3)
+
+    while True:
+        loop_count += jsonrpc_batch_size
+        f = await done.get()
+        try:
+            store_timings.append(time.perf_counter() - timings[f]['store_start'])
+            del timings[f]
+            result = f.result()
+
+        except KeyboardInterrupt as e:
+            raise e
+
+        except Exception as e:
+            logger.error('process_blocks result error', e=e, exc_info=True)
+            raise e
+
+        if loop_count % 500 == 0:
+            results_queue.put_nowait(500)
+
+            if loop_count >= window_size:
+
+                loop_elapsed = time.perf_counter() - loop_start
+
+                avg_batch_fetch_time = sum(fetch_timings) / window_size
+                avg_block_ops_fetch_time = avg_batch_fetch_time / jsonrpc_batch_size
+                avg_store_time = sum(store_timings) / window_size
+                avg_block_time = avg_block_ops_fetch_time + avg_store_time
+                block_rate = window_size / loop_elapsed
+                block_rates.append(block_rate)
+                avg_block_rate = sum(block_rates) / len(block_rates)
+
+                if avg_store_time > 1:
+                    concurrency = concurrency_low
+                elif block_rate < avg_block_rate:
+                    concurrency = concurrency_high
+
+                logger.debug('loop',
+                             concurrency=concurrency,
+                             jsonrpc_batch_size=jsonrpc_batch_size,
+                             done_size=done.qsize(),
+                             to_fetch=len(to_fetch),
+                             timing_window_size=window_size,
+                             avg_batch_fetch_time=avg_batch_fetch_time,
+                             avg_block_ops_fetch_time=avg_block_ops_fetch_time,
+                             avg_store_time=avg_store_time,
+                             avg_block_time=avg_block_time,
+                             loop_elapsed=loop_elapsed,
+                             block_rate=block_rate,
+                             avg_block_rate=avg_block_rate
+                             )
+
+                loop_count = 0
+                loop_start = time.perf_counter()
+
+        while len(to_fetch) < concurrency:
+            try:
+                add_fetch_task()
+            except StopIteration:
+                return
 
 
 def _process_pool_executor_target(missing_block_nums,
@@ -265,7 +383,7 @@ def task_add_missing_blocks(database_url=None,
     block_nums_chunks = split_into_num_chunks(missing_block_nums, num_procs)
     block_nums_per_proc = len(block_nums_chunks[0])
 
-    tcp_connection_limit = 50
+    tcp_connection_limit = concurrency + 10
     db_connection_limit = 10
     logger.info('initializing process pool',
                 num_procs=num_procs,
@@ -298,7 +416,4 @@ def task_add_missing_blocks(database_url=None,
         while True:
             result = RESULTS_Q.get(timeout=80)
             #logger.debug('result', result_len=len(result))
-            blocks_progress_bar.update(jsonrpc_batch_size)
-
-        for result in results_future:
-            print(result)
+            blocks_progress_bar.update(result)
